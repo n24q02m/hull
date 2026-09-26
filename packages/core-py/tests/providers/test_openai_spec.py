@@ -124,6 +124,39 @@ async def test_chat_wire_shape() -> None:
         await client.aclose()
 
 
+async def test_chat_null_content_falls_back_to_reasoning() -> None:
+    """Reasoning models can return null content (budget spent on reasoning);
+    the stringified literal "None" used to leak out as the completion text.
+    """
+    fallbacks: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        fallbacks.append(body["model"])
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"role": "assistant", "content": None, "reasoning_content": "importance: 0.7"}}]},
+        )
+
+    client = OpenAICompatClient(_cell(task="chat"), transport=httpx.MockTransport(handler))
+    try:
+        assert await client.chat([{"role": "user", "content": "ping"}]) == "importance: 0.7"
+    finally:
+        await client.aclose()
+    assert fallbacks == ["test-model"]  # exactly one request per chat()
+
+
+async def test_chat_null_everything_returns_empty() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"choices": [{"message": {"role": "assistant", "content": None}}]})
+
+    client = OpenAICompatClient(_cell(task="chat"), transport=httpx.MockTransport(handler))
+    try:
+        assert await client.chat([{"role": "user", "content": "ping"}]) == ""
+    finally:
+        await client.aclose()
+
+
 async def test_rerank_wire_shape() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == "/v1/rerank"

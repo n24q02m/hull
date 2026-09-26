@@ -121,7 +121,13 @@ class OpenAICompatClient:
         """POST {base_url}/chat/completions → assistant message content."""
         payload = {"model": self.cell.model, "messages": messages, **options}
         data = await self._post("/chat/completions", payload)
-        return str(data["choices"][0]["message"]["content"])
+        message = data["choices"][0]["message"]
+        content = message.get("content")
+        if not content:
+            # Reasoning models may emit everything as reasoning (null content)
+            # when the token budget is exhausted before any answer text.
+            content = message.get("reasoning_content") or ""
+        return str(content)
 
     async def rerank(self, query: str, documents: list[str], top_n: int | None = None) -> list[dict]:
         """POST {base_url}/rerank → results sorted by relevance score."""

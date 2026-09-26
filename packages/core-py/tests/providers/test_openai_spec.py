@@ -99,6 +99,19 @@ async def test_embeddings_dimensions_and_extra_passthrough() -> None:
     assert vectors == [[0.1]]
 
 
+async def test_embeddings_reserved_keys_rejected() -> None:
+    client = OpenAICompatClient(
+        _cell(), transport=httpx.MockTransport(lambda request: httpx.Response(200, json={"data": []}))
+    )
+    try:
+        with pytest.raises(ValueError, match="cannot override"):
+            await client.embeddings(["x"], model="evil-model")
+        with pytest.raises(ValueError, match="cannot override"):
+            await client.embeddings(["x"], input=["evil"])
+    finally:
+        await client.aclose()
+
+
 async def test_chat_wire_shape() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == "/v1/chat/completions"

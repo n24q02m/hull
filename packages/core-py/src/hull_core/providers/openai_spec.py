@@ -103,9 +103,13 @@ class OpenAICompatClient:
         """POST {base_url}/embeddings → ordered embedding vectors.
 
         ``dimensions`` maps to the OpenAI-spec ``dimensions`` field (storage
-        width selection, e.g. Cohere embed-v4.0 width). ``extra`` carries
-        provider-specific body fields verbatim (e.g. Cohere ``input_type``).
+        width selection, e.g. Cohere embed-v4.0 width) and is omitted when
+        ``None``. ``extra`` carries provider-specific body fields verbatim
+        (e.g. Cohere ``input_type``); ``model``/``input`` are reserved — the
+        cell always wins, an override attempt raises.
         """
+        if "model" in extra or "input" in extra:
+            raise ValueError("embeddings() extra fields cannot override model/input")
         payload: dict = {"model": self.cell.model, "input": texts, **extra}
         if dimensions is not None:
             payload["dimensions"] = dimensions

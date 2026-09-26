@@ -10,6 +10,7 @@ Ollama/vLLM. Endpoints: ``/embeddings``, ``/chat/completions``, ``/rerank``
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 import httpx
 
@@ -92,9 +93,23 @@ class OpenAICompatClient:
             raise ProviderError(resp.status_code, resp.text)
         return resp.json()
 
-    async def embeddings(self, texts: list[str]) -> list[list[float]]:
-        """POST {base_url}/embeddings → ordered embedding vectors."""
-        data = await self._post("/embeddings", {"model": self.cell.model, "input": texts})
+    async def embeddings(
+        self,
+        texts: list[str],
+        *,
+        dimensions: int | None = None,
+        **extra: Any,
+    ) -> list[list[float]]:
+        """POST {base_url}/embeddings → ordered embedding vectors.
+
+        ``dimensions`` maps to the OpenAI-spec ``dimensions`` field (storage
+        width selection, e.g. Cohere embed-v4.0 width). ``extra`` carries
+        provider-specific body fields verbatim (e.g. Cohere ``input_type``).
+        """
+        payload: dict = {"model": self.cell.model, "input": texts, **extra}
+        if dimensions is not None:
+            payload["dimensions"] = dimensions
+        data = await self._post("/embeddings", payload)
         items = sorted(data["data"], key=lambda item: item["index"])
         return [list(item["embedding"]) for item in items]
 

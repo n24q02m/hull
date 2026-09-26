@@ -72,6 +72,33 @@ async def test_embeddings_wire_shape() -> None:
     assert vectors == [[0.1, 0.2], [0.3, 0.4]]
 
 
+async def test_embeddings_dimensions_and_extra_passthrough() -> None:
+    seen: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["body"] = json.loads(request.content)
+        return httpx.Response(
+            200,
+            json={"data": [{"index": 0, "embedding": [0.1]}]},
+        )
+
+    client = OpenAICompatClient(_cell(), transport=httpx.MockTransport(handler))
+    try:
+        vectors = await client.embeddings(
+            ["hello"], dimensions=1024, input_type="search_query"
+        )
+    finally:
+        await client.aclose()
+    # storage-width selection + provider-specific body fields travel verbatim
+    assert seen["body"] == {
+        "model": "test-model",
+        "input": ["hello"],
+        "dimensions": 1024,
+        "input_type": "search_query",
+    }
+    assert vectors == [[0.1]]
+
+
 async def test_chat_wire_shape() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == "/v1/chat/completions"

@@ -1,0 +1,961 @@
+"""Tests for MangaDex API adapter -- models, URL construction, and mocked HTTP."""
+
+from __future__ import annotations
+
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import httpx
+import pytest
+
+from hull_web.adapters.mangadex import (
+    ChapterImages,
+    ChapterInfo,
+    MangaDexClient,
+    MangaInfo,
+    _extract_cover_url,
+)
+
+# ---------------------------------------------------------------------------
+# Pydantic model tests
+# ---------------------------------------------------------------------------
+
+
+class TestMangaInfo:
+    """Test MangaInfo model validation and defaults."""
+
+    def test_minimal_fields(self):
+        m = MangaInfo(id="abc-123", title="Test Manga")
+        assert m.id == "abc-123"
+        assert m.title == "Test Manga"
+        assert m.alt_titles == []
+        assert m.description == ""
+        assert m.cover_url is None
+        assert m.status == ""
+        assert m.year is None
+
+    def test_all_fields(self):
+        m = MangaInfo(
+            id="abc-123",
+            title="One Piece",
+            alt_titles=["OP", "Wan Piisu"],
+            description="Pirates adventure",
+            cover_url="https://uploads.mangadex.org/covers/abc-123/cover.jpg",
+            status="ongoing",
+            year=1997,
+        )
+        assert m.title == "One Piece"
+        assert len(m.alt_titles) == 2
+        assert m.year == 1997
+        assert m.cover_url is not None
+
+    def test_serialization_roundtrip(self):
+        original = MangaInfo(id="x", title="T", alt_titles=["A"], year=2020)
+        data = original.model_dump()
+        restored = MangaInfo.model_validate(data)
+        assert restored == original
+
+
+class TestChapterInfo:
+    """Test ChapterInfo model validation and defaults."""
+
+    def test_minimal_fields(self):
+        c = ChapterInfo(id="ch-1")
+        assert c.id == "ch-1"
+        assert c.chapter is None
+        assert c.title is None
+        assert c.volume is None
+        assert c.language == ""
+        assert c.pages == 0
+
+    def test_all_fields(self):
+        c = ChapterInfo(
+            id="ch-1",
+            chapter="42",
+            title="The Answer",
+            volume="5",
+            language="en",
+            pages=18,
+        )
+        assert c.chapter == "42"
+        assert c.pages == 18
+
+
+class TestChapterImages:
+    """Test ChapterImages model validation."""
+
+    def test_construction(self):
+        ci = ChapterImages(
+            base_url="https://example.com",
+            hash="abc123",
+            data=["page1.png", "page2.png"],
+            data_saver=["page1.jpg", "page2.jpg"],
+        )
+        assert ci.base_url == "https://example.com"
+        assert ci.hash == "abc123"
+        assert len(ci.data) == 2
+        assert len(ci.data_saver) == 2
+
+    def test_empty_lists(self):
+        ci = ChapterImages(base_url="", hash="", data=[], data_saver=[])
+        assert ci.data == []
+        assert ci.data_saver == []
+
+    def test_images_property(self):
+        ci = ChapterImages(
+            base_url="https://example.com",
+            hash="abc123",
+            data=["1.png", "2.png"],
+            data_saver=["1.jpg", "2.jpg"],
+        )
+        result = ci.images
+        assert len(result) == 2
+        assert result[0].url == "https://example.com/data/abc123/1.png"
+        assert result[1].url == "https://example.com/data/abc123/2.png"
+        assert any(img.url.endswith("1.png") for img in result)
+        assert any(img.url.endswith("2.png") for img in result)
+
+    def test_images_saver_property(self):
+        ci = ChapterImages(
+            base_url="https://example.com",
+            hash="abc123",
+            data=["1.png"],
+            data_saver=["1.jpg"],
+        )
+        result = ci.images_saver
+        assert len(result) == 1
+        assert result[0].url == "https://example.com/data-saver/abc123/1.jpg"
+
+
+# ---------------------------------------------------------------------------
+# URL construction helpers
+# ---------------------------------------------------------------------------
+
+
+class TestExtractCoverUrl:
+    """Test _extract_cover_url helper."""
+
+    def test_extracts_from_relationships(self):
+        item = {
+            "id": "manga-uuid",
+            "relationships": [
+                {"type": "author", "id": "auth-1"},
+                {
+                    "type": "cover_art",
+                    "id": "cover-1",
+                    "attributes": {"fileName": "cover.jpg"},
+                },
+            ],
+        }
+        url = _extract_cover_url(item)
+        assert url == "https://uploads.mangadex.org/covers/manga-uuid/cover.jpg"
+
+    def test_returns_none_when_no_cover_art(self):
+        item = {
+            "id": "manga-uuid",
+            "relationships": [{"type": "author", "id": "auth-1"}],
+        }
+        assert _extract_cover_url(item) is None
+
+    def test_returns_none_when_no_relationships(self):
+        item = {"id": "manga-uuid", "relationships": []}
+        assert _extract_cover_url(item) is None
+
+    def test_returns_none_when_empty_filename(self):
+        item = {
+            "id": "manga-uuid",
+            "relationships": [
+                {
+                    "type": "cover_art",
+                    "id": "cover-1",
+                    "attributes": {"fileName": ""},
+                },
+            ],
+        }
+        assert _extract_cover_url(item) is None
+
+    def test_returns_none_when_no_attributes(self):
+        item = {
+            "id": "manga-uuid",
+            "relationships": [{"type": "cover_art", "id": "cover-1"}],
+        }
+        assert _extract_cover_url(item) is None
+
+
+# ---------------------------------------------------------------------------
+# MangaDexClient -- construction and config
+# ---------------------------------------------------------------------------
+
+
+class TestMangaDexClientConfig:
+    """Test client construction and configuration."""
+
+    def test_default_user_agent(self):
+        client = MangaDexClient()
+        assert client._user_agent == "KnowledgePrism/1.0"
+
+    def test_custom_user_agent(self):
+        client = MangaDexClient(user_agent="TestAgent/2.0")
+        assert client._user_agent == "TestAgent/2.0"
+
+    def test_base_url(self):
+        assert MangaDexClient.BASE_URL == "https://api.mangadex.org"
+
+    def test_rate_limit_default(self):
+        assert MangaDexClient.RATE_LIMIT_RPS == 4
+
+    def test_initial_last_request_time(self):
+        client = MangaDexClient()
+        assert client._last_request_time == 0.0
+
+
+# ---------------------------------------------------------------------------
+# MangaDexClient -- mocked HTTP calls
+# ---------------------------------------------------------------------------
+
+# Fixture data mocking the MangaDex API responses
+
+MOCK_MANGA_RESPONSE = {
+    "result": "ok",
+    "response": "entity",
+    "data": {
+        "id": "manga-001",
+        "type": "manga",
+        "attributes": {
+            "title": {"en": "One Piece"},
+            "altTitles": [{"ja": "Wan Piisu"}, {"ko": "Won Piseu"}],
+            "description": {"en": "A pirate adventure."},
+            "status": "ongoing",
+            "year": 1997,
+            "contentRating": "safe",
+        },
+        "relationships": [
+            {
+                "type": "cover_art",
+                "id": "cover-001",
+                "attributes": {"fileName": "one-piece-cover.jpg"},
+            },
+        ],
+    },
+}
+
+MOCK_SEARCH_RESPONSE = {
+    "result": "ok",
+    "response": "collection",
+    "data": [
+        MOCK_MANGA_RESPONSE["data"],
+        {
+            "id": "manga-002",
+            "type": "manga",
+            "attributes": {
+                "title": {"ja": "Naruto"},
+                "altTitles": [],
+                "description": {},
+                "status": "completed",
+                "year": 1999,
+            },
+            "relationships": [],
+        },
+    ],
+    "limit": 10,
+    "offset": 0,
+    "total": 2,
+}
+
+MOCK_CHAPTER_RESPONSE = {
+    "result": "ok",
+    "response": "entity",
+    "data": {
+        "id": "ch-1",
+        "type": "chapter",
+        "attributes": {
+            "volume": "1",
+            "chapter": "1",
+            "title": "Chapter 1",
+            "translatedLanguage": "en",
+            "pages": 20,
+            "version": 1,
+        },
+        "relationships": [
+            {"id": "manga-001", "type": "manga"},
+        ],
+    },
+}
+
+MOCK_FEED_RESPONSE = {
+    "result": "ok",
+    "response": "collection",
+    "data": [
+        MOCK_CHAPTER_RESPONSE["data"],
+        {
+            "id": "ch-2",
+            "type": "chapter",
+            "attributes": {
+                "volume": "1",
+                "chapter": "2",
+                "title": "Chapter 2",
+                "translatedLanguage": "en",
+                "pages": 18,
+            },
+        },
+    ],
+    "limit": 100,
+    "offset": 0,
+    "total": 2,
+}
+
+MOCK_AT_HOME_RESPONSE = {
+    "result": "ok",
+    "baseUrl": "https://cmdxd98sb0x3yprd.mangadex.network",
+    "chapter": {
+        "hash": "abcdef123456",
+        "data": ["p1-full.png", "p2-full.png", "p3-full.png"],
+        "dataSaver": ["p1-saver.jpg", "p2-saver.jpg", "p3-saver.jpg"],
+    },
+}
+
+
+def _mock_search_response() -> dict:
+    return MOCK_SEARCH_RESPONSE
+
+
+def _mock_feed_response(offset: int = 0) -> dict:
+    """Simulate a single page of chapter feed."""
+    if offset == 0:
+        return MOCK_FEED_RESPONSE
+
+    # Dynamic response for pagination tests
+    return {
+        "result": "ok",
+        "data": [
+            {
+                "id": f"ch-{offset + 1}",
+                "type": "chapter",
+                "attributes": {
+                    "chapter": str(offset + 1),
+                    "title": f"Chapter {offset + 1}",
+                    "volume": "1",
+                    "translatedLanguage": "en",
+                    "pages": 20,
+                },
+            },
+            {
+                "id": f"ch-{offset + 2}",
+                "type": "chapter",
+                "attributes": {
+                    "chapter": str(offset + 2),
+                    "title": f"Chapter {offset + 2}",
+                    "volume": "1",
+                    "translatedLanguage": "en",
+                    "pages": 18,
+                },
+            },
+        ],
+        "total": 2,
+    }
+
+
+def _mock_at_home_response() -> dict:
+    return MOCK_AT_HOME_RESPONSE
+
+
+def _make_mock_response(json_data: dict | None = None, content: bytes = b"") -> MagicMock:
+    """Create a mock httpx.Response."""
+    resp = MagicMock()
+    resp.status_code = 200
+    resp.raise_for_status = MagicMock()
+    resp.json = MagicMock(return_value=json_data or {})
+    resp.content = content
+    return resp
+
+
+class TestGetManga:
+    """Test get_manga with mocked HTTP."""
+
+    async def test_returns_parsed_manga(self):
+        mock_resp = _make_mock_response(MOCK_MANGA_RESPONSE)
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("hull_web.adapters.mangadex.safe_httpx_client", return_value=mock_client):
+            client = MangaDexClient()
+            result = await client.get_manga("manga-001")
+
+        assert result.id == "manga-001"
+        assert result.title == "One Piece"
+        assert result.cover_url == "https://uploads.mangadex.org/covers/manga-001/one-piece-cover.jpg"
+
+
+class TestGetChapter:
+    """Test get_chapter with mocked HTTP."""
+
+    async def test_returns_parsed_chapter(self):
+        mock_resp = _make_mock_response(MOCK_CHAPTER_RESPONSE)
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("hull_web.adapters.mangadex.safe_httpx_client", return_value=mock_client):
+            client = MangaDexClient()
+            result = await client.get_chapter("ch-1")
+
+        assert result.id == "ch-1"
+        assert result.chapter == "1"
+        assert result.title == "Chapter 1"
+
+
+class TestSearchManga:
+    """Test search_manga with mocked HTTP."""
+
+    async def test_returns_parsed_results(self):
+        mock_resp = _make_mock_response(_mock_search_response())
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("hull_web.adapters.mangadex.safe_httpx_client", return_value=mock_client):
+            client = MangaDexClient()
+            results = await client.search_manga("One Piece")
+
+        assert len(results) == 2
+        assert results[0].id == "manga-001"
+        assert results[0].title == "One Piece"
+        assert results[0].alt_titles == ["Wan Piisu", "Won Piseu"]
+        assert results[0].description == "A pirate adventure."
+        assert results[0].status == "ongoing"
+        assert results[0].year == 1997
+        assert results[0].cover_url == "https://uploads.mangadex.org/covers/manga-001/one-piece-cover.jpg"
+
+    async def test_manga_without_cover(self):
+        mock_resp = _make_mock_response(_mock_search_response())
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("hull_web.adapters.mangadex.safe_httpx_client", return_value=mock_client):
+            client = MangaDexClient()
+            results = await client.search_manga("Naruto")
+
+        # manga-002 has no cover_art relationship
+        assert results[1].cover_url is None
+        assert results[1].description == ""
+
+    async def test_empty_search_results(self):
+        mock_resp = _make_mock_response({"result": "ok", "data": [], "total": 0})
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("hull_web.adapters.mangadex.safe_httpx_client", return_value=mock_client):
+            client = MangaDexClient()
+            results = await client.search_manga("NonexistentManga12345")
+
+        assert results == []
+
+    async def test_passes_correct_params(self):
+        mock_resp = _make_mock_response({"data": [], "total": 0})
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("hull_web.adapters.mangadex.safe_httpx_client", return_value=mock_client):
+            client = MangaDexClient(user_agent="TestBot/1.0")
+            await client.search_manga("test", limit=5)
+
+        mock_client.get.assert_called_once()
+        call_args = mock_client.get.call_args
+        assert call_args.args[0] == "https://api.mangadex.org/manga"
+        assert call_args.kwargs["params"]["title"] == "test"
+        assert call_args.kwargs["params"]["limit"] == 5
+        assert call_args.kwargs["params"]["includes[]"] == "cover_art"
+        assert call_args.kwargs["headers"]["User-Agent"] == "TestBot/1.0"
+
+    async def test_raises_on_http_error(self):
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status = MagicMock(
+            side_effect=httpx.HTTPStatusError("Not Found", request=MagicMock(), response=MagicMock())
+        )
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("hull_web.adapters.mangadex.safe_httpx_client", return_value=mock_client):
+            client = MangaDexClient()
+            with pytest.raises(httpx.HTTPStatusError):
+                await client.search_manga("error")
+
+
+class TestGetChapterFeed:
+    """Test get_chapter_feed with mocked HTTP."""
+
+    async def test_returns_parsed_chapters(self):
+        mock_resp = _make_mock_response(_mock_feed_response())
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("hull_web.adapters.mangadex.safe_httpx_client", return_value=mock_client):
+            client = MangaDexClient()
+            chapters = await client.get_chapter_feed("manga-001")
+
+        assert len(chapters) == 2
+        assert chapters[0].id == "ch-1"
+        assert chapters[0].chapter == "1"
+        assert chapters[0].title == "Chapter 1"
+        assert chapters[0].volume == "1"
+        assert chapters[0].language == "en"
+        assert chapters[0].pages == 20
+
+    async def test_passes_language_param(self):
+        mock_resp = _make_mock_response({"data": [], "total": 0})
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("hull_web.adapters.mangadex.safe_httpx_client", return_value=mock_client):
+            client = MangaDexClient()
+            await client.get_chapter_feed("manga-001", language="vi")
+
+        call_args = mock_client.get.call_args
+        assert call_args.kwargs["params"]["translatedLanguage[]"] == "vi"
+        assert call_args.kwargs["params"]["order[chapter]"] == "asc"
+
+    async def test_pagination_stops_at_total(self):
+        """When offset >= total, pagination must stop."""
+        mock_resp = _make_mock_response(_mock_feed_response())
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("hull_web.adapters.mangadex.safe_httpx_client", return_value=mock_client):
+            client = MangaDexClient()
+            chapters = await client.get_chapter_feed("manga-001", limit=500)
+
+        # total=2, so only one page fetched
+        assert mock_client.get.call_count == 1
+        assert len(chapters) == 2
+
+    async def test_pagination_respects_limit(self):
+        """When limit < batch size, only request that many."""
+        mock_resp = _make_mock_response(_mock_feed_response())
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("hull_web.adapters.mangadex.safe_httpx_client", return_value=mock_client):
+            client = MangaDexClient()
+            await client.get_chapter_feed("manga-001", limit=1)
+
+        call_args = mock_client.get.call_args
+        assert call_args.kwargs["params"]["limit"] == 1
+
+    async def test_pagination_handles_multiple_pages(self):
+        """Verify the client fetches multiple pages when total > batch size."""
+        # Page 1: 2 items, total=4
+        page1 = {
+            "data": [
+                {"id": "ch-1", "attributes": {"chapter": "1", "translatedLanguage": "en", "pages": 10}},
+                {"id": "ch-2", "attributes": {"chapter": "2", "translatedLanguage": "en", "pages": 12}},
+            ],
+            "total": 4,
+        }
+        # Page 2: 2 items, total=4
+        page2 = {
+            "data": [
+                {"id": "ch-3", "attributes": {"chapter": "3", "translatedLanguage": "en", "pages": 14}},
+                {"id": "ch-4", "attributes": {"chapter": "4", "translatedLanguage": "en", "pages": 16}},
+            ],
+            "total": 4,
+        }
+
+        call_count = 0
+
+        async def mock_get(url, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            resp = _make_mock_response(page1 if call_count == 1 else page2)
+            return resp
+
+        mock_client = AsyncMock()
+        mock_client.get = mock_get
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("hull_web.adapters.mangadex.safe_httpx_client", return_value=mock_client):
+            client = MangaDexClient()
+            chapters = await client.get_chapter_feed("manga-001", limit=500)
+
+        assert len(chapters) == 4
+        assert call_count == 2
+        assert chapters[2].id == "ch-3"
+
+    async def test_get_chapter_feed_no_offsets(self):
+        """Verify get_chapter_feed returns early when _MAX_FEED_PAGES is reached."""
+
+        # Total 300, but first page returns 100.
+        def make_page(total):
+            return {
+                "data": [
+                    {"id": f"ch-{i}", "attributes": {"chapter": str(i), "translatedLanguage": "en", "pages": 10}}
+                    for i in range(100)
+                ],
+                "total": total,
+            }
+
+        mock_resp = _make_mock_response(make_page(300))
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with (
+            patch("hull_web.adapters.mangadex.safe_httpx_client", return_value=mock_client),
+            patch("hull_web.adapters.mangadex._MAX_FEED_PAGES", 1),
+        ):
+            client = MangaDexClient()
+            chapters = await client.get_chapter_feed("manga-001", limit=300)
+            # Should only have 100 chapters from the first page
+            assert len(chapters) == 100
+
+
+class TestGetChapterImages:
+    """Test get_chapter_images with mocked HTTP."""
+
+    async def test_returns_parsed_images(self):
+        mock_resp = _make_mock_response(_mock_at_home_response())
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("hull_web.adapters.mangadex.safe_httpx_client", return_value=mock_client):
+            client = MangaDexClient()
+            images = await client.get_chapter_images("ch-1")
+
+        assert images.base_url == "https://cmdxd98sb0x3yprd.mangadex.network"
+        assert images.hash == "abcdef123456"
+        assert len(images.data) == 3
+        assert len(images.data_saver) == 3
+        assert images.data[0] == "p1-full.png"
+        assert images.data_saver[0] == "p1-saver.jpg"
+
+    async def test_calls_correct_endpoint(self):
+        mock_resp = _make_mock_response(_mock_at_home_response())
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("hull_web.adapters.mangadex.safe_httpx_client", return_value=mock_client):
+            client = MangaDexClient()
+            await client.get_chapter_images("chapter-uuid-xyz")
+
+        mock_client.get.assert_called_once()
+        assert mock_client.get.call_args.args[0] == "https://api.mangadex.org/at-home/server/chapter-uuid-xyz"
+
+    async def test_get_chapter_images_rate_limit(self):
+        """Verify get_chapter_images rate limiting sleep."""
+        mock_resp = _make_mock_response(_mock_at_home_response())
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with (
+            patch("hull_web.adapters.mangadex.safe_httpx_client", return_value=mock_client),
+            patch("hull_web.adapters.mangadex.asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+        ):
+            client = MangaDexClient()
+            # First call no sleep
+            await client.get_chapter_images("ch-1")
+            assert mock_sleep.call_count == 0
+
+            # Second call too fast
+            await client.get_chapter_images("ch-2")
+            assert mock_sleep.call_count == 2
+
+
+class TestDownloadImage:
+    """Test download_image with mocked HTTP."""
+
+    @patch("hull_web.adapters.mangadex.is_safe_url", return_value=True)
+    async def test_download_standard(self, mock_is_safe_url):
+        image_bytes = b"fake-image-data"
+        mock_resp = _make_mock_response(content=image_bytes)
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("hull_web.adapters.mangadex.safe_httpx_client", return_value=mock_client):
+            client = MangaDexClient()
+            result = await client.download_image(
+                "https://server.example.com",
+                "abcdef",
+                "page1.png",
+            )
+            assert result == image_bytes
+
+        call_args = mock_client.get.call_args
+        assert call_args.args[0] == "https://server.example.com/data/abcdef/page1.png"
+
+    @patch("hull_web.adapters.mangadex.is_safe_url", return_value=True)
+    async def test_download_saver(self, mock_is_safe_url):
+        mock_resp = _make_mock_response(content=b"saver-data")
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("hull_web.adapters.mangadex.safe_httpx_client", return_value=mock_client):
+            client = MangaDexClient()
+            await client.download_image(
+                "https://server.example.com",
+                "abcdef",
+                "page1.jpg",
+                saver=True,
+            )
+
+        call_args = mock_client.get.call_args
+        assert call_args.args[0] == "https://server.example.com/data-saver/abcdef/page1.jpg"
+
+    @patch("hull_web.adapters.mangadex.is_safe_url", return_value=True)
+    async def test_download_image_http_error(self, mock_is_safe_url):
+        mock_resp = _make_mock_response()
+        mock_resp.status_code = 404
+        mock_resp.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "404 Not Found", request=MagicMock(), response=mock_resp
+        )
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("hull_web.adapters.mangadex.safe_httpx_client", return_value=mock_client):
+            client = MangaDexClient()
+            with pytest.raises(httpx.HTTPStatusError):
+                await client.download_image(
+                    "https://server.example.com",
+                    "abcdef",
+                    "page1.png",
+                )
+
+    @patch("hull_web.adapters.mangadex.is_safe_url", return_value=True)
+    async def test_download_image_with_reused_client(self, mock_is_safe_url):
+        image_bytes = b"reused-client-data"
+        mock_resp = _make_mock_response(content=image_bytes)
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("hull_web.adapters.mangadex.safe_httpx_client", return_value=mock_client):
+            async with MangaDexClient() as client:
+                result = await client.download_image(
+                    "https://server.example.com",
+                    "abcdef",
+                    "page1.png",
+                )
+                assert result == image_bytes
+                mock_client.get.assert_called_once()
+
+    @patch("hull_web.adapters.mangadex.is_safe_url", return_value=True)
+    async def test_download_image_http_error_reused_client(self, mock_is_safe_url):
+        mock_resp = _make_mock_response()
+        mock_resp.status_code = 500
+        mock_resp.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "500 Internal Server Error", request=MagicMock(), response=mock_resp
+        )
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("hull_web.adapters.mangadex.safe_httpx_client", return_value=mock_client):
+            async with MangaDexClient() as client:
+                with pytest.raises(httpx.HTTPStatusError):
+                    await client.download_image(
+                        "https://server.example.com",
+                        "abcdef",
+                        "page1.png",
+                    )
+
+
+# ---------------------------------------------------------------------------
+# Rate limiting
+# ---------------------------------------------------------------------------
+
+
+class TestRateLimit:
+    """Test rate limiting behavior."""
+
+    async def test_rate_limit_delays_when_too_fast(self):
+        """Verify _rate_limit introduces a delay when called rapidly."""
+        client = MangaDexClient()
+        # Simulate a very recent request
+        import time
+
+        client._last_request_time = time.monotonic()
+
+        with patch("hull_web.adapters.mangadex.asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+            await client._rate_limit()
+            # Should have slept since we just set _last_request_time to now
+            assert mock_sleep.call_count >= 1
+            sleep_duration = mock_sleep.call_args.args[0]
+            assert 0 < sleep_duration <= 1.0 / client.RATE_LIMIT_RPS
+
+    async def test_rate_limit_no_delay_when_enough_time_passed(self):
+        """No delay needed when enough time has passed since last request."""
+        client = MangaDexClient()
+        # _last_request_time is 0.0 (epoch), so plenty of time has passed
+        with patch("hull_web.adapters.mangadex.asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+            await client._rate_limit()
+            mock_sleep.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# SSRF safety -- verify safe_httpx_client is used
+# ---------------------------------------------------------------------------
+
+
+class TestSsrfSafety:
+    async def test_context_manager_nested(self):
+        """Verify nested context manager does not re-initialize client."""
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("hull_web.adapters.mangadex.safe_httpx_client", return_value=mock_client) as mock_factory:
+            async with MangaDexClient() as client, client:
+                pass
+            # Factory should only be called once
+            mock_factory.assert_called_once()
+
+    async def test_context_manager_exit_no_client(self):
+        """Verify __aexit__ handles None client gracefully."""
+        client = MangaDexClient()
+        # client._client is None initially
+        await client.__aexit__(None, None, None)
+        # Should not raise
+
+    async def test_uses_context_manager_client(self):
+        """Verify the client uses the shared context manager client when available."""
+        mock_resp = _make_mock_response({"data": []})
+        mock_shared_client = AsyncMock()
+        mock_shared_client.get = AsyncMock(return_value=mock_resp)
+        mock_shared_client.__aenter__ = AsyncMock(return_value=mock_shared_client)
+        mock_shared_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("hull_web.adapters.mangadex.safe_httpx_client", return_value=mock_shared_client) as mock_factory:
+            async with MangaDexClient() as client:
+                await client._get("/test")
+
+            # The factory should be called once in __aenter__
+            mock_factory.assert_called_once_with(timeout=60.0)
+            mock_shared_client.__aenter__.assert_called_once()
+
+            # The get method should be called on the shared client
+            mock_shared_client.get.assert_called_once()
+            call_args = mock_shared_client.get.call_args
+            assert call_args.args[0] == "https://api.mangadex.org/test"
+
+            # Client should be closed on exit
+            mock_shared_client.__aexit__.assert_called_once()
+
+    async def test_get_uses_safe_client(self):
+        """The internal _get method must call safe_httpx_client."""
+        mock_resp = _make_mock_response({"data": []})
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("hull_web.adapters.mangadex.safe_httpx_client", return_value=mock_client) as mock_factory:
+            client = MangaDexClient()
+            await client._get("/test")
+            mock_factory.assert_called_once_with(timeout=30.0)
+
+    @pytest.mark.parametrize("reuse_client", [False, True])
+    async def test_download_blocks_unsafe_url_before_http(self, reuse_client):
+        mock_client = AsyncMock()
+        mock_client.get.return_value = _make_mock_response(content=b"must-not-download")
+        mock_client.__aenter__.return_value = mock_client
+        client = MangaDexClient()
+
+        with patch("hull_web.adapters.mangadex.safe_httpx_client", return_value=mock_client):
+            if reuse_client:
+                async with client:
+                    with pytest.raises(ValueError, match="SSRF blocked"):
+                        await client.download_image("http://127.0.0.1", "h", "f.png")
+            else:
+                with pytest.raises(ValueError, match="SSRF blocked"):
+                    await client.download_image("http://169.254.169.254", "h", "f.png")
+
+        mock_client.get.assert_not_awaited()
+
+    async def test_pagination_parallel_fetching(self):
+        """Verify that multiple pages are fetched when total > batch size."""
+        # Total 1200, limit 1200.
+        # Batch size is now 500.
+        # Expected calls: offset 0 (500), offset 500 (500), offset 1000 (200).
+
+        def make_page(start_id, count, total):
+            return {
+                "data": [
+                    {"id": f"ch-{i}", "attributes": {"chapter": str(i), "translatedLanguage": "en", "pages": 10}}
+                    for i in range(start_id, start_id + count)
+                ],
+                "total": total,
+            }
+
+        call_count = 0
+        offsets_called = []
+
+        async def mock_get(url, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            params = kwargs.get("params", {})
+            offset = params.get("offset", 0)
+            limit = params.get("limit", 500)
+            offsets_called.append(offset)
+            return _make_mock_response(make_page(offset + 1, limit, 1200))
+
+        mock_client = AsyncMock()
+        mock_client.get = mock_get
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("hull_web.adapters.mangadex.safe_httpx_client", return_value=mock_client):
+            client = MangaDexClient()
+            chapters = await client.get_chapter_feed("manga-001", limit=1200)
+
+        assert len(chapters) == 1200
+        assert call_count == 3
+        assert sorted(offsets_called) == [0, 500, 1000]
+
+    async def test_nested_context_manager(self):
+        """Verify that nested context managers do not re-initialize the client."""
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("hull_web.adapters.mangadex.safe_httpx_client", return_value=mock_client) as mock_factory:
+            client = MangaDexClient()
+            async with client, client:
+                pass
+
+            # Factory should only be called once
+            mock_factory.assert_called_once()
+            mock_client.__aenter__.assert_called_once()
+            mock_client.__aexit__.assert_called_once()

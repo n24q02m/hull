@@ -1,5 +1,6 @@
 """hull-web: shared web infrastructure for search, scraping, HTTP security, and browsers."""
 
+from hull_web.adapters import ChapterImages, ChapterInfo, MangaDexClient, MangaInfo
 from hull_web.browsers import (
     BrowserlessClient,
     BrowserProvider,
@@ -13,6 +14,10 @@ from hull_web.search import SearchResult, ensure_searxng, shutdown_searxng
 __all__ = [
     "BrowserProvider",
     "BrowserlessClient",
+    "ChapterImages",
+    "ChapterInfo",
+    "MangaDexClient",
+    "MangaInfo",
     "PatchrightProvider",
     "RemoteRenderStrategy",
     "RenderClient",

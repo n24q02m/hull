@@ -23,6 +23,7 @@ dependencies = [
     "httpx>=0.28.1",
     "curl-cffi>=0.16.3",
     "crawl4ai>=0.9.3",
+    "filelock>=3",
     "langgraph>=1.2.11",
     "patchright>=1.63.0",
     "browserforge>=1.2.4",

@@ -118,7 +118,13 @@ class OpenAICompatClient:
         return [list(item["embedding"]) for item in items]
 
     async def chat(self, messages: list[dict], **options) -> str:
-        """POST {base_url}/chat/completions → assistant message content."""
+        """POST {base_url}/chat/completions → assistant message content.
+
+        ``model``/``messages`` are reserved — the cell always wins, an
+        override attempt raises.
+        """
+        if "model" in options or "messages" in options:
+            raise ValueError("chat() options cannot override model/messages")
         payload = {"model": self.cell.model, "messages": messages, **options}
         data = await self._post("/chat/completions", payload)
         message = data["choices"][0]["message"]

@@ -112,6 +112,23 @@ async def test_embeddings_reserved_keys_rejected() -> None:
         await client.aclose()
 
 
+async def test_chat_reserved_keys_rejected() -> None:
+    """chat() mirrors embeddings(): cell model/messages always win."""
+    client = OpenAICompatClient(
+        _cell(task="chat"),
+        transport=httpx.MockTransport(lambda request: httpx.Response(200, json={"choices": [{"message": {}}]})),
+    )
+    try:
+        with pytest.raises(ValueError, match="cannot override"):
+            await client.chat([{"role": "user", "content": "ping"}], model="evil-model")
+        # `messages` is a named parameter, so a keyword override cannot even
+        # reach the body guard — Python rejects it at bind time.
+        with pytest.raises(TypeError, match="multiple values"):
+            await client.chat([{"role": "user", "content": "ping"}], messages=[{"role": "user", "content": "evil"}])
+    finally:
+        await client.aclose()
+
+
 async def test_chat_wire_shape() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == "/v1/chat/completions"

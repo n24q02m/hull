@@ -454,6 +454,15 @@ class TestGetPipCommand:
 # ===========================================================================
 
 
+class TestConfigDir:
+    def test_config_dir_moved_to_hull(self):
+        """Config dir is ~/.hull/searxng (de-web-core naming)."""
+        import hull_web.search.runner as mod
+
+        assert mod._CONFIG_DIR == Path.home() / ".hull" / "searxng"
+        assert mod._DISCOVERY_FILE == mod._CONFIG_DIR / "searxng_instance.json"
+
+
 class TestGetSettingsPath:
     def test_creates_settings_file(self, tmp_config_dir):
         """Creates a per-process settings file with correct port and secret."""
@@ -461,7 +470,8 @@ class TestGetSettingsPath:
         assert path.exists()
         content = path.read_text()
         assert "port: 18888" in content
-        assert "web-core SearXNG" in content
+        assert "hull SearXNG" in content
+        assert "web-core" not in content
         # Secret should be a hex string (not the template placeholder)
         assert "{secret_key}" not in content
         assert "{port}" not in content
@@ -1080,7 +1090,7 @@ class TestStartDockerSearxng:
         ):
             url = await _start_docker_searxng(8888)
             assert url == "http://127.0.0.1:41592"
-            assert mod._searxng_docker_container == "searxng-wet-41592"
+            assert mod._searxng_docker_container == "searxng-hull-41592"
             assert mod._is_owner is False
 
     async def test_spawn_new_container_success(self, tmp_config_dir):
@@ -1112,7 +1122,7 @@ class TestStartDockerSearxng:
         ):
             url = await _start_docker_searxng(8888)
             assert url == "http://127.0.0.1:41592"
-            assert mod._searxng_docker_container == "searxng-wet-41592"
+            assert mod._searxng_docker_container == "searxng-hull-41592"
             assert mod._is_owner is True
             mock_write.assert_called_once()
 

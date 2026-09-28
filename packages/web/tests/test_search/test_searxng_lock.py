@@ -43,7 +43,7 @@ class DockerMock:
             result.stdout = "Server: Docker Desktop"
             return result
         # docker ps -q -f name=<container>
-        if len(cmd) > 1 and cmd[1] == "ps" and any(f"searxng-wet-{PINNED_SEARXNG_PORT}" in str(a) for a in cmd):
+        if len(cmd) > 1 and cmd[1] == "ps" and any(f"searxng-hull-{PINNED_SEARXNG_PORT}" in str(a) for a in cmd):
             result.stdout = b"abc123\n" if self.container_running else b""
             return result
         result.stdout = b""
@@ -86,7 +86,7 @@ def patch_runner_globals(monkeypatch):
 
 
 async def test_spawn_docker_searxng_reuses_existing_container(tmp_config_dir, docker_mock):
-    """When container searxng-wet-{PINNED_PORT} already running, do NOT docker run."""
+    """When container searxng-hull-{PINNED_PORT} already running, do NOT docker run."""
     docker_mock.container_running = True
 
     url = await _start_docker_searxng(start_port=PINNED_SEARXNG_PORT)
@@ -118,4 +118,4 @@ async def test_spawn_docker_searxng_creates_when_absent(tmp_config_dir, docker_m
     assert len(docker_mock.popen_calls) > 0, "Expected subprocess.Popen to be called for docker run -d"
     popen_cmd = docker_mock.popen_calls[0]
     assert "-d" in popen_cmd, f"Expected -d flag in docker run; got: {popen_cmd}"
-    assert f"searxng-wet-{PINNED_SEARXNG_PORT}" in popen_cmd
+    assert f"searxng-hull-{PINNED_SEARXNG_PORT}" in popen_cmd

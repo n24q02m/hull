@@ -96,8 +96,8 @@ _HEALTH_CHECK_TIMEOUT = 2.0
 # take 90-120s on slow machines.
 _STARTUP_HEALTH_TIMEOUT = 120.0
 
-# Config directory for web-core.
-_CONFIG_DIR = Path.home() / ".web-core"
+# Config directory for the hull SearXNG manager.
+_CONFIG_DIR = Path.home() / ".hull" / "searxng"
 
 # Discovery file for sharing SearXNG across multiple processes.
 # Contains {pid, port, owner_pid, started_at} of the running SearXNG process.
@@ -117,7 +117,7 @@ use_default_settings: true
 
 general:
   debug: false
-  instance_name: "web-core SearXNG"
+  instance_name: "hull SearXNG"
 
 brand: {{}}
 
@@ -126,7 +126,7 @@ server:
   bind_address: "127.0.0.1"
   secret_key: "{secret_key}"
   # Disable bot detection / rate limiter so JSON API calls (used by
-  # web-core search clients) are not 403'd. Mirrors the Docker
+  # hull search clients) are not 403'd. Mirrors the Docker
   # template which already disables the limiter.
   limiter: false
   public_instance: false
@@ -986,7 +986,7 @@ _DOCKER_SETTINGS_TEMPLATE = """\
 use_default_settings: true
 
 general:
-  instance_name: "web-core SearXNG (Docker)"
+  instance_name: "hull SearXNG (Docker)"
 
 server:
   secret_key: "{secret_key}"
@@ -1007,7 +1007,7 @@ async def _start_docker_searxng(start_port: int) -> str | None:
     """Try starting SearXNG via Docker as a fallback.
 
     Uses a pinned port (PINNED_SEARXNG_PORT) and a cross-process filelock to
-    guarantee at most one searxng-wet container runs at any time.  Previously,
+    guarantee at most one searxng-hull container runs at any time.  Previously,
     random port selection spawned a new container per wet daemon; ``--rm`` only
     triggers on container stop, but detached ``-d`` kept zombies alive after
     parent exits.
@@ -1045,7 +1045,7 @@ async def _start_docker_searxng(start_port: int) -> str | None:
             return None
 
         port = PINNED_SEARXNG_PORT
-        container_name = f"searxng-wet-{port}"
+        container_name = f"searxng-hull-{port}"
         url = f"http://127.0.0.1:{port}"
 
         # Acquire cross-process filelock before inspecting/spawning container.

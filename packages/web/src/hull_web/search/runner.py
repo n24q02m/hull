@@ -717,15 +717,12 @@ async def _force_kill_process(proc: subprocess.Popen) -> None:  # pragma: no cov
         logger.debug("Error killing SearXNG process: %r", e)
 
 
-async def _kill_stale_port_process(port: int) -> None:  # pragma: no cover
-    """Kill any process still holding the target port.
+async def _port_listener_pids(port: int) -> set[int]:  # pragma: no cover
+    """Return the PIDs of processes listening on *port* (best effort).
 
-    This prevents 'address already in use' errors when restarting
-    after a crash that left a zombie process behind.
+    Never signals any process.  Returns an empty set when discovery is not
+    possible (missing tools, unexpected output).
     """
-    if not isinstance(port, int) or not (1 <= port <= 65535):
-        return
-
     if sys.platform == "win32":
         try:
             result = await asyncio.to_thread(
@@ -739,52 +736,136 @@ async def _kill_stale_port_process(port: int) -> None:  # pragma: no cover
             )
             # result.stdout is str because text=True, but ty can't infer through asyncio.to_thread.
             stdout_text = result.stdout if isinstance(result.stdout, str) else result.stdout.decode(errors="replace")
+            pids: set[int] = set()
             for line in stdout_text.splitlines():
                 if f"127.0.0.1:{port}" in line and "LISTENING" in line:
-                    parts = line.split()
-                    pid_str = parts[-1]
                     try:
-                        pid = int(pid_str)
-                        if pid > 0:
-                            await _sigterm_then_kill(pid, f"stale port {port}")
-                    except (ValueError, ProcessLookupError, PermissionError) as e:
-                        logger.debug("Could not kill process %r on port %d: %r", pid_str, port, e)
+                        pid = int(line.split()[-1])
+                    except ValueError:
+                        continue
+                    if pid > 0:
+                        pids.add(pid)
+            return pids
         except Exception as e:
             logger.debug("Error finding processes on port %d using netstat: %r", port, e)
-    else:
+            return set()
+    try:
+        result = await asyncio.to_thread(
+            subprocess.run,
+            ["lsof", "-ti", f":{port}"],
+            shell=False,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            pids = set()
+            for pid_str in result.stdout.strip().splitlines():
+                try:
+                    pid = int(pid_str.strip())
+                except ValueError:
+                    continue
+                if pid > 0:
+                    pids.add(pid)
+            return pids
+        return set()
+    except FileNotFoundError:
+        # lsof not available: query fuser in LIST mode (no ``-k``) so no
+        # process is ever signalled here.  fuser prints PIDs to stdout.
         try:
             result = await asyncio.to_thread(
                 subprocess.run,
-                ["lsof", "-ti", f":{port}"],
+                ["fuser", f"{port}/tcp"],
                 shell=False,
                 stdin=subprocess.DEVNULL,
                 capture_output=True,
                 text=True,
                 timeout=5,
             )
-            if result.returncode == 0 and result.stdout.strip():
-                for pid_str in result.stdout.strip().splitlines():
-                    try:
-                        pid = int(pid_str.strip())
-                        if pid > 0 and pid != os.getpid():
-                            await _sigterm_then_kill(pid, f"stale port {port}")
-                    except (ValueError, ProcessLookupError, PermissionError) as e:
-                        logger.debug("Could not kill process %r on port %d: %r", pid_str, port, e)
-        except FileNotFoundError:
-            # lsof not available, try fuser.
-            try:
-                await asyncio.to_thread(
-                    subprocess.run,
-                    ["fuser", "-k", f"{port}/tcp"],
-                    shell=False,
-                    stdin=subprocess.DEVNULL,
-                    capture_output=True,
-                    timeout=5,
-                )
-            except (FileNotFoundError, subprocess.TimeoutExpired) as e:
-                logger.debug("Could not free port %d using fuser: %r", port, e)
+            return {int(token) for token in result.stdout.split() if token.isdigit()}
+        except (FileNotFoundError, subprocess.TimeoutExpired, ValueError) as e:
+            logger.debug("Could not query processes on port %d using fuser: %r", port, e)
+            return set()
         except Exception as e:
-            logger.debug("Error finding processes on port %d using lsof: %r", port, e)
+            logger.debug("Error querying processes on port %d using fuser: %r", port, e)
+            return set()
+    except Exception as e:
+        logger.debug("Error finding processes on port %d using lsof: %r", port, e)
+        return set()
+
+
+def _owned_port_pids() -> set[int]:
+    """PIDs recorded in our own SearXNG discovery state.
+
+    Combines the cross-process discovery file (``pid`` + ``owner_pid``) with
+    this process's own subprocess handle.  Anything else on a port is foreign
+    and must never be signalled.
+    """
+    pids: set[int] = set()
+    data = _read_discovery()
+    if data:
+        for key in ("pid", "owner_pid"):
+            value = data.get(key)
+            if isinstance(value, int) and value > 0:
+                pids.add(value)
+    proc = _searxng_process
+    if proc is not None and proc.pid > 0:
+        pids.add(proc.pid)
+    return pids
+
+
+async def _kill_stale_port_process(port: int) -> bool:  # pragma: no cover
+    """Free *port* only if its holder is a SearXNG process we spawned.
+
+    Returns ``True`` when the port is manageable (no listener, or a listener
+    recorded in our own discovery state which has been terminated).  Returns
+    ``False`` when the port is held by a foreign process -- the caller must
+    fall back to an alternate port instead of killing it.
+    """
+    if not isinstance(port, int) or not (1 <= port <= 65535):
+        return True
+
+    listener_pids = await _port_listener_pids(port)
+    if not listener_pids:
+        return True
+
+    foreign = listener_pids - _owned_port_pids()
+    if foreign:
+        logger.warning(
+            "Port %d is held by unrelated process(es) %s; refusing to kill them",
+            port,
+            sorted(foreign),
+        )
+        return False
+
+    for pid in sorted(listener_pids):
+        if pid == os.getpid():
+            continue
+        await _sigterm_then_kill(pid, f"stale port {port}")
+    return True
+
+
+async def _select_start_port(start_port: int) -> int:  # pragma: no cover
+    """Pick the port for a new SearXNG subprocess.
+
+    Kills the holder of the chosen port only when it is one of our own stale
+    processes.  If a foreign process owns the port, falls back to an
+    alternate port via ``_find_available_port`` instead of killing it.
+    """
+    port = await asyncio.to_thread(_find_available_port, start_port)
+    if port != start_port:
+        logger.info("Port %d in use, using %d", start_port, port)
+
+    if not await _kill_stale_port_process(port):
+        fallback_port = await asyncio.to_thread(_find_available_port, port + 1)
+        logger.warning(
+            "Port %d is held by an unrelated process; using fallback port %d instead",
+            port,
+            fallback_port,
+        )
+        port = fallback_port
+    return port
 
 
 def _get_process_kwargs() -> dict:  # pragma: no cover
@@ -1083,13 +1164,9 @@ async def _start_searxng_subprocess(start_port: int) -> str | None:  # pragma: n
         _searxng_port = None
 
     try:
-        # Find available port.
-        port = await asyncio.to_thread(_find_available_port, start_port)
-        if port != start_port:
-            logger.info("Port %d in use, using %d", start_port, port)
-
-        # Kill any stale process on the target port.
-        await _kill_stale_port_process(port)
+        # Pick the port: kill the holder only if we spawned it, else fall
+        # back to an alternate port.
+        port = await _select_start_port(start_port)
         await asyncio.sleep(0.5)
 
         _searxng_port = port

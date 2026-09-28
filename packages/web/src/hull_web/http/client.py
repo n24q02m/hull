@@ -2,7 +2,7 @@
 
 Provides ``safe_httpx_client()`` factory that creates httpx.AsyncClient instances
 with automatic SSRF protection via request event hooks. All outbound HTTP in
-web-core MUST go through this client.
+hull services MUST go through this client.
 
 Key protections:
 - Blocks requests to private, loopback, link-local, reserved, and multicast IPs

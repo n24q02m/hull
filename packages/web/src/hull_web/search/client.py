@@ -1,6 +1,6 @@
 """SearXNG search client with retry, deduplication, and domain filtering.
 
-Adapted from wet-mcp's searxng.py with web-core conventions:
+Adapted from wet-mcp's searxng.py with hull conventions:
 - SSRF-safe HTTP via ``safe_httpx_client``
 - URL normalization and domain validation from ``hull_web.http.url``
 - Returns typed ``SearchResult`` objects instead of JSON strings

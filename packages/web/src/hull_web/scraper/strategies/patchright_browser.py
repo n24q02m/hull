@@ -89,10 +89,15 @@ class PatchrightStrategy(BaseStrategy):
             raise ValueError(f"SSRF blocked: {url}")
         if self._provider is not None:
             provider = self._provider
+            owns_provider = False
         else:
             from hull_web.browsers.patchright import PatchrightProvider
 
             provider = PatchrightProvider(headless=self.headless)
+            owns_provider = True
+        # Patchright raises its own TimeoutError (not the builtin) from page
+        # waits; import the real exception alongside the provider.
+        from patchright.async_api import TimeoutError as PatchrightTimeoutError
 
         cf_challenge_type = None
 
@@ -114,7 +119,7 @@ class PatchrightStrategy(BaseStrategy):
                         # Now wait for networkidle safely
                         await page.wait_for_load_state("networkidle", timeout=self.timeout * 1000)
                         content = await page.content()
-                    except TimeoutError:
+                    except PatchrightTimeoutError:
                         logger.debug("Optional networkidle wait timed out for %s", url)
                     cf_challenge_type = detect_cloudflare_challenge(content)
 
@@ -127,7 +132,7 @@ class PatchrightStrategy(BaseStrategy):
                         try:
                             await page.wait_for_load_state("networkidle", timeout=15000)
                             content = await page.content()
-                        except TimeoutError:
+                        except PatchrightTimeoutError:
                             logger.debug("Optional networkidle wait timed out for %s after JS challenge", url)
                 elif cf_challenge_type == "turnstile":
                     logger.info("CF Turnstile detected for %s, cannot solve here", url)
@@ -148,14 +153,14 @@ class PatchrightStrategy(BaseStrategy):
                             await page.wait_for_load_state("domcontentloaded", timeout=15000)
                             content = await page.content()
                             cf_challenge_type = detect_cloudflare_challenge(content)
-                        except TimeoutError:
+                        except PatchrightTimeoutError:
                             logger.debug("Optional domcontentloaded wait timed out for %s after managed challenge", url)
 
                     if cf_challenge_type is None:
                         try:
                             await page.wait_for_load_state("networkidle", timeout=15000)
                             content = await page.content()
-                        except TimeoutError:
+                        except PatchrightTimeoutError:
                             logger.debug("Optional networkidle wait timed out for %s after managed challenge", url)
 
                 status_code = response.status if response else 200
@@ -164,7 +169,10 @@ class PatchrightStrategy(BaseStrategy):
             finally:
                 await page.close()
         finally:
-            await provider.close()
+            # Only close a provider we created; an injected one is owned by
+            # the caller.
+            if owns_provider:
+                await provider.close()
 
         return ScrapingResult(
             content=content,

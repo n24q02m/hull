@@ -953,8 +953,9 @@ class TestEnsureSearxng:
             assert url == "http://127.0.0.1:18889"
 
     async def test_installs_and_starts(self, tmp_discovery, monkeypatch):
-        """Installs SearXNG and starts when not installed."""
+        """Installs SearXNG and starts when not installed (explicit opt-in)."""
         monkeypatch.delenv("SEARXNG_URL", raising=False)
+        monkeypatch.setenv("HULL_SEARXNG_AUTO_INSTALL", "1")
 
         with (
             patch("hull_web.search.runner._try_reuse_existing", new_callable=AsyncMock, return_value=None),
@@ -973,6 +974,7 @@ class TestEnsureSearxng:
     async def test_install_failure_raises(self, tmp_discovery, monkeypatch):
         """Raises RuntimeError when SearXNG installation fails."""
         monkeypatch.delenv("SEARXNG_URL", raising=False)
+        monkeypatch.setenv("HULL_SEARXNG_AUTO_INSTALL", "1")
 
         with (
             patch("hull_web.search.runner._try_reuse_existing", new_callable=AsyncMock, return_value=None),
@@ -1104,7 +1106,7 @@ class TestStartDockerSearxng:
             patch("subprocess.run", side_effect=[mock_res_info, mock_res_ps, mock_res_rm]),
             patch("hull_web.search.runner._get_docker_lock", return_value=mock_lock),
             patch("hull_web.search.runner._write_secure_text") as mock_write,
-            patch("subprocess.Popen", return_value=mock_popen),
+            patch("subprocess.Popen", return_value=mock_popen) as mock_popen_cls,
             patch("hull_web.search.runner._wait_for_service", new_callable=AsyncMock, return_value=True),
             patch("hull_web.search.runner._write_discovery", return_value=None),
         ):
@@ -1113,6 +1115,10 @@ class TestStartDockerSearxng:
             assert mod._searxng_docker_container == "searxng-wet-41592"
             assert mod._is_owner is True
             mock_write.assert_called_once()
+
+        # Image must be a pinned release tag, never the floating 'latest'.
+        image = next(arg for arg in mock_popen_cls.call_args[0][0] if arg.startswith("searxng/searxng:"))
+        assert image == "searxng/searxng:2026.4.7-08ef7a63d"
 
     async def test_respawn_unhealthy_container(self, tmp_config_dir):
         """Respawns if container exists but is unhealthy."""
@@ -1453,8 +1459,9 @@ class TestHandleRestartAndStart:
         with pytest.raises(RuntimeError, match="restart limit reached"):
             await _handle_restart_and_start(start_port=8888)
 
-    async def test_install_failure(self):
+    async def test_install_failure(self, monkeypatch):
         """Raises RuntimeError if installation fails."""
+        monkeypatch.setenv("HULL_SEARXNG_AUTO_INSTALL", "1")
         with (
             patch("hull_web.search.runner._start_docker_searxng", new_callable=AsyncMock, return_value=None),
             patch("hull_web.search.runner._is_searxng_installed", return_value=False),
@@ -1462,6 +1469,39 @@ class TestHandleRestartAndStart:
             pytest.raises(RuntimeError, match="installation failed"),
         ):
             await _handle_restart_and_start(start_port=8888)
+
+    async def test_install_without_opt_in_raises_and_does_not_pip_install(self, monkeypatch):
+        """Runtime pip-install is opt-in: default OFF points the host at SEARXNG_URL."""
+        import hull_web.search.runner as mod
+
+        monkeypatch.delenv("HULL_SEARXNG_AUTO_INSTALL", raising=False)
+        mock_install = MagicMock(return_value=True)
+
+        with (
+            patch("hull_web.search.runner._start_docker_searxng", new_callable=AsyncMock, return_value=None),
+            patch("hull_web.search.runner._is_searxng_installed", return_value=False),
+            patch("hull_web.search.runner._install_searxng", mock_install),
+            patch("hull_web.search.runner._start_searxng_subprocess", new_callable=AsyncMock, return_value=None),
+            pytest.raises(RuntimeError, match="SEARXNG_URL"),
+        ):
+            await _handle_restart_and_start(start_port=8888)
+        mock_install.assert_not_called()
+
+    async def test_install_opt_in_env_allows_install(self, monkeypatch):
+        """HULL_SEARXNG_AUTO_INSTALL=1 restores the legacy runtime-install path."""
+        monkeypatch.setenv("HULL_SEARXNG_AUTO_INSTALL", "1")
+
+        with (
+            patch("hull_web.search.runner._start_docker_searxng", new_callable=AsyncMock, return_value=None),
+            patch("hull_web.search.runner._is_searxng_installed", return_value=False),
+            patch("hull_web.search.runner._install_searxng", return_value=True),
+            patch(
+                "hull_web.search.runner._start_searxng_subprocess",
+                new_callable=AsyncMock,
+                return_value="http://sub-url",
+            ),
+        ):
+            assert await _handle_restart_and_start(start_port=8888) == "http://sub-url"
 
     async def test_cooldown_applied(self):
         """Applies cooldown if restart count > 0."""
@@ -1507,8 +1547,9 @@ class TestHandleRestartAndStart:
             warning_call = [call for call in mock_logger.warning.call_args_list if "crashed" in call.args[0]]
             assert len(warning_call) > 0
 
-    async def test_install_required_and_success(self):
+    async def test_install_required_and_success(self, monkeypatch):
         """Verifies it proceeds if installation is required and succeeds."""
+        monkeypatch.setenv("HULL_SEARXNG_AUTO_INSTALL", "1")
 
         with (
             patch("hull_web.search.runner._start_docker_searxng", new_callable=AsyncMock, return_value=None),

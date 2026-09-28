@@ -47,6 +47,20 @@ logger = logging.getLogger(__name__)
 # Pinned port 41592 + filelock guarantees at most one container across all processes.
 PINNED_SEARXNG_PORT = 41592
 
+# Pinned SearXNG Docker image (never 'latest': floating tags made the JSON
+# API behaviour unpredictable across hosts). Override via HULL_SEARXNG_IMAGE.
+# Tag 2026.4.7-08ef7a63d matches the pinned source commit in _SEARXNG_COMMIT.
+_SEARXNG_DOCKER_IMAGE = os.environ.get("HULL_SEARXNG_IMAGE", "searxng/searxng:2026.4.7-08ef7a63d")
+
+# Opt-in flag for installing SearXNG via pip at runtime. Default OFF: hosts
+# must pre-install SearXNG or point at an external instance (SEARXNG_URL).
+_AUTO_INSTALL_ENV = "HULL_SEARXNG_AUTO_INSTALL"
+
+
+def _auto_install_enabled() -> bool:
+    """Whether runtime pip-install of SearXNG was explicitly opted into."""
+    return os.environ.get(_AUTO_INSTALL_ENV, "").strip().lower() in {"1", "true", "yes", "on"}
+
 # Cross-process filelock preventing concurrent Docker spawn races.
 _docker_lock: filelock.FileLock | None = None
 
@@ -1090,7 +1104,7 @@ async def _start_docker_searxng(start_port: int) -> str | None:
                 f"127.0.0.1:{port}:8080",
                 "-v",
                 f"{settings_path}:/etc/searxng/settings.yml:ro",
-                "searxng/searxng:latest",
+                _SEARXNG_DOCKER_IMAGE,
             ]
 
             logger.info("Starting SearXNG (Docker) on port %d...", port)
@@ -1384,10 +1398,18 @@ async def _handle_restart_and_start(*, start_port: int) -> str:
         msg = f"SearXNG restart limit reached ({_MAX_RESTART_ATTEMPTS} attempts)"
         raise RuntimeError(msg)
 
-    # Ensure SearXNG package is installed.
-    if not await asyncio.to_thread(_is_searxng_installed) and not await asyncio.to_thread(_install_searxng):
-        msg = "SearXNG installation failed"
-        raise RuntimeError(msg)
+    # Ensure SearXNG package is installed (runtime pip-install is opt-in).
+    if not await asyncio.to_thread(_is_searxng_installed):
+        if not _auto_install_enabled():
+            msg = (
+                "SearXNG is not installed in this Python environment and runtime auto-install is disabled. "
+                "Install SearXNG (e.g. `uv pip install searxng`) or point at an existing instance via "
+                "SEARXNG_URL. To let hull pip-install SearXNG at runtime, set HULL_SEARXNG_AUTO_INSTALL=1."
+            )
+            raise RuntimeError(msg)
+        if not await asyncio.to_thread(_install_searxng):
+            msg = "SearXNG installation failed"
+            raise RuntimeError(msg)
 
     # Attempt to start with cooldown between restarts.
     if _restart_count > 0:

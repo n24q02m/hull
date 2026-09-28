@@ -4,24 +4,19 @@ When the scraping agent gets valid HTML but existing selectors fail to extract
 meaningful content, this module uses an LLM to analyze the page structure and
 infer correct CSS selectors for content, title, and navigation elements.
 
-Supports multiple LLM providers via env-var auto-detection:
-    - GEMINI_API_KEY / GOOGLE_API_KEY -> Gemini (google-genai SDK)
-    - OPENAI_API_KEY                  -> OpenAI (openai SDK)
-    - ANTHROPIC_API_KEY               -> Anthropic (anthropic SDK)
-    - XAI_API_KEY                     -> xAI (openai SDK with base_url)
-
-Consumers may also inject a custom ``llm_caller`` callable. See
-``infer_selectors_with_llm`` for priority rules.
+The LLM is always supplied by the caller as an ``llm_caller`` callable (async
+``(prompt, html_content) -> selector dict | raw JSON str``). This module does
+no provider auto-detection from the environment, reads no API keys, and ships
+no SDK dispatch — hosts that want LLM inference wire their own caller
+explicitly. See ``infer_selectors_with_llm``.
 """
 
 from __future__ import annotations
 
 import json
 import logging
-import os
 import re
 from collections.abc import Awaitable, Callable
-from typing import Any
 
 from hull_web.http.url import extract_domain
 
@@ -30,48 +25,6 @@ logger = logging.getLogger(__name__)
 LLMCaller = Callable[[str, str], Awaitable[dict[str, str]]]
 """Signature: async (prompt, html_content) -> selector dict."""
 
-# Default model per provider (overridable via WEB_CORE_LLM_MODEL env or model kwarg).
-_PROVIDER_DEFAULT_MODEL: dict[str, str] = {
-    "gemini": "gemini-2.5-flash",
-    "openai": "gpt-4o-mini",
-    "anthropic": "claude-haiku-4-5-20251001",
-    "xai": "grok-3-mini",
-}
-
-# Track whether we have already logged the "no provider" warning so we do not spam.
-_NO_PROVIDER_WARNED = False
-
-
-def _load_domain_cookies() -> dict[str, dict[str, str]]:
-    """Load domain-specific cookies from WEB_CORE_DOMAIN_COOKIES environment variable.
-
-    Expected format: {"domain": {"cookie_name": "value"}, ...}
-    """
-    # Load from environment variable to allow configuration of tokens/secrets
-    raw = os.environ.get("WEB_CORE_DOMAIN_COOKIES")
-    if not raw:
-        return {}
-
-    try:
-        env_cookies = json.loads(raw)
-        if not isinstance(env_cookies, dict):
-            logger.warning("WEB_CORE_DOMAIN_COOKIES is not a JSON object")
-            return {}
-
-        return {
-            domain: domain_cookies for domain, domain_cookies in env_cookies.items() if isinstance(domain_cookies, dict)
-        }
-    except json.JSONDecodeError as e:
-        logger.warning("Failed to parse WEB_CORE_DOMAIN_COOKIES", extra={"error": str(e)})
-    except Exception as e:
-        logger.warning("Unexpected error loading WEB_CORE_DOMAIN_COOKIES", extra={"error": str(e)})
-
-    return {}
-
-
-# Domain cookies for sites requiring specific cookies (e.g., age verification)
-# Loaded from environment to avoid hardcoding secrets in the source code.
-DOMAIN_COOKIES: dict[str, dict[str, str]] = _load_domain_cookies()
 # Built-in domain configs for known sites — saves LLM calls
 DOMAIN_CONFIGS: dict[str, dict[str, str]] = {
     "ncode.syosetu.com": {
@@ -129,10 +82,6 @@ Example response:
 def get_domain_selectors(url: str) -> dict[str, str] | None:
     """Return built-in selectors for a known domain, or None.
 
-    Also injects domain-specific cookies into selectors["cookies"]
-    if the domain requires them (session tokens supplied via env per
-    DOMAIN_COOKIES — caller responsible for obtaining user consent).
-
     Logs domain usage for analytics — enabling the Tiered Scraping
     feedback loop (track unknown domains → hardcode popular ones).
     """
@@ -172,12 +121,6 @@ def get_domain_selectors(url: str) -> dict[str, str] | None:
             extra={"domain": domain, "tier": "unknown", "url": url},
         )
 
-    # Inject domain-specific cookies
-    if selectors is not None:
-        cookies = DOMAIN_COOKIES.get(domain)
-        if cookies:
-            selectors["cookies"] = cookies  # type: ignore[assignment]
-
     return selectors
 
 
@@ -199,198 +142,21 @@ def _parse_selector_json(text: str) -> dict[str, str]:
     return selectors
 
 
-def _detect_provider_from_env() -> str | None:
-    """Detect LLM provider from presence of API keys in env. Returns provider name or None."""
-    if os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"):
-        return "gemini"
-    if os.environ.get("OPENAI_API_KEY"):
-        return "openai"
-    if os.environ.get("ANTHROPIC_API_KEY"):
-        return "anthropic"
-    if os.environ.get("XAI_API_KEY"):
-        return "xai"
-    return None
-
-
-def _resolve_provider_and_model(
-    provider: str | None,
-    model: str | None,
-) -> tuple[str, str] | None:
-    """Resolve (provider, model) from explicit params + env vars. None if no provider."""
-    env_model = os.environ.get("WEB_CORE_LLM_MODEL")
-    if model is None and env_model:
-        model = env_model
-
-    if provider is None:
-        provider = _detect_provider_from_env()
-
-    if provider is None:
-        return None
-
-    if provider not in _PROVIDER_DEFAULT_MODEL:
-        logger.warning(
-            "selector_inference: unknown provider %r, falling back to env detection",
-            provider,
-        )
-        provider = _detect_provider_from_env()
-        if provider is None:
-            return None
-
-    resolved_model = model or _PROVIDER_DEFAULT_MODEL[provider]
-    return provider, resolved_model
-
-
-async def _call_gemini(prompt: str, model: str) -> str:
-    """Call Gemini via google-genai SDK (Vertex AI or API key mode)."""
-    import google.genai as genai
-
-    # Prefer API key mode when GEMINI_API_KEY / GOOGLE_API_KEY is set; otherwise Vertex.
-    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-    if api_key:
-        client = genai.Client(api_key=api_key)
-    else:
-        project = os.environ.get("GOOGLE_CLOUD_PROJECT")
-        if not project:
-            raise ValueError("Vertex mode requires GOOGLE_CLOUD_PROJECT (or set GEMINI_API_KEY for API-key mode)")
-        client = genai.Client(
-            vertexai=True,
-            project=project,
-            location=os.environ.get("GOOGLE_CLOUD_LOCATION", "global"),
-        )
-    response = await client.aio.models.generate_content(
-        model=model,
-        contents=prompt,
-        config=genai.types.GenerateContentConfig(
-            temperature=0.1,
-            response_mime_type="application/json",
-        ),
-    )
-    return response.text or ""
-
-
-async def _call_openai_compatible(
-    prompt: str,
-    model: str,
-    *,
-    base_url: str | None,
-    api_key: str,
-) -> str:
-    """Call an OpenAI-compatible endpoint (OpenAI proper or xAI)."""
-    from openai import AsyncOpenAI
-
-    client_kwargs: dict[str, Any] = {"api_key": api_key}
-    if base_url:
-        client_kwargs["base_url"] = base_url
-    client = AsyncOpenAI(**client_kwargs)
-    response = await client.chat.completions.create(
-        model=model,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.1,
-        response_format={"type": "json_object"},
-    )
-    choice = response.choices[0]
-    return choice.message.content or ""
-
-
-async def _call_anthropic(prompt: str, model: str) -> str:
-    """Call Anthropic via anthropic SDK."""
-    from anthropic import AsyncAnthropic
-
-    client = AsyncAnthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-    response = await client.messages.create(
-        model=model,
-        max_tokens=1024,
-        temperature=0.1,
-        messages=[
-            {
-                "role": "user",
-                "content": (prompt + "\n\nRespond ONLY with a raw JSON object, no prose, no code fence."),
-            }
-        ],
-    )
-    parts: list[str] = []
-    for block in response.content:
-        text = getattr(block, "text", None)
-        if isinstance(text, str):
-            parts.append(text)
-    return "".join(parts)
-
-
-def _build_default_caller(
-    *,
-    provider: str | None,
-    model: str | None,
-) -> LLMCaller | None:
-    """Build a default LLM caller from explicit params + env vars. None if no provider."""
-    resolved = _resolve_provider_and_model(provider, model)
-    if resolved is None:
-        return None
-    prov, resolved_model = resolved
-
-    async def caller(prompt: str, _html_content: str) -> dict[str, str]:
-        if prov == "gemini":
-            text = await _call_gemini(prompt, resolved_model)
-        elif prov == "openai":
-            text = await _call_openai_compatible(
-                prompt,
-                resolved_model,
-                base_url=None,
-                api_key=os.environ["OPENAI_API_KEY"],
-            )
-        elif prov == "xai":
-            text = await _call_openai_compatible(
-                prompt,
-                resolved_model,
-                base_url="https://api.x.ai/v1",
-                api_key=os.environ["XAI_API_KEY"],
-            )
-        elif prov == "anthropic":
-            text = await _call_anthropic(prompt, resolved_model)
-        else:  # pragma: no cover - guarded by _resolve_provider_and_model
-            return {}
-        return _parse_selector_json(text)
-
-    caller.__hull_web_provider__ = prov  # type: ignore[attr-defined]
-    caller.__hull_web_model__ = resolved_model  # type: ignore[attr-defined]
-    return caller
-
-
 async def infer_selectors_with_llm(
     url: str,
     html_content: str,
     *,
-    llm_caller: LLMCaller | None = None,
-    model: str | None = None,
-    provider: str | None = None,
+    llm_caller: LLMCaller,
 ) -> dict[str, str]:
     """Use LLM to infer CSS selectors from HTML structure.
 
-    Priority:
-        1. Explicit ``llm_caller`` (custom) - used directly.
-        2. Explicit ``provider`` + ``model`` params - dispatch via built-in providers.
-        3. Env-detected: ``WEB_CORE_LLM_MODEL`` + provider auto-detect from env vars
-           (GEMINI_API_KEY / GOOGLE_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY,
-           XAI_API_KEY).
-        4. No provider configured -> log warning once and return ``{}``.
+    ``llm_caller`` is required — it is the supported path. The callable
+    receives ``(prompt, html_content)`` and returns either a selector dict
+    or a raw JSON text. There is no env-based provider fallback.
 
     Never raises: on any provider error we log and return ``{}`` so that the
     ``ScrapingAgent`` can continue with domain-config and empty selectors.
     """
-    global _NO_PROVIDER_WARNED
-
-    if llm_caller is None:
-        llm_caller = _build_default_caller(provider=provider, model=model)
-
-    if llm_caller is None:
-        if not _NO_PROVIDER_WARNED:
-            logger.warning(
-                "selector_inference: no LLM provider configured "
-                "(set GEMINI_API_KEY / OPENAI_API_KEY / ANTHROPIC_API_KEY / XAI_API_KEY, "
-                "or pass an llm_caller); skipping inference"
-            )
-            _NO_PROVIDER_WARNED = True
-        return {}
-
     prompt = _build_prompt(url, html_content)
 
     try:
@@ -418,8 +184,8 @@ async def infer_selectors_with_llm(
     # Performance Optimization: Reusing extract_domain which implements the same
     # fast path string partitioning but includes an LRU cache (~3-4x faster for repeated URLs)
     domain = extract_domain(url).lower()
-    provider_name = getattr(llm_caller, "__hull_web_provider__", provider or "custom")
-    resolved_model = getattr(llm_caller, "__hull_web_model__", model)
+    provider_name = getattr(llm_caller, "__hull_web_provider__", "custom")
+    resolved_model = getattr(llm_caller, "__hull_web_model__", None)
     logger.info(
         "domain_selector_inferred",
         extra={

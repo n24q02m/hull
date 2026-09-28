@@ -54,7 +54,7 @@ class RobotsCache:
 
     def __init__(
         self,
-        user_agent: str = "web-core-bot/1.0",
+        user_agent: str = "hull-web-bot/0.1",
         ttl_seconds: int = 3600,
     ):
         self.user_agent = user_agent

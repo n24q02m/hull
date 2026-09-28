@@ -110,7 +110,7 @@ class MangaDexClient:
     # at-home/server endpoint has stricter limit: ~40 req/min = 0.67 RPS
     AT_HOME_RATE_LIMIT_RPS = 0.5
 
-    def __init__(self, user_agent: str = "KnowledgePrism/1.0") -> None:
+    def __init__(self, user_agent: str = "hull-web/0.1") -> None:
         self._user_agent = user_agent
         self._last_request_time = 0.0
         self._last_at_home_time = 0.0

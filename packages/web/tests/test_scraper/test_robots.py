@@ -75,6 +75,10 @@ class TestRobotsCache:
         with _patch_fetch(ROBOTS_BLOCK_OUR_BOT):
             assert await cache2.is_allowed("https://example.com/page") is True
 
+    def test_default_user_agent(self):
+        """Default UA is hull-web-bot/0.1 (de-web-core naming)."""
+        assert RobotsCache().user_agent == "hull-web-bot/0.1"
+
     async def test_cache_hit_skips_refetch(self):
         """Second call for same domain uses cache, no re-fetch."""
         cache = RobotsCache()

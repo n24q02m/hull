@@ -38,7 +38,6 @@ from hull_web.search.runner import (
     _quick_health_check,
     _read_discovery,
     _remove_discovery,
-    _select_start_port,
     _start_docker_searxng,
     _try_reuse_existing,
     _wait_for_service,
@@ -459,7 +458,7 @@ class TestConfigDir:
         """Config dir is ~/.hull/searxng (de-web-core naming)."""
         import hull_web.search.runner as mod
 
-        assert mod._CONFIG_DIR == Path.home() / ".hull" / "searxng"
+        assert Path.home() / ".hull" / "searxng" == mod._CONFIG_DIR
         assert mod._DISCOVERY_FILE == mod._CONFIG_DIR / "searxng_instance.json"
 
 
@@ -722,7 +721,6 @@ class TestPortListenerPids:
     @pytest.mark.skipif(sys.platform == "win32", reason="Unix-only test")
     async def test_unix_lsof_and_fuser_not_found(self):
         """On Unix, handles cases where both lsof and fuser are missing."""
-        import hull_web.search.runner as mod
 
         with (
             patch("subprocess.run", side_effect=FileNotFoundError("not found")),
@@ -1482,7 +1480,6 @@ class TestHandleRestartAndStart:
 
     async def test_install_without_opt_in_raises_and_does_not_pip_install(self, monkeypatch):
         """Runtime pip-install is opt-in: default OFF points the host at SEARXNG_URL."""
-        import hull_web.search.runner as mod
 
         monkeypatch.delenv("HULL_SEARXNG_AUTO_INSTALL", raising=False)
         mock_install = MagicMock(return_value=True)

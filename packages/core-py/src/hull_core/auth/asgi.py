@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 
-from hull_core.auth.context import AuthContext, set_current_user, reset_current_user
+from hull_core.auth.context import set_current_user, reset_current_user
 from hull_core.auth.middleware import Authenticator
 
 _STATUS_TEXT = {

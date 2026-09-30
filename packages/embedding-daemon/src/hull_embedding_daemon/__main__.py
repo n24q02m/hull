@@ -34,9 +34,7 @@ def main() -> int:
         import uvicorn
     except ImportError:
         sys.stderr.write(
-            "uvicorn is required to run hull-embedding-daemon. "
-            "Install it via `pip install hull-embedding-daemon[server]` "
-            "or `uv add uvicorn`.\n"
+            'uvicorn is required to run hull-embedding-daemon. Install it via `pip install "hull-core[embedding]"`.\n'
         )
         return 1
 

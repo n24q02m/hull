@@ -8,14 +8,6 @@ resolution-markers = [
     "python_full_version < '3.14' and sys_platform != 'win32'",
 ]
 
-[manifest]
-members = [
-    "hull",
-    "hull-core",
-    "hull-embedding-daemon",
-    "hull-web",
-]
-
 [[package]]
 name = "aiofile"
 version = "3.12.3"
@@ -1341,38 +1333,9 @@ wheels = [
 ]
 
 [[package]]
-name = "hull"
-version = "0.1.0"
-source = { virtual = "." }
-
-[package.dev-dependencies]
-dev = [
-    { name = "hull-core" },
-    { name = "hull-embedding-daemon" },
-    { name = "hull-web" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-timeout" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "hull-core", editable = "packages/core-py" },
-    { name = "hull-embedding-daemon", editable = "packages/embedding-daemon" },
-    { name = "hull-web", editable = "packages/web" },
-    { name = "pytest", specifier = ">=9.1.1" },
-    { name = "pytest-asyncio", specifier = ">=1.4.0" },
-    { name = "pytest-timeout", specifier = ">=2.4.0" },
-    { name = "ruff", specifier = ">=0.16.7" },
-]
-
-[[package]]
 name = "hull-core"
 version = "0.1.0"
-source = { editable = "packages/core-py" }
+source = { editable = "." }
 dependencies = [
     { name = "fastmcp" },
     { name = "httpcore" },
@@ -1383,33 +1346,7 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
-dev = [
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-timeout" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "fastmcp", specifier = ">=3.4.7,<4" },
-    { name = "httpcore", specifier = ">=1.0.9" },
-    { name = "httpx", specifier = ">=0.28.1" },
-    { name = "pydantic", specifier = ">=2.12.5,<3" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=9.1.1" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=1.4.0" },
-    { name = "pytest-timeout", marker = "extra == 'dev'", specifier = ">=2.4.0" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.16.7" },
-    { name = "starlette", specifier = ">=0.41.0" },
-    { name = "uvicorn", specifier = ">=0.30.0" },
-]
-provides-extras = ["dev"]
-
-[[package]]
-name = "hull-embedding-daemon"
-version = "0.1.0"
-source = { editable = "packages/embedding-daemon" }
-dependencies = [
+embedding = [
     { name = "fastapi" },
     { name = "httpx" },
     { name = "numpy" },
@@ -1417,29 +1354,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "uvicorn" },
 ]
-
-[package.optional-dependencies]
-cuda = [
-    { name = "onnxruntime-gpu" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "fastapi", specifier = ">=0.141.1" },
-    { name = "httpx", specifier = ">=0.28.1" },
-    { name = "numpy", specifier = ">=2.5.3" },
-    { name = "onnxruntime", specifier = ">=1.30.0" },
-    { name = "onnxruntime-gpu", marker = "extra == 'cuda'", specifier = ">=1.30.0" },
-    { name = "pydantic", specifier = ">=2.12.5,<3" },
-    { name = "uvicorn", specifier = ">=0.53.0" },
-]
-provides-extras = ["gguf", "cuda"]
-
-[[package]]
-name = "hull-web"
-version = "0.1.0"
-source = { editable = "packages/web" }
-dependencies = [
+web = [
     { name = "browserforge" },
     { name = "capsolver" },
     { name = "crawl4ai" },
@@ -1452,7 +1367,7 @@ dependencies = [
     { name = "pydantic" },
 ]
 
-[package.optional-dependencies]
+[package.dev-dependencies]
 dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -1463,23 +1378,39 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "browserforge", specifier = ">=1.2.4" },
-    { name = "capsolver", specifier = ">=1.0.7" },
-    { name = "crawl4ai", specifier = ">=0.9.3" },
-    { name = "curl-cffi", specifier = ">=0.16.3" },
-    { name = "filelock", specifier = ">=3" },
+    { name = "browserforge", marker = "extra == 'web'", specifier = ">=1.2.4" },
+    { name = "capsolver", marker = "extra == 'web'", specifier = ">=1.0.7" },
+    { name = "crawl4ai", marker = "extra == 'web'", specifier = ">=0.9.3" },
+    { name = "curl-cffi", marker = "extra == 'web'", specifier = ">=0.16.3" },
+    { name = "fastapi", marker = "extra == 'embedding'", specifier = ">=0.141.1" },
+    { name = "fastmcp", specifier = ">=3.4.7,<4" },
+    { name = "filelock", marker = "extra == 'web'", specifier = ">=3" },
+    { name = "httpcore", specifier = ">=1.0.9" },
     { name = "httpx", specifier = ">=0.28.1" },
-    { name = "langgraph", specifier = ">=1.2.11" },
-    { name = "patchright", specifier = ">=1.63.0" },
-    { name = "pillow", specifier = ">=12.3.0" },
-    { name = "pydantic", specifier = ">=2.12.5" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=9.1.1" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=1.4.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=7.1.0" },
-    { name = "pytest-timeout", marker = "extra == 'dev'", specifier = ">=2.4.0" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.16.7" },
+    { name = "httpx", marker = "extra == 'embedding'", specifier = ">=0.28.1" },
+    { name = "httpx", marker = "extra == 'web'", specifier = ">=0.28.1" },
+    { name = "langgraph", marker = "extra == 'web'", specifier = ">=1.2.11" },
+    { name = "numpy", marker = "extra == 'embedding'", specifier = ">=2.5.3" },
+    { name = "onnxruntime", marker = "extra == 'embedding'", specifier = ">=1.30.0" },
+    { name = "patchright", marker = "extra == 'web'", specifier = ">=1.63.0" },
+    { name = "pillow", marker = "extra == 'web'", specifier = ">=12.3.0" },
+    { name = "pydantic", specifier = ">=2.12.5,<3" },
+    { name = "pydantic", marker = "extra == 'embedding'", specifier = ">=2.12.5,<3" },
+    { name = "pydantic", marker = "extra == 'web'", specifier = ">=2.12.5" },
+    { name = "starlette", specifier = ">=0.41.0" },
+    { name = "uvicorn", specifier = ">=0.30.0" },
+    { name = "uvicorn", marker = "extra == 'embedding'", specifier = ">=0.53.0" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["web", "embedding"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=9.1.1" },
+    { name = "pytest-asyncio", specifier = ">=1.4.0" },
+    { name = "pytest-cov", specifier = ">=7.1.0" },
+    { name = "pytest-timeout", specifier = ">=2.4.0" },
+    { name = "ruff", specifier = ">=0.16.7" },
+]
 
 [[package]]
 name = "humanize"
@@ -2328,29 +2259,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/2f/db/db8e4c0cf6f70f1311060560630fd21763648e01dfbba5195a2592c052ef/onnxruntime-1.30.0-cp314-cp314-win_arm64.whl", hash = "sha256:83d543843cbd352cfa9996a6c7b92f8a480f114a18f95ff2a1acaf6921e85b6d", size = 14569360, upload-time = "2026-09-10T16:32:09.896Z" },
     { url = "https://files.pythonhosted.org/packages/24/0a/ec0a9d656e39b43887c378a5388b20c3b1e1ee43bded84580b0936466694/onnxruntime-1.30.0-cp314-cp314t-manylinux_2_28_aarch64.whl", hash = "sha256:265de607ba6f9814264e1d5d413fa7069d70f48e3049b5e460b3b04bdfcef294", size = 21348433, upload-time = "2026-09-10T16:32:12.772Z" },
     { url = "https://files.pythonhosted.org/packages/91/f0/40f74b7c00077e1e25627067ed98a70df1fef5c0e21b82849190d312554e/onnxruntime-1.30.0-cp314-cp314t-manylinux_2_28_x86_64.whl", hash = "sha256:67ad7f03433b6462c627d0f555dece80e6a26bc71e8542ced35cebd32142d1b7", size = 23579340, upload-time = "2026-09-10T16:32:15.532Z" },
-]
-
-[[package]]
-name = "onnxruntime-gpu"
-version = "1.30.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "flatbuffers" },
-    { name = "numpy" },
-    { name = "packaging" },
-    { name = "protobuf" },
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/31/ae/cfec0c21d039e4125fdc333e2e2032ed0a49eb50f9dd70b7f3819b339018/onnxruntime_gpu-1.30.0-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:9aba23f903f434cc55d851aeb801afee19e287c202f4ab8f59d02f04caa90aed", size = 246688669, upload-time = "2026-09-10T16:13:21.504Z" },
-    { url = "https://files.pythonhosted.org/packages/07/cd/99171c84362c9a3292ec909c2e8edd922dec21d65e28e83e9d809ad178c6/onnxruntime_gpu-1.30.0-cp313-cp313-manylinux_2_34_aarch64.whl", hash = "sha256:0c68878729527a28202af6c1b7ebc2fc5a687e9f6e02bfb8796e39d1fe775fd7", size = 205732148, upload-time = "2026-09-10T15:53:16.111Z" },
-    { url = "https://files.pythonhosted.org/packages/7e/d3/50fba71f4174f25f1e677ffe4b2ebc9f6c2a2aa8093c12e82c93792fd4e8/onnxruntime_gpu-1.30.0-cp313-cp313-win_amd64.whl", hash = "sha256:cf494da233f3fc02bbeb2a3178e3ace7361b6b4fef7031b19c1e5aed5e9328ce", size = 160479611, upload-time = "2026-09-10T15:56:28.799Z" },
-    { url = "https://files.pythonhosted.org/packages/8e/41/3ebd7b9648259adcf3abd245be862a0cb4c24d4b12f4f7b82d3e9fcf18f0/onnxruntime_gpu-1.30.0-cp313-cp313t-manylinux_2_28_x86_64.whl", hash = "sha256:675d519cab613bc42685ecb998f8e8e8c6d73143496681650d30ef14fedeade7", size = 246684982, upload-time = "2026-09-10T16:13:31.799Z" },
-    { url = "https://files.pythonhosted.org/packages/f5/b0/6187754ea45ce90c116730115e4d856a6107b9e708580093c112def9a567/onnxruntime_gpu-1.30.0-cp313-cp313t-manylinux_2_34_aarch64.whl", hash = "sha256:c6df4b62538f98482dd5cebc91cba668c4b82156e872517c314a383c904a191d", size = 205776779, upload-time = "2026-09-10T15:53:24.926Z" },
-    { url = "https://files.pythonhosted.org/packages/bb/75/09a6c97136c747608867a63114d988384e6ddb5507e08bbe9ced08744a4c/onnxruntime_gpu-1.30.0-cp314-cp314-manylinux_2_28_x86_64.whl", hash = "sha256:5aacc98f394a13f4891c0a07e60479d8fb0b1ea6f3328b6b38cfc88f9dfb05ea", size = 246693192, upload-time = "2026-09-10T16:13:41.775Z" },
-    { url = "https://files.pythonhosted.org/packages/73/93/415e8100a3d7d4754f406fadbe86fa91d03058a9a6d7fa8a692722e9ceb8/onnxruntime_gpu-1.30.0-cp314-cp314-manylinux_2_34_aarch64.whl", hash = "sha256:96cb15cff2f0dffaef3ae636560145d41be47bb73e3230113f2e946ca576014b", size = 205736852, upload-time = "2026-09-10T15:53:34.204Z" },
-    { url = "https://files.pythonhosted.org/packages/50/fe/ed63f743d546fd089f98cfd415790b231ae8d3dba2208df8d22811f788a5/onnxruntime_gpu-1.30.0-cp314-cp314-win_amd64.whl", hash = "sha256:794fc118cdbf340ed02b44c7527e557ea51746002d48105d493ea41f0c9a60d0", size = 161124661, upload-time = "2026-09-10T15:56:36.489Z" },
-    { url = "https://files.pythonhosted.org/packages/75/66/11c43d3d544380271aa14fd55c1e5be65f28fac007128e369f1192c9bfa9/onnxruntime_gpu-1.30.0-cp314-cp314t-manylinux_2_28_x86_64.whl", hash = "sha256:a4dfbe80d4167ff5bc269f266778ee6d0eb771fd9f3c0c4d83757e7ae42fe3c8", size = 246687044, upload-time = "2026-09-10T16:13:52.095Z" },
-    { url = "https://files.pythonhosted.org/packages/74/3d/33878b36bc473415ff7ed92ba751a5b5181d2779c74441c3584c68261dbc/onnxruntime_gpu-1.30.0-cp314-cp314t-manylinux_2_34_aarch64.whl", hash = "sha256:13d4cf97120882739da8572ba26e2a0f39caed4c69749a147d8f1a77f74a4690", size = 205750897, upload-time = "2026-09-10T15:53:43.295Z" },
 ]
 
 [[package]]

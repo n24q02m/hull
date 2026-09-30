@@ -1,4 +1,7 @@
-# hull-web
+# hull_web
+
+Ships in the `hull-core` dist as the `[web]` extra:
+`pip install "hull-core[web]"`.
 
 Shared web infrastructure for hull consumers: search (SearXNG), scraping
 strategies (plain HTTP → TLS-spoof → headless → stealth browser → remote

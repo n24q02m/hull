@@ -9,14 +9,15 @@ from hull_embedding_daemon.__main__ import main
 
 
 def test_main_uvicorn_import_error() -> None:
-    """Test that main() returns 1 when uvicorn is not installed."""
+    """Test that main() returns 1 with the [embedding] install hint when uvicorn is not installed."""
     with patch.dict(sys.modules, {"uvicorn": None}):
         with patch("sys.stderr") as mock_stderr:
             with patch("sys.argv", ["hull-embedding-daemon"]):
                 result = main()
                 assert result == 1
                 called_text = "".join(call.args[0] for call in mock_stderr.write.call_args_list)
-                assert "uvicorn is required to run hull-embedding-daemon" in called_text
+                assert "uvicorn" in called_text
+                assert 'pip install "hull-core[embedding]"' in called_text
 
 
 def test_main_success() -> None:

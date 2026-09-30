@@ -11,10 +11,16 @@ thin adapters around qwen3-embed in a follow-up release.
 
 from __future__ import annotations
 
-from fastapi import FastAPI, HTTPException, status
-from pydantic import BaseModel
+from hull_embedding_daemon._extra import require_embedding_extra
 
-from hull_embedding_daemon import __version__
+# Must run before the extra's own imports below: fail with the install hint
+# instead of a bare ModuleNotFoundError on a base `hull-core` install.
+require_embedding_extra()
+
+from fastapi import FastAPI, HTTPException, status  # noqa: E402
+from pydantic import BaseModel  # noqa: E402
+
+from hull_embedding_daemon import __version__  # noqa: E402
 
 
 class EmbedRequest(BaseModel):

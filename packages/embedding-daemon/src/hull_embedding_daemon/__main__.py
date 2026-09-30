@@ -5,6 +5,8 @@ from __future__ import annotations
 import argparse
 import sys
 
+from hull_embedding_daemon._extra import require_embedding_extra
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(
@@ -31,12 +33,12 @@ def main() -> int:
     args = parser.parse_args()
 
     try:
-        import uvicorn
-    except ImportError:
-        sys.stderr.write(
-            'uvicorn is required to run hull-embedding-daemon. Install it via `pip install "hull-core[embedding]"`.\n'
-        )
+        require_embedding_extra()
+    except ImportError as exc:
+        sys.stderr.write(f"{exc}\n")
         return 1
+
+    import uvicorn
 
     uvicorn.run(
         "hull_embedding_daemon.api:app",

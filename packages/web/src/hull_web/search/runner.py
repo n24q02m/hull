@@ -61,6 +61,7 @@ def _auto_install_enabled() -> bool:
     """Whether runtime pip-install of SearXNG was explicitly opted into."""
     return os.environ.get(_AUTO_INSTALL_ENV, "").strip().lower() in {"1", "true", "yes", "on"}
 
+
 # Cross-process filelock preventing concurrent Docker spawn races.
 _docker_lock: filelock.FileLock | None = None
 

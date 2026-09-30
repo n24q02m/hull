@@ -84,9 +84,7 @@ async def test_embeddings_dimensions_and_extra_passthrough() -> None:
 
     client = OpenAICompatClient(_cell(), transport=httpx.MockTransport(handler))
     try:
-        vectors = await client.embeddings(
-            ["hello"], dimensions=1024, input_type="search_query"
-        )
+        vectors = await client.embeddings(["hello"], dimensions=1024, input_type="search_query")
     finally:
         await client.aclose()
     # storage-width selection + provider-specific body fields travel verbatim
@@ -152,7 +150,9 @@ async def test_chat_null_content_falls_back_to_reasoning() -> None:
         fallbacks.append(body["model"])
         return httpx.Response(
             200,
-            json={"choices": [{"message": {"role": "assistant", "content": None, "reasoning_content": "importance: 0.7"}}]},
+            json={
+                "choices": [{"message": {"role": "assistant", "content": None, "reasoning_content": "importance: 0.7"}}]
+            },
         )
 
     client = OpenAICompatClient(_cell(task="chat"), transport=httpx.MockTransport(handler))
@@ -236,6 +236,7 @@ async def test_multi_mode_blocks_private_dns() -> None:
         return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.0.0.5", port or 443))]
 
     import unittest.mock as mock
+
     with mock.patch.object(socket, "getaddrinfo", fake_getaddrinfo):
         with pytest.raises(SSRFBlockedError):
             OpenAICompatClient(

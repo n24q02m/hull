@@ -23,7 +23,9 @@ def test_main_uvicorn_import_error() -> None:
 def test_main_success() -> None:
     """Test that main() returns 0 and calls uvicorn.run with correct arguments."""
     with patch("uvicorn.run") as mock_run:
-        with patch("sys.argv", ["hull-embedding-daemon", "--host", "0.0.0.0", "--port", "8888", "--log-level", "debug"]):
+        with patch(
+            "sys.argv", ["hull-embedding-daemon", "--host", "0.0.0.0", "--port", "8888", "--log-level", "debug"]
+        ):
             result = main()
             assert result == 0
             mock_run.assert_called_once_with(

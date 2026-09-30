@@ -62,8 +62,7 @@ def load_users(path: Path) -> dict[str, User]:
         token_hash = entry.get("token_hash")
         if not isinstance(token_hash, str) or not is_valid_encoding(token_hash):
             raise UsersError(
-                f"user {uid!r}: token_hash missing or not a scrypt encoding "
-                "(mint one with `hull token hash`)"
+                f"user {uid!r}: token_hash missing or not a scrypt encoding (mint one with `hull token hash`)"
             )
         namespace = entry.get("namespace")
         if not isinstance(namespace, str) or not namespace:
@@ -111,6 +110,4 @@ def ensure_path_allowed(user: User, path: Path) -> None:
         root_resolved = Path(root).resolve()
         if resolved == root_resolved or root_resolved in resolved.parents:
             return
-    raise PermissionError(
-        f"path {resolved} is outside allowed roots for user {user.uid!r}"
-    )
+    raise PermissionError(f"path {resolved} is outside allowed roots for user {user.uid!r}")

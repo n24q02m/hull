@@ -202,12 +202,16 @@ def _is_pid_alive_win32(pid: int) -> bool:  # pragma: no cover
     """Windows-specific PID check using ctypes OpenProcess."""
     import ctypes
 
+    # `windll` exists only in the Windows build of ctypes; resolve it through
+    # getattr so this module also type-checks where the symbol is absent.
+    windll = getattr(ctypes, "windll", None)
+    if windll is None:
+        return False
+
     PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
-    handle = ctypes.windll.kernel32.OpenProcess(  # type: ignore[attr-defined]
-        PROCESS_QUERY_LIMITED_INFORMATION, False, pid
-    )
+    handle = windll.kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
     if handle:
-        ctypes.windll.kernel32.CloseHandle(handle)  # type: ignore[attr-defined]
+        windll.kernel32.CloseHandle(handle)
         return True
     return False
 
@@ -906,7 +910,7 @@ def _get_process_kwargs() -> dict:  # pragma: no cover
         except (KeyError, ImportError, AttributeError):
             logger.warning("Could not drop privileges")
         return kwargs
-    return {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+    return {"creationflags": getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)}
 
 
 def _cleanup_process() -> None:  # pragma: no cover

@@ -18,8 +18,10 @@ UV_LINK_MODE = "copy"
 description = "Setup development environment"
 run = [
   "mise install",
-  "node scripts/clean-venv.mjs",
-  "uv sync --group dev",
+  # `uv sync` prunes anything the lockfile does not ask for, so this is also
+  # the clean-venv step; the extras are required because the shipped code and
+  # the test suite both import them.
+  "uv sync --locked --group dev --extra web --extra embedding",
   "uv pip install pre-commit",
   "uv run pre-commit install",
   "uv run pre-commit install --hook-type commit-msg",
@@ -31,7 +33,7 @@ description = "Run all quality checks (ruff + ty)"
 run = [
   "uv run ruff check .",
   "uv run ruff format --check .",
-  "uv run ty check --exit-zero-on-warning",
+  "uv run ty check",
   "echo 'All checks passed!'"
 ]
 

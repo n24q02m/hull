@@ -1,5 +1,11 @@
 # hull — shared core for the wet / crg / mnemo self-hosted stack
 
+[![CI](https://github.com/n24q02m/hull/actions/workflows/ci.yml/badge.svg)](https://github.com/n24q02m/hull/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/n24q02m/hull/actions/workflows/codeql.yml/badge.svg)](https://github.com/n24q02m/hull/actions/workflows/codeql.yml)
+
+[![Python](https://img.shields.io/badge/python-3.13-3776AB.svg)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-Apache--2.0-green.svg)](LICENSE)
+
 `hull` is the shared monorepo core for three self-hostable products:
 **wet** (search), **crg** (code graph), **mnemo** (memory). It owns everything
 the three products share: token auth, per-task model configuration, per-user

@@ -1,7 +1,12 @@
 {
   "schema_version": 1,
   "tier": 2,
-  "description": "hull — shared core for wet/crg/mnemo: core-py, embedding-daemon, web (scraper/http-security/search). Open-source, self-host.",
+  "description": "hull — shared core for the wet / crg / mnemo self-hosted stack",
   "homepage": "",
-  "topics": []
+  "topics": [
+    "mcp",
+    "model-context-protocol",
+    "python",
+    "self-hosted"
+  ]
 }

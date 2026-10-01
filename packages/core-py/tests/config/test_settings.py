@@ -68,3 +68,22 @@ def test_invalid_toml_rejected(tmp_path: Path) -> None:
 
 def test_default_config_dir_under_home() -> None:
     assert default_config_dir().name == ".hull"
+
+
+def test_server_section_must_be_a_table(tmp_path: Path) -> None:
+    (tmp_path / "config.toml").write_text('server = "nope"\n', encoding="utf-8")
+    with pytest.raises(ConfigError, match=r"\[server\] must be a table"):
+        load_settings(tmp_path)
+
+
+def test_models_section_must_be_a_table(tmp_path: Path) -> None:
+    (tmp_path / "config.toml").write_text('models = "nope"\n', encoding="utf-8")
+    with pytest.raises(ConfigError, match=r"\[models\] must be a table"):
+        load_settings(tmp_path)
+
+
+@pytest.mark.parametrize("rpm", ["0", "-1", '"60"'])
+def test_rpm_must_be_a_positive_int(tmp_path: Path, rpm: str) -> None:
+    (tmp_path / "config.toml").write_text(f"[server]\nrpm = {rpm}\n", encoding="utf-8")
+    with pytest.raises(ConfigError, match="rpm must be a positive integer"):
+        load_settings(tmp_path)

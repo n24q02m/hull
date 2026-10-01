@@ -44,7 +44,7 @@ def tmp_config_dir(tmp_path, monkeypatch):
     """Use a temporary config directory for SearchRunner."""
     import hull_web.search.runner as mod
 
-    config_dir = tmp_path / ".web-core"
+    config_dir = tmp_path / ".hull" / "searxng"
     config_dir.mkdir(parents=True, exist_ok=True)
     monkeypatch.setattr(mod, "_CONFIG_DIR", config_dir)
     monkeypatch.setattr(mod, "_DISCOVERY_FILE", config_dir / "searxng_instance.json")

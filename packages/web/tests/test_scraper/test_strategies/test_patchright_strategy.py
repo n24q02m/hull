@@ -1,7 +1,7 @@
-import contextlib
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from patchright.async_api import TimeoutError as PatchrightTimeoutError
 
 from hull_web.scraper.strategies.patchright_browser import PatchrightStrategy
 
@@ -167,25 +167,26 @@ class TestPatchrightStrategy:
         assert result.content == NORMAL_HTML
         assert result.metadata["cf_challenge"] is None
 
-    async def test_browser_cleanup_on_success(self):
+    async def test_injected_provider_not_closed_after_fetch(self):
+        """An injected provider is owned by the caller — fetch must not close it."""
         provider, page = _make_mock_provider(NORMAL_HTML)
         strategy = PatchrightStrategy(provider=provider)
 
         await strategy.fetch("https://example.com")
 
         page.close.assert_awaited_once()
-        provider.close.assert_awaited_once()
+        provider.close.assert_not_awaited()
 
-    async def test_browser_cleanup_on_error(self):
+    async def test_injected_provider_not_closed_on_goto_error(self):
         provider, page = _make_mock_provider(NORMAL_HTML)
-        page.goto = AsyncMock(side_effect=TimeoutError("Navigation timeout"))
+        page.goto = AsyncMock(side_effect=PatchrightTimeoutError("Navigation timeout"))
         strategy = PatchrightStrategy(provider=provider)
 
-        with contextlib.suppress(TimeoutError):
+        with pytest.raises(PatchrightTimeoutError):
             await strategy.fetch("https://timeout.com")
 
         page.close.assert_awaited_once()
-        provider.close.assert_awaited_once()
+        provider.close.assert_not_awaited()
 
     async def test_custom_timeout(self):
         provider, page = _make_mock_provider(NORMAL_HTML)
@@ -237,9 +238,9 @@ class TestPatchrightStrategy:
         assert result.status_code == 200
 
     async def test_fetch_initial_networkidle_timeout(self):
-        """Cover lines 113-115: Initial networkidle timeout."""
+        """Patchright's own TimeoutError from the optional networkidle wait is absorbed."""
         provider, page = _make_mock_provider(NORMAL_HTML)
-        page.wait_for_load_state = AsyncMock(side_effect=TimeoutError("networkidle timeout"))
+        page.wait_for_load_state = AsyncMock(side_effect=PatchrightTimeoutError("networkidle timeout"))
 
         strategy = PatchrightStrategy(provider=provider)
         result = await strategy.fetch("https://example.com")
@@ -261,7 +262,7 @@ class TestPatchrightStrategy:
             return CF_JS_CHALLENGE_HTML
 
         page.content = AsyncMock(side_effect=content_side_effect)
-        page.wait_for_load_state = AsyncMock(side_effect=TimeoutError("networkidle timeout"))
+        page.wait_for_load_state = AsyncMock(side_effect=PatchrightTimeoutError("networkidle timeout"))
 
         strategy = PatchrightStrategy(provider=provider)
         with patch("hull_web.scraper.strategies.patchright_browser._CF_POLL_INTERVAL", 0.01):
@@ -283,7 +284,7 @@ class TestPatchrightStrategy:
             return CF_MANAGED_HTML
 
         page.content = AsyncMock(side_effect=content_side_effect)
-        page.wait_for_load_state = AsyncMock(side_effect=TimeoutError("networkidle timeout"))
+        page.wait_for_load_state = AsyncMock(side_effect=PatchrightTimeoutError("networkidle timeout"))
 
         strategy = PatchrightStrategy(provider=provider, cf_wait=0.01)
         with patch("hull_web.scraper.strategies.patchright_browser._CF_POLL_INTERVAL", 0.01):
@@ -318,7 +319,7 @@ class TestPatchrightStrategy:
         # Mock wait_for_load_state to timeout for "domcontentloaded"
         async def wait_side_effect(state, timeout=None):
             if state == "domcontentloaded":
-                raise TimeoutError("domcontentloaded timeout")
+                raise PatchrightTimeoutError("domcontentloaded timeout")
             return None
 
         page.wait_for_load_state = AsyncMock(side_effect=wait_side_effect)

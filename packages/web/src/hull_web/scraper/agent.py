@@ -19,6 +19,7 @@ from langgraph.graph import END, START, StateGraph
 from hull_web.scraper.cache import StrategyCache
 from hull_web.scraper.robots import RobotsCache, RobotsDisallowedError
 from hull_web.scraper.selector_inference import (
+    LLMCaller,
     get_domain_selectors,
     infer_selectors_with_llm,
     merge_selectors,
@@ -49,6 +50,7 @@ class ScrapingAgent:
         min_content_length: int = 100,
         enable_selector_inference: bool = True,
         respect_robots: bool = True,
+        llm_caller: LLMCaller | None = None,
     ):
         self.strategies = strategies or {}
         self.strategy_cache = strategy_cache or StrategyCache()
@@ -57,6 +59,9 @@ class ScrapingAgent:
         self.min_content_length = min_content_length
         self.enable_selector_inference = enable_selector_inference
         self.respect_robots = respect_robots
+        # LLM selector inference only runs with a caller-supplied llm_caller;
+        # there is no env-based provider fallback.
+        self.llm_caller = llm_caller
         self._graph = self._build_graph()
 
     def _build_graph(self):
@@ -69,6 +74,8 @@ class ScrapingAgent:
               ├─ (more strategies) → select_strategy (loop)
               └─ (exhausted) → update_cache → END
         """
+        # ty: ignore[invalid-argument-type]  # langgraph's StateT bound is a private
+        # alias ty cannot resolve; ScrapingState is a TypedDict, which is what it wants.
         graph = StateGraph(ScrapingState)
 
         graph.add_node("check_cache", self._check_cache_node)
@@ -250,6 +257,7 @@ class ScrapingAgent:
         content = state.get("content", "")
         if (
             self.enable_selector_inference
+            and self.llm_caller is not None
             and content
             and len(content) > 50
             and not state.get("selector_inference_attempted", False)
@@ -280,19 +288,20 @@ class ScrapingAgent:
                 "selector_inference_attempted": True,
             }
 
-        # LLM inference
-        try:
-            inferred = await infer_selectors_with_llm(url, content)
-            if inferred:
-                merged = merge_selectors(existing_selectors, inferred)
-                return {
-                    **state,
-                    "selectors": merged,
-                    "inferred_selectors": inferred,
-                    "selector_inference_attempted": True,
-                }
-        except Exception:
-            logger.exception("Selector inference failed")
+        # LLM inference (caller-supplied llm_caller only — no env fallback)
+        if self.llm_caller is not None:
+            try:
+                inferred = await infer_selectors_with_llm(url, content, llm_caller=self.llm_caller)
+                if inferred:
+                    merged = merge_selectors(existing_selectors, inferred)
+                    return {
+                        **state,
+                        "selectors": merged,
+                        "inferred_selectors": inferred,
+                        "selector_inference_attempted": True,
+                    }
+            except Exception:
+                logger.exception("Selector inference failed")
 
         return {**state, "selector_inference_attempted": True}
 

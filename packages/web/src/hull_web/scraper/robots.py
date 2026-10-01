@@ -54,7 +54,7 @@ class RobotsCache:
 
     def __init__(
         self,
-        user_agent: str = "web-core-bot/1.0",
+        user_agent: str = "hull-web-bot/0.1",
         ttl_seconds: int = 3600,
     ):
         self.user_agent = user_agent
@@ -90,6 +90,8 @@ class RobotsCache:
             parser.parse(content.splitlines())
         else:
             # Unreachable robots.txt -> allow everything (RFC 9309 sec 2.3)
+            # ty: ignore[unresolved-attribute]  # typeshed omits allow_all, which
+            # CPython sets on RobotFileParser itself (and this parser honours).
             parser.allow_all = True
 
         self._cache[origin] = (parser, time.monotonic())

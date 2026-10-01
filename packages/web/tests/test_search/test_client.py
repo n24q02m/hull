@@ -12,6 +12,8 @@ from hull_web.search.client import (
     _apply_domain_cap,
     _build_filtered_query,
     _get_safe_domains,
+    _get_shared_client,
+    _shared_clients,
     search,
 )
 from hull_web.search.models import SearchError, SearchResult
@@ -756,3 +758,20 @@ class TestLogInjection:
         rendered = [r.getMessage() for r in caplog.records]
         assert rendered, "expected the retry branch to log warnings"
         assert all("\r" not in m and "\n" not in m for m in rendered)
+
+
+async def test_unparseable_searxng_url_falls_back_to_localhost():
+    """A broken SEARXNG_URL still yields a client instead of raising at request time."""
+
+    def boom(*_args, **_kwargs):
+        raise ValueError("cannot split")
+
+    try:
+        with patch("hull_web.search.client.urlsplit", boom):
+            client = _get_shared_client("not a url")
+        assert client is not None
+        assert "localhost" in _shared_clients, "the fallback hostname keys the pool"
+    finally:
+        for cached in _shared_clients.values():
+            await cached.aclose()
+        _shared_clients.clear()

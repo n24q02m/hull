@@ -57,15 +57,11 @@ class HullDatabase:
             self._conn.commit()
 
     def kv_get(self, namespace: str, key: str) -> str | None:
-        row = self._conn.execute(
-            "SELECT value FROM kv WHERE namespace = ? AND key = ?", (namespace, key)
-        ).fetchone()
+        row = self._conn.execute("SELECT value FROM kv WHERE namespace = ? AND key = ?", (namespace, key)).fetchone()
         return None if row is None else str(row["value"])
 
     def kv_list(self, namespace: str) -> dict[str, str]:
-        rows = self._conn.execute(
-            "SELECT key, value FROM kv WHERE namespace = ? ORDER BY key", (namespace,)
-        ).fetchall()
+        rows = self._conn.execute("SELECT key, value FROM kv WHERE namespace = ? ORDER BY key", (namespace,)).fetchall()
         return {str(r["key"]): str(r["value"]) for r in rows}
 
     def close(self) -> None:

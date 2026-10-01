@@ -29,7 +29,7 @@ class TLSSpoofStrategy(BaseStrategy):
         self.profile = profile
         self._session_factory = session_factory
 
-    async def fetch(self, url: str, selectors: dict[str, str] | None = None) -> ScrapingResult:
+    async def fetch(self, url: str, selectors: dict[str, Any] | None = None) -> ScrapingResult:
         """Fetch *url* using a TLS-spoofed session via curl-cffi."""
         if not is_safe_url(url):
             raise ValueError(f"SSRF blocked: {url}")
@@ -49,12 +49,12 @@ class TLSSpoofStrategy(BaseStrategy):
 
         return self._build_result(response, impersonate)
 
-    def _extract_cookies(self, selectors: dict[str, Any] | None) -> dict[str, str] | None:
-        """Extract cookies from selectors dictionary."""
+    def _extract_cookies(self, selectors: object) -> dict[str, str] | None:
+        """Extract cookies from a selectors tree; anything else yields None."""
         if isinstance(selectors, dict):
             cookies = selectors.get("cookies")
             if isinstance(cookies, dict):
-                return cookies
+                return {str(name): str(value) for name, value in cookies.items()}
         return None
 
     async def _perform_request(self, session: Any, url: str, cookies: dict[str, str] | None, impersonate: str) -> Any:

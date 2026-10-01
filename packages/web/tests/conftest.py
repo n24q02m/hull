@@ -1,4 +1,4 @@
-"""Shared test fixtures for web-core."""
+"""Shared test fixtures for hull-web."""
 
 from __future__ import annotations
 

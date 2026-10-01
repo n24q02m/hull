@@ -418,7 +418,7 @@ class TestSafeHttpxClient:
     def test_has_ssrf_event_hook_factory(self):
         client = safe_httpx_client()
         request_hooks = client.event_hooks.get("request", [])
-        assert any(h.__name__ == "_ssrf_event_hook" for h in request_hooks)
+        assert any(getattr(h, "__name__", None) == "_ssrf_event_hook" for h in request_hooks)
 
     def test_ssrf_hook_is_first(self):
         """SSRF hook must be the first request hook to prevent bypass."""
@@ -428,7 +428,7 @@ class TestSafeHttpxClient:
 
         client = safe_httpx_client(event_hooks={"request": [custom_hook]})
         request_hooks = client.event_hooks["request"]
-        assert request_hooks[0].__name__ == "_ssrf_event_hook"
+        assert getattr(request_hooks[0], "__name__", None) == "_ssrf_event_hook"
         assert request_hooks[1] is custom_hook
 
     def test_preserves_other_kwargs(self):

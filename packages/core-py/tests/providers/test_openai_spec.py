@@ -84,9 +84,7 @@ async def test_embeddings_dimensions_and_extra_passthrough() -> None:
 
     client = OpenAICompatClient(_cell(), transport=httpx.MockTransport(handler))
     try:
-        vectors = await client.embeddings(
-            ["hello"], dimensions=1024, input_type="search_query"
-        )
+        vectors = await client.embeddings(["hello"], dimensions=1024, input_type="search_query")
     finally:
         await client.aclose()
     # storage-width selection + provider-specific body fields travel verbatim
@@ -108,6 +106,26 @@ async def test_embeddings_reserved_keys_rejected() -> None:
             await client.embeddings(["x"], model="evil-model")
         with pytest.raises(ValueError, match="cannot override"):
             await client.embeddings(["x"], input=["evil"])
+    finally:
+        await client.aclose()
+
+
+async def test_chat_reserved_keys_rejected() -> None:
+    """chat() mirrors embeddings(): cell model/messages always win."""
+    client = OpenAICompatClient(
+        _cell(task="chat"),
+        transport=httpx.MockTransport(lambda request: httpx.Response(200, json={"choices": [{"message": {}}]})),
+    )
+    try:
+        with pytest.raises(ValueError, match="cannot override"):
+            await client.chat([{"role": "user", "content": "ping"}], model="evil-model")
+        # `messages` is a named parameter, so a keyword override cannot even
+        # reach the body guard — Python rejects it at bind time.
+        with pytest.raises(TypeError, match="multiple values"):
+            await client.chat(
+                [{"role": "user", "content": "ping"}],
+                messages=[{"role": "user", "content": "evil"}],  # ty: ignore[parameter-already-assigned]  # bound twice: the point of the test
+            )
     finally:
         await client.aclose()
 
@@ -135,7 +153,9 @@ async def test_chat_null_content_falls_back_to_reasoning() -> None:
         fallbacks.append(body["model"])
         return httpx.Response(
             200,
-            json={"choices": [{"message": {"role": "assistant", "content": None, "reasoning_content": "importance: 0.7"}}]},
+            json={
+                "choices": [{"message": {"role": "assistant", "content": None, "reasoning_content": "importance: 0.7"}}]
+            },
         )
 
     client = OpenAICompatClient(_cell(task="chat"), transport=httpx.MockTransport(handler))
@@ -219,9 +239,26 @@ async def test_multi_mode_blocks_private_dns() -> None:
         return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.0.0.5", port or 443))]
 
     import unittest.mock as mock
+
     with mock.patch.object(socket, "getaddrinfo", fake_getaddrinfo):
         with pytest.raises(SSRFBlockedError):
             OpenAICompatClient(
                 _cell(base_url="https://internal.example.test/v1"),
                 auth_mode="multi",
             )
+
+
+async def test_transport_failure_becomes_502() -> None:
+    """A dropped connection surfaces as a 502, not a raw httpx traceback."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("connection refused", request=request)
+
+    client = OpenAICompatClient(_cell(task="chat"), transport=httpx.MockTransport(handler))
+    try:
+        with pytest.raises(ProviderError) as excinfo:
+            await client.chat([{"role": "user", "content": "ping"}])
+    finally:
+        await client.aclose()
+    assert excinfo.value.status == 502
+    assert "transport error" in excinfo.value.detail

@@ -9,7 +9,7 @@ import pytest
 from hull_web.scraper.agent import ScrapingAgent
 from hull_web.scraper.base import BaseStrategy, ScrapingResult
 from hull_web.scraper.cache import StrategyCache
-from hull_web.scraper.state import ScrapingError
+from hull_web.scraper.state import ScrapingError, ScrapingState
 
 # ---------------------------------------------------------------------------
 # Mock strategies
@@ -24,7 +24,7 @@ class MockStrategy(BaseStrategy):
         name: str = "mock",
         should_fail: bool = False,
         content: str = "<html>mock content that is long enough for validation</html>" + "x" * 100,
-        status_code: int = 200,
+        status_code: int | None = 200,
     ):
         self.name = name
         self._should_fail = should_fail
@@ -283,7 +283,7 @@ class TestScrapingAgent:
     async def test_infer_selectors_node_domain_match(self):
         """_infer_selectors_node should use domain selectors if found."""
         agent = ScrapingAgent()
-        state = {
+        state: ScrapingState = {
             "url": "https://ncode.syosetu.com/n1234",
             "content": "some content",
             "selectors": {},
@@ -299,8 +299,8 @@ class TestScrapingAgent:
 
     async def test_infer_selectors_node_llm_inference(self):
         """_infer_selectors_node should use LLM if no domain match."""
-        agent = ScrapingAgent()
-        state = {
+        agent = ScrapingAgent(llm_caller=AsyncMock(return_value={}))
+        state: ScrapingState = {
             "url": "https://unknown.com",
             "content": "some content",
             "selectors": {"title": "h1"},
@@ -320,8 +320,8 @@ class TestScrapingAgent:
 
     async def test_infer_selectors_node_exception_handling(self):
         """_infer_selectors_node should handle LLM exceptions gracefully."""
-        agent = ScrapingAgent()
-        state = {
+        agent = ScrapingAgent(llm_caller=AsyncMock(return_value={}))
+        state: ScrapingState = {
             "url": "https://unknown.com",
             "content": "some content",
             "selectors": {},
@@ -339,7 +339,7 @@ class TestScrapingAgent:
     async def test_infer_selectors_node_no_content(self):
         """_infer_selectors_node should mark as attempted even if no content."""
         agent = ScrapingAgent()
-        state = {"content": "", "url": "https://example.com"}
+        state: ScrapingState = {"content": "", "url": "https://example.com"}
 
         new_state = await agent._infer_selectors_node(state)
         assert new_state["selector_inference_attempted"] is True
@@ -348,7 +348,12 @@ class TestScrapingAgent:
         """Agent should trigger LLM inference when content is too short."""
         # Content length 60 is > 50 (min to trigger inference) but < 100 (min_content_length)
         strategy = MockStrategy(name="basic", content="A" * 60)
-        agent = ScrapingAgent(strategies={"basic": strategy}, min_content_length=100, enable_selector_inference=True)
+        agent = ScrapingAgent(
+            strategies={"basic": strategy},
+            min_content_length=100,
+            enable_selector_inference=True,
+            llm_caller=AsyncMock(return_value={}),
+        )
 
         inferred = {"content": ".new-selector"}
         with (

@@ -53,6 +53,9 @@ def _profile_for_domain(domain: str) -> FingerprintProfile:
         viewport_height=viewport_height,
         locale=locales[digest[1] % len(locales)],
         timezone_id=timezones[digest[2] % len(timezones)],
-        webgl_vendor=video_card.vendor,
-        webgl_renderer=video_card.renderer,
+        # BrowserForge leaves videoCard unset when it has no GPU profile for the
+        # requested device; headless Chrome reports empty WebGL strings there,
+        # so mirror that rather than inventing a vendor.
+        webgl_vendor=video_card.vendor if video_card is not None else "",
+        webgl_renderer=video_card.renderer if video_card is not None else "",
     )

@@ -1,6 +1,6 @@
 """SearXNG search client with retry, deduplication, and domain filtering.
 
-Adapted from wet-mcp's searxng.py with web-core conventions:
+Adapted from wet-mcp's searxng.py with hull conventions:
 - SSRF-safe HTTP via ``safe_httpx_client``
 - URL normalization and domain validation from ``hull_web.http.url``
 - Returns typed ``SearchResult`` objects instead of JSON strings
@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Sequence
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -73,8 +74,8 @@ def _apply_domain_cap(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return result
 
 
-def _get_safe_domains(domains: list[str] | None, limit: int) -> list[str]:
-    """Filter, deduplicate, and cap a list of domains."""
+def _get_safe_domains(domains: Sequence[object] | None, limit: int) -> list[str]:
+    """Filter, deduplicate, and cap a list of domains, skipping non-str entries."""
     if limit <= 0:
         return []
 
@@ -94,8 +95,8 @@ def _get_safe_domains(domains: list[str] | None, limit: int) -> list[str]:
 
 def _build_filtered_query(
     query: str,
-    include_domains: list[str] | None = None,
-    exclude_domains: list[str] | None = None,
+    include_domains: Sequence[object] | None = None,
+    exclude_domains: Sequence[object] | None = None,
 ) -> str:
     """Build a SearXNG query with site: include/exclude operators.
 

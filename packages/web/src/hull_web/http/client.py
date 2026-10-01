@@ -2,7 +2,7 @@
 
 Provides ``safe_httpx_client()`` factory that creates httpx.AsyncClient instances
 with automatic SSRF protection via request event hooks. All outbound HTTP in
-web-core MUST go through this client.
+hull services MUST go through this client.
 
 Key protections:
 - Blocks requests to private, loopback, link-local, reserved, and multicast IPs
@@ -60,7 +60,8 @@ def _pinned_getaddrinfo(host: str, port: int | str | None, *args: Any, **kwargs:
 
 
 # Monkey-patch socket.getaddrinfo at import time
-socket.getaddrinfo = _pinned_getaddrinfo  # type: ignore[assignment]
+# type: ignore[assignment]  # ty: ignore[invalid-assignment]  # deliberate global patch: the pinned resolver replaces the stdlib signature
+socket.getaddrinfo = _pinned_getaddrinfo
 
 # ---------------------------------------------------------------------------
 # IP safety check

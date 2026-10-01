@@ -64,6 +64,7 @@ def test_token_mode_correct_token_shared_namespace(tmp_path: Path) -> None:
     auth = Authenticator(_settings(tmp_path, "token", token_hash=hash_token("real")))
     outcome = auth.authenticate("Bearer real")
     assert outcome.ok
+    assert outcome.context is not None
     assert outcome.context.namespace == "default"
     assert outcome.context.mode == "token"
 
@@ -84,6 +85,7 @@ def test_multi_valid_user_namespace(tmp_path: Path) -> None:
     settings, users = _multi(tmp_path)
     outcome = Authenticator(settings, users=users).authenticate("Bearer alice-token")
     assert outcome.ok
+    assert outcome.context is not None
     assert outcome.context.uid == "alice"
     assert outcome.context.namespace == "alice"
 

@@ -28,7 +28,7 @@ class TestScrapingResult:
         assert result.metadata == {}
 
     def test_creation_with_metadata(self):
-        meta = {"content_type": "text/html", "content_length": 42}
+        meta: dict[str, object] = {"content_type": "text/html", "content_length": 42}
         result = ScrapingResult(
             content="<html>hello</html>",
             url="https://example.com",
@@ -46,12 +46,12 @@ class TestScrapingResult:
         assert "key" not in b.metadata
 
     def test_equality(self):
-        kwargs = {"content": "x", "url": "u", "strategy": "s", "status_code": 200}
-        assert ScrapingResult(**kwargs) == ScrapingResult(**kwargs)
+        first = ScrapingResult(content="x", url="u", strategy="s", status_code=200)
+        assert first == ScrapingResult(content="x", url="u", strategy="s", status_code=200)
 
     def test_inequality_different_status(self):
-        base = {"content": "x", "url": "u", "strategy": "s"}
-        assert ScrapingResult(**base, status_code=200) != ScrapingResult(**base, status_code=404)
+        ok = ScrapingResult(content="x", url="u", strategy="s", status_code=200)
+        assert ok != ScrapingResult(content="x", url="u", strategy="s", status_code=404)
 
 
 # ---------------------------------------------------------------------------

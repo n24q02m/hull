@@ -34,6 +34,7 @@ from hull_web.search.runner import (
     _is_process_alive,
     _is_searxng_installed,
     _kill_stale_port_process,
+    _port_listener_pids,
     _quick_health_check,
     _read_discovery,
     _remove_discovery,
@@ -452,6 +453,15 @@ class TestGetPipCommand:
 # ===========================================================================
 
 
+class TestConfigDir:
+    def test_config_dir_moved_to_hull(self):
+        """Config dir is ~/.hull/searxng (de-web-core naming)."""
+        import hull_web.search.runner as mod
+
+        assert Path.home() / ".hull" / "searxng" == mod._CONFIG_DIR
+        assert mod._DISCOVERY_FILE == mod._CONFIG_DIR / "searxng_instance.json"
+
+
 class TestGetSettingsPath:
     def test_creates_settings_file(self, tmp_config_dir):
         """Creates a per-process settings file with correct port and secret."""
@@ -459,7 +469,8 @@ class TestGetSettingsPath:
         assert path.exists()
         content = path.read_text()
         assert "port: 18888" in content
-        assert "web-core SearXNG" in content
+        assert "hull SearXNG" in content
+        assert "web-core" not in content
         # Secret should be a hex string (not the template placeholder)
         assert "{secret_key}" not in content
         assert "{port}" not in content
@@ -520,7 +531,7 @@ class TestGetProcessKwargs:
         with patch("sys.platform", "win32"):
             kwargs = _get_process_kwargs()
             assert "creationflags" in kwargs
-            assert kwargs["creationflags"] == subprocess.CREATE_NEW_PROCESS_GROUP
+            assert kwargs["creationflags"] == getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
 
 
 # ===========================================================================
@@ -567,48 +578,128 @@ class TestIsProcessAlive:
 
 
 # ===========================================================================
-# _kill_stale_port_process
+# _kill_stale_port_process (ownership-aware) / _port_listener_pids
 # ===========================================================================
 
 
 class TestKillStalePortProcess:
-    async def test_invalid_port_noop(self):
-        """Invalid ports are silently ignored."""
-        await _kill_stale_port_process(0)  # No error
-        await _kill_stale_port_process(-1)  # No error
-        await _kill_stale_port_process(70000)  # No error
-        await _kill_stale_port_process("abc")  # type: ignore[arg-type]  # No error
+    async def test_invalid_port_is_manageable(self):
+        """Invalid ports report nothing to free."""
+        assert await _kill_stale_port_process(0) is True
+        assert await _kill_stale_port_process(-1) is True
+        assert await _kill_stale_port_process(70000) is True
+        assert await _kill_stale_port_process("abc") is True  # type: ignore[arg-type]  # ty: ignore[invalid-argument-type]
 
+    async def test_no_listener_returns_true(self, monkeypatch):
+        """A port with no listener needs no freeing."""
+        import hull_web.search.runner as mod
+
+        monkeypatch.setattr(mod, "_port_listener_pids", AsyncMock(return_value=set()))
+        mock_kill = AsyncMock()
+        monkeypatch.setattr(mod, "_sigterm_then_kill", mock_kill)
+
+        assert await _kill_stale_port_process(18888) is True
+        mock_kill.assert_not_called()
+
+    async def test_foreign_listener_not_killed_returns_false(self, monkeypatch):
+        """A port held by a process we did not spawn must never be signalled."""
+        import hull_web.search.runner as mod
+
+        monkeypatch.setattr(mod, "_port_listener_pids", AsyncMock(return_value={99999}))
+        mock_kill = AsyncMock()
+        monkeypatch.setattr(mod, "_sigterm_then_kill", mock_kill)
+
+        assert await _kill_stale_port_process(18888) is False
+        mock_kill.assert_not_called()
+
+    async def test_owned_listener_from_discovery_is_killed(self, monkeypatch):
+        """A stale listener recorded in our own discovery state is killed."""
+        import hull_web.search.runner as mod
+
+        monkeypatch.setattr(mod, "_read_discovery", lambda: {"pid": 99999, "port": 18888, "owner_pid": 4242})
+        monkeypatch.setattr(mod, "_port_listener_pids", AsyncMock(return_value={99999}))
+        mock_kill = AsyncMock()
+        monkeypatch.setattr(mod, "_sigterm_then_kill", mock_kill)
+
+        assert await _kill_stale_port_process(18888) is True
+        mock_kill.assert_awaited_once_with(99999, "stale port 18888")
+
+    async def test_owned_listener_from_own_subprocess_is_killed(self, monkeypatch):
+        import hull_web.search.runner as mod
+
+        mock_proc = MagicMock()
+        mock_proc.pid = 99999
+        mock_proc.poll.return_value = None
+        mod._searxng_process = mock_proc
+        try:
+            monkeypatch.setattr(mod, "_port_listener_pids", AsyncMock(return_value={99999}))
+            mock_kill = AsyncMock()
+            monkeypatch.setattr(mod, "_sigterm_then_kill", mock_kill)
+
+            assert await _kill_stale_port_process(18888) is True
+            mock_kill.assert_awaited_once_with(99999, "stale port 18888")
+        finally:
+            mod._searxng_process = None
+
+    async def test_own_pid_is_skipped_not_signalled(self, monkeypatch):
+        """A listener that is this very process is left alone (cannot kill self)."""
+        import hull_web.search.runner as mod
+
+        monkeypatch.setattr(mod, "_read_discovery", lambda: {"pid": os.getpid(), "port": 18888})
+        monkeypatch.setattr(mod, "_port_listener_pids", AsyncMock(return_value={os.getpid()}))
+        mock_kill = AsyncMock()
+        monkeypatch.setattr(mod, "_sigterm_then_kill", mock_kill)
+
+        assert await _kill_stale_port_process(18888) is True
+        mock_kill.assert_not_called()
+
+    async def test_mixed_owned_and_foreign_fails_closed(self, monkeypatch):
+        """Any foreign PID on the port blocks killing the owned one too."""
+        import hull_web.search.runner as mod
+
+        monkeypatch.setattr(mod, "_read_discovery", lambda: {"pid": 99999, "port": 18888})
+        monkeypatch.setattr(mod, "_port_listener_pids", AsyncMock(return_value={99999, 88888}))
+        mock_kill = AsyncMock()
+        monkeypatch.setattr(mod, "_sigterm_then_kill", mock_kill)
+
+        assert await _kill_stale_port_process(18888) is False
+        mock_kill.assert_not_called()
+
+
+class TestPortListenerPids:
     @pytest.mark.skipif(sys.platform != "win32", reason="Windows-only test")
     async def test_windows_netstat(self):
-        """On Windows, uses netstat to find stale PIDs."""
+        """On Windows, parses netstat LISTENING lines into PIDs."""
         mock_result = MagicMock()
         mock_result.stdout = "  TCP    127.0.0.1:18888    0.0.0.0:0    LISTENING    99999\n"
 
-        with (
-            patch("subprocess.run", return_value=mock_result),
-            patch("hull_web.search.runner._sigterm_then_kill", new_callable=AsyncMock) as mock_kill,
-        ):
-            await _kill_stale_port_process(18888)
-            mock_kill.assert_called_once_with(99999, "stale port 18888")
+        with patch("subprocess.run", return_value=mock_result):
+            assert await _port_listener_pids(18888) == {99999}
 
     @pytest.mark.skipif(sys.platform == "win32", reason="Unix-only test")
-    async def test_unix_lsof_not_found_falls_back_to_fuser(self):
-        """On Unix, if lsof is not found, falls back to fuser."""
+    async def test_unix_lsof(self):
+        """On Unix, uses lsof to list listener PIDs."""
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = "99999\n"
+
+        with patch("subprocess.run", return_value=mock_result):
+            assert await _port_listener_pids(18888) == {99999}
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="Unix-only test")
+    async def test_unix_lsof_not_found_falls_back_to_fuser_query(self):
+        """On Unix without lsof, queries fuser (no -k: never signals anything)."""
         mock_fuser_result = MagicMock()
         mock_fuser_result.returncode = 0
+        mock_fuser_result.stdout = "  99999\n"
 
         def side_effect(args, **kwargs):
             if args[0] == "lsof":
                 raise FileNotFoundError("lsof not found")
             return mock_fuser_result
 
-        with (
-            patch("subprocess.run", side_effect=side_effect) as mock_run,
-            patch("hull_web.search.runner._sigterm_then_kill", new_callable=AsyncMock) as mock_kill,
-        ):
-            await _kill_stale_port_process(18888)
-            # Verify both lsof and fuser were tried
+        with patch("subprocess.run", side_effect=side_effect) as mock_run:
+            assert await _port_listener_pids(18888) == {99999}
             assert mock_run.call_count == 2
             mock_run.assert_any_call(
                 ["lsof", "-ti", ":18888"],
@@ -619,39 +710,56 @@ class TestKillStalePortProcess:
                 timeout=5,
             )
             mock_run.assert_any_call(
-                ["fuser", "-k", "18888/tcp"],
+                ["fuser", "18888/tcp"],
                 shell=False,
                 stdin=subprocess.DEVNULL,
                 capture_output=True,
+                text=True,
                 timeout=5,
             )
-            # fuser -k handles killing, so _sigterm_then_kill shouldn't be called by us
-            mock_kill.assert_not_called()
 
     @pytest.mark.skipif(sys.platform == "win32", reason="Unix-only test")
     async def test_unix_lsof_and_fuser_not_found(self):
         """On Unix, handles cases where both lsof and fuser are missing."""
+
         with (
             patch("subprocess.run", side_effect=FileNotFoundError("not found")),
             patch("hull_web.search.runner.logger") as mock_logger,
         ):
-            await _kill_stale_port_process(18888)
-            # Should log debug message for fuser failure
-            mock_logger.debug.assert_any_call("Could not free port %d using fuser: %r", 18888, ANY)
+            assert await _port_listener_pids(18888) == set()
+            mock_logger.debug.assert_any_call("Could not query processes on port %d using fuser: %r", 18888, ANY)
 
-    @pytest.mark.skipif(sys.platform == "win32", reason="Unix-only test")
-    async def test_unix_lsof(self):
-        """On Unix, uses lsof to find stale PIDs."""
-        mock_result = MagicMock()
-        mock_result.returncode = 0
-        mock_result.stdout = "99999\n"
 
-        with (
-            patch("subprocess.run", return_value=mock_result),
-            patch("hull_web.search.runner._sigterm_then_kill", new_callable=AsyncMock) as mock_kill,
-        ):
-            await _kill_stale_port_process(18888)
-            mock_kill.assert_called_once_with(99999, "stale port 18888")
+# ===========================================================================
+# _select_start_port
+# ===========================================================================
+
+
+class TestSelectStartPort:
+    async def test_free_port_kept(self, monkeypatch):
+        import hull_web.search.runner as mod
+
+        monkeypatch.setattr(mod, "_find_available_port", lambda start_port, max_tries=50: 18888)
+        mock_kill = AsyncMock(return_value=True)
+        monkeypatch.setattr(mod, "_kill_stale_port_process", mock_kill)
+
+        assert await mod._select_start_port(18888) == 18888
+        mock_kill.assert_awaited_once_with(18888)
+
+    async def test_foreign_owner_falls_back_to_alternate_port(self, monkeypatch):
+        """Foreign port owner must never be killed; pick an alternate port instead."""
+
+        def fake_find(start_port, max_tries=50):
+            return 18888 if start_port == 18888 else 20001
+
+        import hull_web.search.runner as mod
+
+        monkeypatch.setattr(mod, "_find_available_port", fake_find)
+        mock_kill = AsyncMock(return_value=False)
+        monkeypatch.setattr(mod, "_kill_stale_port_process", mock_kill)
+
+        assert await mod._select_start_port(18888) == 20001
+        mock_kill.assert_awaited_once_with(18888)
 
 
 # ===========================================================================
@@ -853,8 +961,9 @@ class TestEnsureSearxng:
             assert url == "http://127.0.0.1:18889"
 
     async def test_installs_and_starts(self, tmp_discovery, monkeypatch):
-        """Installs SearXNG and starts when not installed."""
+        """Installs SearXNG and starts when not installed (explicit opt-in)."""
         monkeypatch.delenv("SEARXNG_URL", raising=False)
+        monkeypatch.setenv("HULL_SEARXNG_AUTO_INSTALL", "1")
 
         with (
             patch("hull_web.search.runner._try_reuse_existing", new_callable=AsyncMock, return_value=None),
@@ -873,6 +982,7 @@ class TestEnsureSearxng:
     async def test_install_failure_raises(self, tmp_discovery, monkeypatch):
         """Raises RuntimeError when SearXNG installation fails."""
         monkeypatch.delenv("SEARXNG_URL", raising=False)
+        monkeypatch.setenv("HULL_SEARXNG_AUTO_INSTALL", "1")
 
         with (
             patch("hull_web.search.runner._try_reuse_existing", new_callable=AsyncMock, return_value=None),
@@ -978,7 +1088,7 @@ class TestStartDockerSearxng:
         ):
             url = await _start_docker_searxng(8888)
             assert url == "http://127.0.0.1:41592"
-            assert mod._searxng_docker_container == "searxng-wet-41592"
+            assert mod._searxng_docker_container == "searxng-hull-41592"
             assert mod._is_owner is False
 
     async def test_spawn_new_container_success(self, tmp_config_dir):
@@ -1004,15 +1114,19 @@ class TestStartDockerSearxng:
             patch("subprocess.run", side_effect=[mock_res_info, mock_res_ps, mock_res_rm]),
             patch("hull_web.search.runner._get_docker_lock", return_value=mock_lock),
             patch("hull_web.search.runner._write_secure_text") as mock_write,
-            patch("subprocess.Popen", return_value=mock_popen),
+            patch("subprocess.Popen", return_value=mock_popen) as mock_popen_cls,
             patch("hull_web.search.runner._wait_for_service", new_callable=AsyncMock, return_value=True),
             patch("hull_web.search.runner._write_discovery", return_value=None),
         ):
             url = await _start_docker_searxng(8888)
             assert url == "http://127.0.0.1:41592"
-            assert mod._searxng_docker_container == "searxng-wet-41592"
+            assert mod._searxng_docker_container == "searxng-hull-41592"
             assert mod._is_owner is True
             mock_write.assert_called_once()
+
+        # Image must be a pinned release tag, never the floating 'latest'.
+        image = next(arg for arg in mock_popen_cls.call_args[0][0] if arg.startswith("searxng/searxng:"))
+        assert image == "searxng/searxng:2026.4.7-08ef7a63d"
 
     async def test_respawn_unhealthy_container(self, tmp_config_dir):
         """Respawns if container exists but is unhealthy."""
@@ -1353,8 +1467,9 @@ class TestHandleRestartAndStart:
         with pytest.raises(RuntimeError, match="restart limit reached"):
             await _handle_restart_and_start(start_port=8888)
 
-    async def test_install_failure(self):
+    async def test_install_failure(self, monkeypatch):
         """Raises RuntimeError if installation fails."""
+        monkeypatch.setenv("HULL_SEARXNG_AUTO_INSTALL", "1")
         with (
             patch("hull_web.search.runner._start_docker_searxng", new_callable=AsyncMock, return_value=None),
             patch("hull_web.search.runner._is_searxng_installed", return_value=False),
@@ -1362,6 +1477,38 @@ class TestHandleRestartAndStart:
             pytest.raises(RuntimeError, match="installation failed"),
         ):
             await _handle_restart_and_start(start_port=8888)
+
+    async def test_install_without_opt_in_raises_and_does_not_pip_install(self, monkeypatch):
+        """Runtime pip-install is opt-in: default OFF points the host at SEARXNG_URL."""
+
+        monkeypatch.delenv("HULL_SEARXNG_AUTO_INSTALL", raising=False)
+        mock_install = MagicMock(return_value=True)
+
+        with (
+            patch("hull_web.search.runner._start_docker_searxng", new_callable=AsyncMock, return_value=None),
+            patch("hull_web.search.runner._is_searxng_installed", return_value=False),
+            patch("hull_web.search.runner._install_searxng", mock_install),
+            patch("hull_web.search.runner._start_searxng_subprocess", new_callable=AsyncMock, return_value=None),
+            pytest.raises(RuntimeError, match="SEARXNG_URL"),
+        ):
+            await _handle_restart_and_start(start_port=8888)
+        mock_install.assert_not_called()
+
+    async def test_install_opt_in_env_allows_install(self, monkeypatch):
+        """HULL_SEARXNG_AUTO_INSTALL=1 restores the legacy runtime-install path."""
+        monkeypatch.setenv("HULL_SEARXNG_AUTO_INSTALL", "1")
+
+        with (
+            patch("hull_web.search.runner._start_docker_searxng", new_callable=AsyncMock, return_value=None),
+            patch("hull_web.search.runner._is_searxng_installed", return_value=False),
+            patch("hull_web.search.runner._install_searxng", return_value=True),
+            patch(
+                "hull_web.search.runner._start_searxng_subprocess",
+                new_callable=AsyncMock,
+                return_value="http://sub-url",
+            ),
+        ):
+            assert await _handle_restart_and_start(start_port=8888) == "http://sub-url"
 
     async def test_cooldown_applied(self):
         """Applies cooldown if restart count > 0."""
@@ -1407,8 +1554,9 @@ class TestHandleRestartAndStart:
             warning_call = [call for call in mock_logger.warning.call_args_list if "crashed" in call.args[0]]
             assert len(warning_call) > 0
 
-    async def test_install_required_and_success(self):
+    async def test_install_required_and_success(self, monkeypatch):
         """Verifies it proceeds if installation is required and succeeds."""
+        monkeypatch.setenv("HULL_SEARXNG_AUTO_INSTALL", "1")
 
         with (
             patch("hull_web.search.runner._start_docker_searxng", new_callable=AsyncMock, return_value=None),

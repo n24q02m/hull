@@ -32,7 +32,7 @@ enabled = true
 namespace = "bob"
 
 [users.carol]
-token_hash = "{hash_token('carol-token')}"
+token_hash = "{hash_token("carol-token")}"
 enabled = false
 namespace = "carol"
 """

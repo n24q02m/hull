@@ -1,0 +1,15 @@
+# Scaffold files this repository keeps its own, and why.
+#
+# Each entry states a claim a later reader can agree or disagree with. If one of
+# these reasons stops being true, delete the entry and let the template land.
+
+[[exempt]]
+path = "Dockerfile"
+reason = """
+Not containerised yet. hull ships as one PyPI distribution (hull-core, with the
+[web] and [embedding] extras) that wet, mnemo and crg install as a library. The
+template's image runs `python -m hull_core`, which is not an entrypoint here:
+the control plane is the `hull` console script (hull_core.cli) and the embedding
+server is `hull-embedding-daemon`. Whether either gets an image is a deployment
+decision, and an unused Dockerfile is a file that rots and then gets believed.
+"""

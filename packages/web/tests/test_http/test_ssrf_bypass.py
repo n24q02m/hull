@@ -15,7 +15,7 @@ def test_ssrf_bypass():
         return original_getaddrinfo(host, port, *args, **kwargs)
 
     try:
-        hull_web.http.client._original_getaddrinfo = mock_getaddrinfo
+        hull_web.http.client._original_getaddrinfo = mock_getaddrinfo  # ty: ignore[invalid-assignment]  # monkeypatching the module's saved resolver
 
         assert is_safe_url("http://vuln.com", allow_private=True) is True
         assert is_safe_url("http://vuln.com", allow_private=False) is False

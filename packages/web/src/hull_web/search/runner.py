@@ -34,6 +34,7 @@ import tempfile
 import time
 import urllib.parse
 from pathlib import Path
+from typing import Any
 
 import filelock
 
@@ -46,6 +47,21 @@ logger = logging.getLogger(__name__)
 # on container stop, but detached -d kept zombies alive after parent exits).
 # Pinned port 41592 + filelock guarantees at most one container across all processes.
 PINNED_SEARXNG_PORT = 41592
+
+# Pinned SearXNG Docker image (never 'latest': floating tags made the JSON
+# API behaviour unpredictable across hosts). Override via HULL_SEARXNG_IMAGE.
+# Tag 2026.4.7-08ef7a63d matches the pinned source commit in _SEARXNG_COMMIT.
+_SEARXNG_DOCKER_IMAGE = os.environ.get("HULL_SEARXNG_IMAGE", "searxng/searxng:2026.4.7-08ef7a63d")
+
+# Opt-in flag for installing SearXNG via pip at runtime. Default OFF: hosts
+# must pre-install SearXNG or point at an external instance (SEARXNG_URL).
+_AUTO_INSTALL_ENV = "HULL_SEARXNG_AUTO_INSTALL"
+
+
+def _auto_install_enabled() -> bool:
+    """Whether runtime pip-install of SearXNG was explicitly opted into."""
+    return os.environ.get(_AUTO_INSTALL_ENV, "").strip().lower() in {"1", "true", "yes", "on"}
+
 
 # Cross-process filelock preventing concurrent Docker spawn races.
 _docker_lock: filelock.FileLock | None = None
@@ -82,8 +98,8 @@ _HEALTH_CHECK_TIMEOUT = 2.0
 # take 90-120s on slow machines.
 _STARTUP_HEALTH_TIMEOUT = 120.0
 
-# Config directory for web-core.
-_CONFIG_DIR = Path.home() / ".web-core"
+# Config directory for the hull SearXNG manager.
+_CONFIG_DIR = Path.home() / ".hull" / "searxng"
 
 # Discovery file for sharing SearXNG across multiple processes.
 # Contains {pid, port, owner_pid, started_at} of the running SearXNG process.
@@ -103,7 +119,7 @@ use_default_settings: true
 
 general:
   debug: false
-  instance_name: "web-core SearXNG"
+  instance_name: "hull SearXNG"
 
 brand: {{}}
 
@@ -112,7 +128,7 @@ server:
   bind_address: "127.0.0.1"
   secret_key: "{secret_key}"
   # Disable bot detection / rate limiter so JSON API calls (used by
-  # web-core search clients) are not 403'd. Mirrors the Docker
+  # hull search clients) are not 403'd. Mirrors the Docker
   # template which already disables the limiter.
   limiter: false
   public_instance: false
@@ -153,8 +169,11 @@ engines:
     shortcut: wp
 """
 
+# Windows exposes no SIGKILL; terminate() is the strongest signal there.
+_SIGKILL = getattr(signal, "SIGKILL", signal.SIGTERM)
+
 # The running process, port, and whether this process started it.
-_searxng_process: subprocess.Popen[bytes] | None = None
+_searxng_process: subprocess.Popen[Any] | None = None
 _searxng_port: int | None = None
 _searxng_docker_container: str | None = None
 _searxng_settings_path: Path | None = None
@@ -183,12 +202,16 @@ def _is_pid_alive_win32(pid: int) -> bool:  # pragma: no cover
     """Windows-specific PID check using ctypes OpenProcess."""
     import ctypes
 
+    # `windll` exists only in the Windows build of ctypes; resolve it through
+    # getattr so this module also type-checks where the symbol is absent.
+    windll = getattr(ctypes, "windll", None)
+    if windll is None:
+        return False
+
     PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
-    handle = ctypes.windll.kernel32.OpenProcess(  # type: ignore[attr-defined]
-        PROCESS_QUERY_LIMITED_INFORMATION, False, pid
-    )
+    handle = windll.kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
     if handle:
-        ctypes.windll.kernel32.CloseHandle(handle)  # type: ignore[attr-defined]
+        windll.kernel32.CloseHandle(handle)
         return True
     return False
 
@@ -630,7 +653,7 @@ async def _sigterm_then_kill(pid: int, label: str = "") -> bool:  # pragma: no c
 
     # Force kill.
     try:
-        os.kill(pid, signal.SIGKILL)
+        os.kill(pid, _SIGKILL)
         logger.debug("Process PID=%d%s force-killed", pid, tag)
         return True
     except (ProcessLookupError, PermissionError):
@@ -660,7 +683,7 @@ def _force_kill_process_sync(proc: subprocess.Popen) -> None:  # pragma: no cove
                 logger.debug("SearXNG process (PID=%d) SIGTERM timed out, proceeding to SIGKILL", pid)
 
             try:
-                os.killpg(os.getpgid(pid), signal.SIGKILL)
+                os.killpg(os.getpgid(pid), _SIGKILL)
             except (ProcessLookupError, PermissionError):
                 proc.kill()
             try:
@@ -700,7 +723,7 @@ async def _force_kill_process(proc: subprocess.Popen) -> None:  # pragma: no cov
                 logger.debug("SearXNG process (PID=%d) SIGTERM timed out, proceeding to SIGKILL", pid)
 
             try:
-                os.killpg(os.getpgid(pid), signal.SIGKILL)
+                os.killpg(os.getpgid(pid), _SIGKILL)
             except (ProcessLookupError, PermissionError):
                 proc.kill()
             try:
@@ -717,15 +740,12 @@ async def _force_kill_process(proc: subprocess.Popen) -> None:  # pragma: no cov
         logger.debug("Error killing SearXNG process: %r", e)
 
 
-async def _kill_stale_port_process(port: int) -> None:  # pragma: no cover
-    """Kill any process still holding the target port.
+async def _port_listener_pids(port: int) -> set[int]:  # pragma: no cover
+    """Return the PIDs of processes listening on *port* (best effort).
 
-    This prevents 'address already in use' errors when restarting
-    after a crash that left a zombie process behind.
+    Never signals any process.  Returns an empty set when discovery is not
+    possible (missing tools, unexpected output).
     """
-    if not isinstance(port, int) or not (1 <= port <= 65535):
-        return
-
     if sys.platform == "win32":
         try:
             result = await asyncio.to_thread(
@@ -739,52 +759,136 @@ async def _kill_stale_port_process(port: int) -> None:  # pragma: no cover
             )
             # result.stdout is str because text=True, but ty can't infer through asyncio.to_thread.
             stdout_text = result.stdout if isinstance(result.stdout, str) else result.stdout.decode(errors="replace")
+            pids: set[int] = set()
             for line in stdout_text.splitlines():
                 if f"127.0.0.1:{port}" in line and "LISTENING" in line:
-                    parts = line.split()
-                    pid_str = parts[-1]
                     try:
-                        pid = int(pid_str)
-                        if pid > 0:
-                            await _sigterm_then_kill(pid, f"stale port {port}")
-                    except (ValueError, ProcessLookupError, PermissionError) as e:
-                        logger.debug("Could not kill process %r on port %d: %r", pid_str, port, e)
+                        pid = int(line.split()[-1])
+                    except ValueError:
+                        continue
+                    if pid > 0:
+                        pids.add(pid)
+            return pids
         except Exception as e:
             logger.debug("Error finding processes on port %d using netstat: %r", port, e)
-    else:
+            return set()
+    try:
+        result = await asyncio.to_thread(
+            subprocess.run,
+            ["lsof", "-ti", f":{port}"],
+            shell=False,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            pids = set()
+            for pid_str in result.stdout.strip().splitlines():
+                try:
+                    pid = int(pid_str.strip())
+                except ValueError:
+                    continue
+                if pid > 0:
+                    pids.add(pid)
+            return pids
+        return set()
+    except FileNotFoundError:
+        # lsof not available: query fuser in LIST mode (no ``-k``) so no
+        # process is ever signalled here.  fuser prints PIDs to stdout.
         try:
             result = await asyncio.to_thread(
                 subprocess.run,
-                ["lsof", "-ti", f":{port}"],
+                ["fuser", f"{port}/tcp"],
                 shell=False,
                 stdin=subprocess.DEVNULL,
                 capture_output=True,
                 text=True,
                 timeout=5,
             )
-            if result.returncode == 0 and result.stdout.strip():
-                for pid_str in result.stdout.strip().splitlines():
-                    try:
-                        pid = int(pid_str.strip())
-                        if pid > 0 and pid != os.getpid():
-                            await _sigterm_then_kill(pid, f"stale port {port}")
-                    except (ValueError, ProcessLookupError, PermissionError) as e:
-                        logger.debug("Could not kill process %r on port %d: %r", pid_str, port, e)
-        except FileNotFoundError:
-            # lsof not available, try fuser.
-            try:
-                await asyncio.to_thread(
-                    subprocess.run,
-                    ["fuser", "-k", f"{port}/tcp"],
-                    shell=False,
-                    stdin=subprocess.DEVNULL,
-                    capture_output=True,
-                    timeout=5,
-                )
-            except (FileNotFoundError, subprocess.TimeoutExpired) as e:
-                logger.debug("Could not free port %d using fuser: %r", port, e)
+            return {int(token) for token in result.stdout.split() if token.isdigit()}
+        except (FileNotFoundError, subprocess.TimeoutExpired, ValueError) as e:
+            logger.debug("Could not query processes on port %d using fuser: %r", port, e)
+            return set()
         except Exception as e:
-            logger.debug("Error finding processes on port %d using lsof: %r", port, e)
+            logger.debug("Error querying processes on port %d using fuser: %r", port, e)
+            return set()
+    except Exception as e:
+        logger.debug("Error finding processes on port %d using lsof: %r", port, e)
+        return set()
+
+
+def _owned_port_pids() -> set[int]:
+    """PIDs recorded in our own SearXNG discovery state.
+
+    Combines the cross-process discovery file (``pid`` + ``owner_pid``) with
+    this process's own subprocess handle.  Anything else on a port is foreign
+    and must never be signalled.
+    """
+    pids: set[int] = set()
+    data = _read_discovery()
+    if data:
+        for key in ("pid", "owner_pid"):
+            value = data.get(key)
+            if isinstance(value, int) and value > 0:
+                pids.add(value)
+    proc = _searxng_process
+    if proc is not None and proc.pid > 0:
+        pids.add(proc.pid)
+    return pids
+
+
+async def _kill_stale_port_process(port: int) -> bool:  # pragma: no cover
+    """Free *port* only if its holder is a SearXNG process we spawned.
+
+    Returns ``True`` when the port is manageable (no listener, or a listener
+    recorded in our own discovery state which has been terminated).  Returns
+    ``False`` when the port is held by a foreign process -- the caller must
+    fall back to an alternate port instead of killing it.
+    """
+    if not isinstance(port, int) or not (1 <= port <= 65535):
+        return True
+
+    listener_pids = await _port_listener_pids(port)
+    if not listener_pids:
+        return True
+
+    foreign = listener_pids - _owned_port_pids()
+    if foreign:
+        logger.warning(
+            "Port %d is held by unrelated process(es) %s; refusing to kill them",
+            port,
+            sorted(foreign),
+        )
+        return False
+
+    for pid in sorted(listener_pids):
+        if pid == os.getpid():
+            continue
+        await _sigterm_then_kill(pid, f"stale port {port}")
+    return True
+
+
+async def _select_start_port(start_port: int) -> int:  # pragma: no cover
+    """Pick the port for a new SearXNG subprocess.
+
+    Kills the holder of the chosen port only when it is one of our own stale
+    processes.  If a foreign process owns the port, falls back to an
+    alternate port via ``_find_available_port`` instead of killing it.
+    """
+    port = await asyncio.to_thread(_find_available_port, start_port)
+    if port != start_port:
+        logger.info("Port %d in use, using %d", start_port, port)
+
+    if not await _kill_stale_port_process(port):
+        fallback_port = await asyncio.to_thread(_find_available_port, port + 1)
+        logger.warning(
+            "Port %d is held by an unrelated process; using fallback port %d instead",
+            port,
+            fallback_port,
+        )
+        port = fallback_port
+    return port
 
 
 def _get_process_kwargs() -> dict:  # pragma: no cover
@@ -806,7 +910,7 @@ def _get_process_kwargs() -> dict:  # pragma: no cover
         except (KeyError, ImportError, AttributeError):
             logger.warning("Could not drop privileges")
         return kwargs
-    return {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+    return {"creationflags": getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)}
 
 
 def _cleanup_process() -> None:  # pragma: no cover
@@ -891,7 +995,7 @@ _DOCKER_SETTINGS_TEMPLATE = """\
 use_default_settings: true
 
 general:
-  instance_name: "web-core SearXNG (Docker)"
+  instance_name: "hull SearXNG (Docker)"
 
 server:
   secret_key: "{secret_key}"
@@ -912,7 +1016,7 @@ async def _start_docker_searxng(start_port: int) -> str | None:
     """Try starting SearXNG via Docker as a fallback.
 
     Uses a pinned port (PINNED_SEARXNG_PORT) and a cross-process filelock to
-    guarantee at most one searxng-wet container runs at any time.  Previously,
+    guarantee at most one searxng-hull container runs at any time.  Previously,
     random port selection spawned a new container per wet daemon; ``--rm`` only
     triggers on container stop, but detached ``-d`` kept zombies alive after
     parent exits.
@@ -950,7 +1054,7 @@ async def _start_docker_searxng(start_port: int) -> str | None:
             return None
 
         port = PINNED_SEARXNG_PORT
-        container_name = f"searxng-wet-{port}"
+        container_name = f"searxng-hull-{port}"
         url = f"http://127.0.0.1:{port}"
 
         # Acquire cross-process filelock before inspecting/spawning container.
@@ -1009,7 +1113,7 @@ async def _start_docker_searxng(start_port: int) -> str | None:
                 f"127.0.0.1:{port}:8080",
                 "-v",
                 f"{settings_path}:/etc/searxng/settings.yml:ro",
-                "searxng/searxng:latest",
+                _SEARXNG_DOCKER_IMAGE,
             ]
 
             logger.info("Starting SearXNG (Docker) on port %d...", port)
@@ -1083,13 +1187,9 @@ async def _start_searxng_subprocess(start_port: int) -> str | None:  # pragma: n
         _searxng_port = None
 
     try:
-        # Find available port.
-        port = await asyncio.to_thread(_find_available_port, start_port)
-        if port != start_port:
-            logger.info("Port %d in use, using %d", start_port, port)
-
-        # Kill any stale process on the target port.
-        await _kill_stale_port_process(port)
+        # Pick the port: kill the holder only if we spawned it, else fall
+        # back to an alternate port.
+        port = await _select_start_port(start_port)
         await asyncio.sleep(0.5)
 
         _searxng_port = port
@@ -1125,7 +1225,7 @@ async def _start_searxng_subprocess(start_port: int) -> str | None:  # pragma: n
         else:
             cmd = [sys.executable, "-m", "searx.webapp"]
 
-        _searxng_process = await asyncio.to_thread(
+        proc: subprocess.Popen[Any] = await asyncio.to_thread(
             lambda: subprocess.Popen(
                 cmd,
                 shell=False,
@@ -1136,6 +1236,7 @@ async def _start_searxng_subprocess(start_port: int) -> str | None:  # pragma: n
                 **_get_process_kwargs(),
             )
         )
+        _searxng_process = proc
 
         # Register cleanup (idempotent -- atexit deduplicates internally).
         atexit.register(_cleanup_process)
@@ -1145,15 +1246,15 @@ async def _start_searxng_subprocess(start_port: int) -> str | None:  # pragma: n
         # Wait for SearXNG to be healthy.
         if await _wait_for_service(url, timeout=_STARTUP_HEALTH_TIMEOUT):
             logger.info("SearXNG ready at %s", url)
-            await asyncio.to_thread(_write_discovery, port, _searxng_process.pid)
+            await asyncio.to_thread(_write_discovery, port, proc.pid)
             _is_owner = True
             return url
 
         # Health check timed out.
         logger.warning("SearXNG started but not healthy at %s", url)
-        if _searxng_process.poll() is not None:
-            if _searxng_process.stderr:
-                stderr_raw = await asyncio.to_thread(_searxng_process.stderr.read)
+        if proc.poll() is not None:
+            if proc.stderr:
+                stderr_raw = await asyncio.to_thread(proc.stderr.read)
                 stderr = stderr_raw.decode()
             else:
                 stderr = ""
@@ -1161,9 +1262,9 @@ async def _start_searxng_subprocess(start_port: int) -> str | None:  # pragma: n
         else:
             logger.warning(
                 "SearXNG process (PID=%d) alive but not serving, killing stuck process",
-                _searxng_process.pid,
+                proc.pid,
             )
-            await _force_kill_process(_searxng_process)
+            await _force_kill_process(proc)
         _searxng_process = None
         _searxng_port = None
         return None
@@ -1307,10 +1408,18 @@ async def _handle_restart_and_start(*, start_port: int) -> str:
         msg = f"SearXNG restart limit reached ({_MAX_RESTART_ATTEMPTS} attempts)"
         raise RuntimeError(msg)
 
-    # Ensure SearXNG package is installed.
-    if not await asyncio.to_thread(_is_searxng_installed) and not await asyncio.to_thread(_install_searxng):
-        msg = "SearXNG installation failed"
-        raise RuntimeError(msg)
+    # Ensure SearXNG package is installed (runtime pip-install is opt-in).
+    if not await asyncio.to_thread(_is_searxng_installed):
+        if not _auto_install_enabled():
+            msg = (
+                "SearXNG is not installed in this Python environment and runtime auto-install is disabled. "
+                "Install SearXNG (e.g. `uv pip install searxng`) or point at an existing instance via "
+                "SEARXNG_URL. To let hull pip-install SearXNG at runtime, set HULL_SEARXNG_AUTO_INSTALL=1."
+            )
+            raise RuntimeError(msg)
+        if not await asyncio.to_thread(_install_searxng):
+            msg = "SearXNG installation failed"
+            raise RuntimeError(msg)
 
     # Attempt to start with cooldown between restarts.
     if _restart_count > 0:

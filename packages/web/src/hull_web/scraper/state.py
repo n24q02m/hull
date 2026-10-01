@@ -23,7 +23,8 @@ class ScrapingState(TypedDict, total=False):
     strategy_order: list[str]
     current_strategy_idx: int
     content: str
-    status_code: int
+    # Mirrors ScrapingResult.status_code: a strategy can hand back no code.
+    status_code: int | None
     success: bool
     strategies_tried: list[str]
     errors: list[str]

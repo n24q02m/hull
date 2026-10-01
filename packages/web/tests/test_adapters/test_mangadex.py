@@ -191,7 +191,7 @@ class TestMangaDexClientConfig:
 
     def test_default_user_agent(self):
         client = MangaDexClient()
-        assert client._user_agent == "KnowledgePrism/1.0"
+        assert client._user_agent == "hull-web/0.1"
 
     def test_custom_user_agent(self):
         client = MangaDexClient(user_agent="TestAgent/2.0")

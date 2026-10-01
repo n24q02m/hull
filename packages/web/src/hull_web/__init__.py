@@ -1,5 +1,10 @@
-"""hull-web: shared web infrastructure for search, scraping, HTTP security, and browsers."""
+"""hull_web: shared web infrastructure for search, scraping, HTTP security, and browsers.
 
+Ships in the ``hull-core`` dist; needs the ``[web]`` extra (``pip install "hull-core[web]"``).
+"""
+
+# Must stay the first import: raises ImportError with the install hint when the [web] extra is missing.
+import hull_web._extra  # noqa: F401
 from hull_web.adapters import ChapterImages, ChapterInfo, MangaDexClient, MangaInfo
 from hull_web.browsers import (
     BrowserlessClient,

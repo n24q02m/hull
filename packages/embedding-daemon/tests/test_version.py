@@ -10,6 +10,11 @@ def test_version_exposed() -> None:
     assert len(hull_embedding_daemon.__version__) > 0
 
 
+def test_version_comes_from_hull_core_dist() -> None:
+    """The daemon ships inside the hull-core wheel; there is no separate dist."""
+    assert hull_embedding_daemon.__version__ == importlib.metadata.version("hull-core")
+
+
 def test_version_fallback() -> None:
     """Test that __version__ falls back when package is not installed."""
     with patch("importlib.metadata.version", side_effect=importlib.metadata.PackageNotFoundError):

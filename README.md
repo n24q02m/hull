@@ -6,13 +6,27 @@ the three products share: token auth, per-task model configuration, per-user
 rate limiting, local SQLite storage, the HTTP MCP server lifecycle, web
 scraping/search infrastructure, and a local embedding daemon.
 
+## Install
+
+hull ships as one PyPI dist, **`hull-core`**. The wheel carries all three
+import packages; the heavy stacks are opt-in extras:
+
+```bash
+pip install hull-core               # hull_core only (crg, mnemo)
+pip install "hull-core[web]"        # + hull_web scraping/browser stack (wet)
+pip install "hull-core[embedding]"  # + hull_embedding_daemon server stack
+```
+
+`import hull_web` without the `[web]` extra raises `ImportError` naming the
+missing modules and the install command.
+
 ## Packages
 
-| Package | PyPI dist | Purpose |
-|---|---|---|
-| `packages/core-py` | `hull-core` | Auth (3 modes), per-task model cells, limiter, `~/.hull/` SQLite WAL storage, `server start` + `/mcp` endpoint, CLI, SSRF-safe HTTP, lifecycle lock |
-| `packages/embedding-daemon` | `hull-embedding-daemon` | Local ONNX/GGUF embedding server (FastAPI) |
-| `packages/web` | `hull-web` | Search (SearXNG), scraping strategies, stealth browsers, fingerprinting, HTTP/SSRF security |
+| Source dir | Import package | Extra | Purpose |
+|---|---|---|---|
+| `packages/core-py` | `hull_core` | (base) | Auth (3 modes), per-task model cells, limiter, `~/.hull/` SQLite WAL storage, `server start` + `/mcp` endpoint, CLI, SSRF-safe HTTP, lifecycle lock |
+| `packages/embedding-daemon` | `hull_embedding_daemon` | `[embedding]` | Local ONNX/GGUF embedding server (FastAPI) |
+| `packages/web` | `hull_web` | `[web]` | Search (SearXNG), scraping strategies, stealth browsers, fingerprinting, HTTP/SSRF security |
 
 ## Runtime model
 
@@ -54,10 +68,10 @@ uv run hull server start         # serves http://127.0.0.1:8000/mcp
 ## Development
 
 ```bash
-uv sync
-uv run pytest packages/core-py/tests -q
-uv run pytest packages/embedding-daemon/tests -q
-uv run pytest packages/web/tests -q
+uv sync --all-extras
+uv run pytest -q
+uv run ruff check .
+uv build
 ```
 
 ## License

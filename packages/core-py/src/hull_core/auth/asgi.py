@@ -44,7 +44,14 @@ class HullAuthMiddleware:
             await self._reject(send, outcome.status or 500, outcome.detail)
             return
 
-        token = set_current_user(outcome.context)
+        context = outcome.context
+        if context is None:
+            # ok=True always carries a context; fail closed rather than bind a
+            # null identity into the contextvar for the rest of the request.
+            await self._reject(send, 500, "authenticator returned no context")
+            return
+
+        token = set_current_user(context)
         try:
             await self.app(scope, receive, send)
         finally:

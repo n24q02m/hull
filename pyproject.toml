@@ -120,3 +120,8 @@ addopts = "-m 'not integration and not live' --timeout=120"
 [tool.coverage.run]
 source_pkgs = ["hull_core", "hull_web", "hull_embedding_daemon"]
 branch = true
+
+[tool.coverage.report]
+fail_under = 95
+show_missing = true
+skip_covered = true

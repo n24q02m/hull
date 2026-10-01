@@ -19,6 +19,7 @@ from __future__ import annotations
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Protocol
 
 from hull_core.auth.tokens import is_valid_encoding, verify_token
 
@@ -98,7 +99,24 @@ def find_user_by_token(users: dict[str, User], token: str) -> User | None:
     return None
 
 
-def ensure_path_allowed(user: User, path: Path) -> None:
+class PathScope(Protocol):
+    """Anything carrying a caller's filesystem roots.
+
+    Both the users.toml row (:class:`User`) and the per-request
+    :class:`~hull_core.auth.context.AuthContext` reach ``ensure_path_allowed``,
+    so the guard takes the shape both already have instead of one of them.
+    """
+
+    @property
+    def uid(self) -> str:
+        """Caller id used in the denial message."""
+
+    @property
+    def allowed_roots(self) -> tuple[str, ...]:
+        """Roots the caller may touch; empty grants nothing."""
+
+
+def ensure_path_allowed(user: PathScope, path: Path) -> None:
     """Enforce the user's allowed_roots (spec §4 Q6).
 
     An empty allowed_roots list grants nothing. Roots are matched lexically

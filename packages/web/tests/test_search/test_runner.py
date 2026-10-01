@@ -588,7 +588,7 @@ class TestKillStalePortProcess:
         assert await _kill_stale_port_process(0) is True
         assert await _kill_stale_port_process(-1) is True
         assert await _kill_stale_port_process(70000) is True
-        assert await _kill_stale_port_process("abc") is True  # type: ignore[arg-type]
+        assert await _kill_stale_port_process("abc") is True  # type: ignore[arg-type]  # ty: ignore[invalid-argument-type]
 
     async def test_no_listener_returns_true(self, monkeypatch):
         """A port with no listener needs no freeing."""

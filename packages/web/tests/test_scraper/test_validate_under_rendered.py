@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, patch
 
 from hull_web.scraper.agent import ScrapingAgent
 from hull_web.scraper.base import BaseStrategy, ScrapingResult
+from hull_web.scraper.state import ScrapingState
 
 # A 200-OK SPA shell: empty mount root + scripts + a Loading marker.
 SHELL_HTML = (
@@ -81,7 +82,7 @@ class TestUnderRenderedEscalation:
 class TestValidateNodeUnderRendered:
     async def test_validate_node_flags_shell(self):
         agent = ScrapingAgent()
-        state = {"content": SHELL_HTML, "status_code": 200, "metadata": {"last_strategy": "basic_http"}}
+        state: ScrapingState = {"content": SHELL_HTML, "status_code": 200, "metadata": {"last_strategy": "basic_http"}}
 
         new_state = await agent._validate_node(state)
 
@@ -91,7 +92,7 @@ class TestValidateNodeUnderRendered:
 
     async def test_validate_node_passes_rendered(self):
         agent = ScrapingAgent()
-        state = {"content": RENDERED_HTML, "status_code": 200, "metadata": {}}
+        state: ScrapingState = {"content": RENDERED_HTML, "status_code": 200, "metadata": {}}
 
         new_state = await agent._validate_node(state)
 
@@ -100,6 +101,6 @@ class TestValidateNodeUnderRendered:
 
     def test_route_after_validate_under_rendered_goes_to_escalate(self):
         agent = ScrapingAgent()
-        state = {"success": False, "under_rendered": True, "content": SHELL_HTML}
+        state: ScrapingState = {"success": False, "under_rendered": True, "content": SHELL_HTML}
 
         assert agent._route_after_validate(state) == "escalate"

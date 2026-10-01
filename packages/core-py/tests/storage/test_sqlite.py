@@ -35,3 +35,13 @@ def test_creates_parent_dirs(tmp_path) -> None:
         assert db.path.is_file()
     finally:
         db.close()
+
+
+def test_default_path_under_config_dir(tmp_path, monkeypatch) -> None:  # noqa: ANN001
+    monkeypatch.setattr("hull_core.config.settings.default_config_dir", lambda: tmp_path)
+    db = HullDatabase()
+    try:
+        assert db.path == tmp_path / "hull.db"
+        assert db.path.is_file()
+    finally:
+        db.close()

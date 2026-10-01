@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime, timedelta, timezone
 import subprocess
 import sys
 import textwrap
@@ -12,7 +13,15 @@ from pathlib import Path
 
 import pytest
 
-from hull_core.lifecycle.lock import LifecycleLock
+from hull_core.lifecycle.lock import (
+    DEFAULT_LOCK_TTL_HOURS,
+    LifecycleLock,
+    _lock_dir,
+    _locks_dir,
+    _parse_lock_text,
+    refresh_lock_timestamp,
+    sweep_stale_locks,
+)
 
 
 @pytest.fixture
@@ -199,3 +208,194 @@ class TestContention:
         reacquired = LifecycleLock(name=unique_name, port=9000, root=lock_root)
         with reacquired:
             pass  # must not raise
+
+
+def _write_lock(path: Path, *, pid: int, port: int, token: str = "tok", age_hours: float = 0.0) -> None:
+    """Write a lock payload padded to the on-disk width LifecycleLock uses."""
+    spawned = datetime.now(timezone.utc) - timedelta(hours=age_hours)
+    path.write_text(f"{pid}\n{port}\n{token}\n{spawned.isoformat()}\n".ljust(512, " "), encoding="utf-8")
+
+
+class TestParseLockText:
+    def test_parses_four_line_payload(self) -> None:
+        md = _parse_lock_text("4242\n9100\ntok-abc\n2026-09-30T10:00:00+00:00\n")
+        assert md is not None
+        assert (md.pid, md.port, md.token) == (4242, 9100, "tok-abc")
+        assert md.spawned_at.year == 2026
+
+    def test_legacy_longer_payload_keeps_first_four_lines(self) -> None:
+        md = _parse_lock_text("7\n80\ntok\n2026-09-30T10:00:00+00:00\nlegacy\ntrailing\n")
+        assert md is not None
+        assert (md.pid, md.port) == (7, 80)
+
+    def test_padded_record_parses(self) -> None:
+        padded = ("9\n80\ntok\n2026-09-30T10:00:00+00:00\n").ljust(512, " ")
+        md = _parse_lock_text(padded)
+        assert md is not None and md.pid == 9
+
+    @pytest.mark.parametrize(
+        "raw",
+        [
+            pytest.param("", id="empty"),
+            pytest.param("1\n2\n3\n", id="three-lines"),
+            pytest.param("dead-pid\n80\ntok\n2026-09-30T10:00:00+00:00\n", id="pid-not-a-number"),
+            pytest.param("7\nnot-a-port\ntok\n2026-09-30T10:00:00+00:00\n", id="port-not-a-number"),
+        ],
+    )
+    def test_malformed_payloads_are_rejected(self, raw: str) -> None:
+        assert _parse_lock_text(raw) is None
+
+
+class TestLockDirResolution:
+    def test_explicit_root_wins(self, tmp_path: Path) -> None:
+        assert _locks_dir(tmp_path) == tmp_path
+
+    def test_default_root_is_under_home(self) -> None:
+        assert _locks_dir() == Path.home() / ".config" / "mcp" / "locks"
+
+    def test_lock_dir_delegates_to_the_no_arg_variant(self, tmp_path: Path, monkeypatch) -> None:  # noqa: ANN001
+        monkeypatch.setattr("hull_core.lifecycle.lock._locks_dir", lambda root=None: tmp_path)
+        assert _lock_dir() == tmp_path
+
+
+class TestRefreshLockTimestamp:
+    def test_updates_spawned_at_and_preserves_identity(self, tmp_path: Path) -> None:
+        lock_file = tmp_path / "hull-9000.lock"
+        _write_lock(lock_file, pid=4242, port=9000, token="tok-abc", age_hours=3)
+        before_size = lock_file.stat().st_size
+
+        refresh_lock_timestamp(lock_file)
+
+        md = _parse_lock_text(lock_file.read_text(encoding="utf-8"))
+        assert md is not None
+        assert (md.pid, md.port, md.token) == (4242, 9000, "tok-abc")
+        assert md.spawned_at > datetime.now(timezone.utc) - timedelta(minutes=1)
+        assert lock_file.stat().st_size == before_size, "padding must keep the on-disk width stable"
+
+    def test_missing_file_is_a_no_op(self, tmp_path: Path) -> None:
+        refresh_lock_timestamp(tmp_path / "absent.lock")  # must not raise
+
+    def test_malformed_file_is_left_alone(self, tmp_path: Path) -> None:
+        lock_file = tmp_path / "hull-9000.lock"
+        lock_file.write_text("garbage\n", encoding="utf-8")
+
+        refresh_lock_timestamp(lock_file)
+
+        assert lock_file.read_text(encoding="utf-8") == "garbage\n"
+
+    def test_unwritable_lock_does_not_raise(self, tmp_path: Path, monkeypatch) -> None:  # noqa: ANN001
+        lock_file = tmp_path / "hull-9000.lock"
+        _write_lock(lock_file, pid=1, port=9000)
+
+        def boom(*_args, **_kwargs):
+            raise OSError("file is locked")
+
+        monkeypatch.setattr("builtins.open", boom)
+        refresh_lock_timestamp(lock_file)  # best-effort: the server must stay alive
+
+
+class TestSweepStaleLocks:
+    def test_missing_dir_returns_zero(self, tmp_path: Path) -> None:
+        assert sweep_stale_locks("hull", root=tmp_path / "absent") == 0
+
+    def test_expired_lock_removed_fresh_lock_kept(self, tmp_path: Path) -> None:
+        stale = tmp_path / "hull-9000.lock"
+        fresh = tmp_path / "hull-9001.lock"
+        _write_lock(stale, pid=1, port=9000, age_hours=DEFAULT_LOCK_TTL_HOURS + 1)
+        _write_lock(fresh, pid=2, port=9001)
+
+        assert sweep_stale_locks("hull", root=tmp_path) == 1
+        assert not stale.exists()
+        assert fresh.exists(), "a lock inside the TTL belongs to a live server"
+
+    def test_other_servers_are_untouched(self, tmp_path: Path) -> None:
+        other = tmp_path / "wet-9000.lock"
+        _write_lock(other, pid=1, port=9000, age_hours=DEFAULT_LOCK_TTL_HOURS + 1)
+
+        assert sweep_stale_locks("hull", root=tmp_path) == 0
+        assert other.exists()
+
+    def test_malformed_lock_is_reclaimed(self, tmp_path: Path) -> None:
+        corrupt = tmp_path / "hull-9000.lock"
+        corrupt.write_text("dead-pid\n", encoding="utf-8")
+
+        assert sweep_stale_locks("hull", root=tmp_path) == 1
+        assert not corrupt.exists()
+
+    def test_unreadable_lock_is_reclaimed(self, tmp_path: Path, monkeypatch) -> None:  # noqa: ANN001
+        broken = tmp_path / "hull-9000.lock"
+        _write_lock(broken, pid=1, port=9000)
+        original = Path.read_text
+
+        def deny(self, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003
+            if self.name.endswith(".lock"):
+                raise OSError("denied")
+            return original(self, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "read_text", deny)
+        assert sweep_stale_locks("hull", root=tmp_path) == 1
+        assert not broken.exists()
+
+    @pytest.mark.parametrize("state", ["expired", "malformed", "unreadable"])
+    def test_unremovable_lock_is_reported_as_kept(self, tmp_path: Path, monkeypatch, state: str) -> None:  # noqa: ANN001
+        stale = tmp_path / "hull-9000.lock"
+        if state == "malformed":
+            stale.write_text("dead-pid\n", encoding="utf-8")
+        else:
+            _write_lock(stale, pid=1, port=9000, age_hours=DEFAULT_LOCK_TTL_HOURS + 1)
+            if state == "unreadable":
+                original = Path.read_text
+
+                def deny(self, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003
+                    if self.name.endswith(".lock"):
+                        raise OSError("denied")
+                    return original(self, *args, **kwargs)
+
+                monkeypatch.setattr(Path, "read_text", deny)
+
+        def deny_unlink(self, **_kwargs):  # noqa: ANN001, ANN003
+            raise OSError("in use")
+
+        monkeypatch.setattr(Path, "unlink", deny_unlink)
+        assert sweep_stale_locks("hull", root=tmp_path) == 0
+
+    def test_default_root_used_when_root_omitted(self, tmp_path: Path, monkeypatch) -> None:  # noqa: ANN001
+        stale = tmp_path / "hull-9000.lock"
+        _write_lock(stale, pid=1, port=9000, age_hours=DEFAULT_LOCK_TTL_HOURS + 1)
+        monkeypatch.setattr("hull_core.lifecycle.lock._lock_dir", lambda: tmp_path)
+
+        assert sweep_stale_locks("hull") == 1
+        assert not stale.exists()
+
+    def test_ttl_argument_is_honoured(self, tmp_path: Path) -> None:
+        lock = tmp_path / "hull-9000.lock"
+        _write_lock(lock, pid=1, port=9000, age_hours=2)
+
+        assert sweep_stale_locks("hull", ttl_hours=1, root=tmp_path) == 1
+        assert sweep_stale_locks("hull", ttl_hours=DEFAULT_LOCK_TTL_HOURS, root=tmp_path) == 0
+
+
+def test_bad_timestamp_is_rejected() -> None:
+    assert _parse_lock_text("1\n2\ntok\nnot-a-date\n") is None
+
+
+class TestAcquireFailurePaths:
+    def test_open_failure_raises_runtime_error(self, lock_root: Path, unique_name: str, monkeypatch) -> None:  # noqa: ANN001
+        def boom(*_args, **_kwargs):
+            raise PermissionError("denied")
+
+        monkeypatch.setattr("os.open", boom)
+        with pytest.raises(RuntimeError, match="Failed to open lock file"):
+            with LifecycleLock(name=unique_name, port=9000, root=lock_root):
+                pass
+
+    def test_release_survives_a_failed_unlink(self, lock_root: Path, unique_name: str, monkeypatch) -> None:  # noqa: ANN001
+        lock = LifecycleLock(name=unique_name, port=9000, root=lock_root)
+        lock.__enter__()
+
+        def boom(self, **_kwargs):  # noqa: ANN001, ANN003
+            raise OSError("in use")
+
+        monkeypatch.setattr(Path, "unlink", boom)
+        lock.__exit__(None, None, None)  # must not raise
+        assert lock._fh is None, "the handle is closed even when the file cannot be unlinked"

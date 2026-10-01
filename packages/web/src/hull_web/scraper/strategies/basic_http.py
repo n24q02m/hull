@@ -35,13 +35,15 @@ class BasicHTTPStrategy(BaseStrategy):
         self.proxy = proxy
         self._http_client = http_client
 
-    async def fetch(self, url: str, selectors: dict[str, str] | None = None) -> ScrapingResult:
+    async def fetch(self, url: str, selectors: dict[str, Any] | None = None) -> ScrapingResult:
         """Fetch *url* via plain HTTP GET with browser-like headers."""
         if not is_safe_url(url):
             raise ValueError(f"SSRF blocked: {url}")
+        # selectors is a nested selector tree, so its values are not all strings.
         cookies: dict[str, str] = {}
-        if selectors and isinstance(selectors.get("cookies"), dict):
-            cookies = selectors["cookies"]
+        raw_cookies = selectors.get("cookies") if selectors else None
+        if isinstance(raw_cookies, dict):
+            cookies = {str(name): str(value) for name, value in raw_cookies.items()}
         request_kwargs = {
             "headers": self.headers,
             "timeout": self.timeout,

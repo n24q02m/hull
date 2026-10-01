@@ -322,3 +322,13 @@ class TestIsValidDomain:
     )
     def test_is_valid_domain(self, domain, expected):
         assert is_valid_domain(domain) is expected
+
+
+def _boom(*_args, **_kwargs):
+    raise ValueError("cannot split")
+
+
+def test_normalize_url_returns_input_when_parsing_fails(monkeypatch):
+    """Dedup must never drop a URL it cannot parse."""
+    monkeypatch.setattr("hull_web.http.url.urlsplit", _boom)
+    assert normalize_url("weird://value") == "weird://value"

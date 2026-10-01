@@ -44,10 +44,12 @@ def model_cell_from_config(task: str, table: dict | None, *, env: dict[str, str]
     if task not in TASKS:
         raise ValueError(f"unknown model task {task!r}; expected one of {TASKS}")
     table = table or {}
-    env = os.environ if env is None else env
+    # Read through a fresh local: `env` keeps its declared `dict[str, str] | None`
+    # type while os.environ is an `_Environ[str]` mapping.
+    env_map = os.environ if env is None else env
     base_url = str(table.get("base_url", DEFAULT_BASE_URL)).rstrip("/")
     model = str(table.get("model", DEFAULT_MODELS[task]))
-    api_key = str(env.get(api_key_env(task), table.get("api_key", "")) or "")
+    api_key = str(env_map.get(api_key_env(task), table.get("api_key", "")) or "")
     return ModelCell(task=task, base_url=base_url, api_key=api_key, model=model)
 
 

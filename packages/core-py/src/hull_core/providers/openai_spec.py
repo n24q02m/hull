@@ -57,7 +57,7 @@ class OpenAICompatClient:
         *,
         auth_mode: str = "no-auth",
         timeout: float = 60.0,
-        transport: httpx.AsyncTransport | None = None,
+        transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         if cell.base_url.startswith(("http://localhost", "http://127.0.0.1", "http://[::1]")):
             # Loopback literal: let the policy decide instead of the resolver.

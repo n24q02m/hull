@@ -95,3 +95,56 @@ def test_empty_allowed_roots_grants_nothing(tmp_path: Path) -> None:
     user = AuthContext(uid="nobody", namespace="n", mode="multi")
     with pytest.raises(PermissionError):
         ensure_path_allowed(user, tmp_path)
+
+
+def _write_users(tmp_path: Path, body: str) -> Path:
+    path = tmp_path / "broken-users.toml"
+    path.write_text(body, encoding="utf-8")
+    return path
+
+
+def test_invalid_toml_rejected(tmp_path: Path) -> None:
+    with pytest.raises(UsersError, match="not valid TOML"):
+        load_users(_write_users(tmp_path, "not [valid toml"))
+
+
+@pytest.mark.parametrize(
+    ("body", "message"),
+    [
+        pytest.param('[users]\nalice = "scalar"\n', "expected a table", id="entry-not-a-table"),
+        pytest.param('[users.alice]\nnamespace = "alice"\n', "token_hash missing", id="token-hash-absent"),
+        pytest.param(
+            '[users.alice]\ntoken_hash = "plaintext"\n',
+            "not a scrypt encoding",
+            id="token-hash-not-scrypt",
+        ),
+        pytest.param(
+            f'[users.alice]\ntoken_hash = "{ALICE_HASH}"\n',
+            "namespace must be a non-empty string",
+            id="namespace-missing",
+        ),
+        pytest.param(
+            f'[users.alice]\ntoken_hash = "{ALICE_HASH}"\nnamespace = "a"\nenabled = "yes"\n',
+            "enabled must be a boolean",
+            id="enabled-not-bool",
+        ),
+        pytest.param(
+            f'[users.alice]\ntoken_hash = "{ALICE_HASH}"\nnamespace = "a"\nallowed_roots = [1]\n',
+            "allowed_roots must be a list of strings",
+            id="roots-not-strings",
+        ),
+        pytest.param(
+            f'[users.alice]\ntoken_hash = "{ALICE_HASH}"\nnamespace = "a"\nlimits = "rpm=60"\n',
+            "limits must be a table",
+            id="limits-not-a-table",
+        ),
+        pytest.param(
+            f'[users.alice]\ntoken_hash = "{ALICE_HASH}"\nnamespace = "a"\n[users.alice.limits]\nrpm = 0\n',
+            "limits.rpm must be a positive integer",
+            id="rpm-not-positive",
+        ),
+    ],
+)
+def test_entry_validation_errors(tmp_path: Path, body: str, message: str) -> None:
+    with pytest.raises(UsersError, match=message):
+        load_users(_write_users(tmp_path, body))

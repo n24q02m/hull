@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 from starlette.applications import Starlette
 from starlette.routing import Route
@@ -58,3 +59,23 @@ def test_no_auth_binds_local_identity(tmp_path: Path) -> None:
     resp = _client(settings).get("/whoami")
     assert resp.status_code == 200
     assert resp.json()["seen"] == "local"
+
+
+class _OkWithoutContext:
+    """Authenticator that reports success but hands back no identity."""
+
+    def authenticate(self, authz):  # noqa: ANN001, ANN003
+        return SimpleNamespace(ok=True, status=None, detail="", context=None)
+
+
+def test_ok_without_context_fails_closed(tmp_path: Path) -> None:
+    """A drifting authenticator must never bind a null identity into the contextvar."""
+    before = current_user()
+    star = Starlette(routes=[Route("/whoami", _endpoint, methods=["GET"])])
+    # ty: the stub is the drift this test simulates - a non-Authenticator implementation.
+    middleware = HullAuthMiddleware(star, _OkWithoutContext())  # ty: ignore[invalid-argument-type]
+    resp = TestClient(middleware).get("/whoami")
+
+    assert resp.status_code == 500
+    assert resp.json()["error"] == "server misconfiguration"
+    assert current_user() == before, "no identity may be bound for a rejected request"

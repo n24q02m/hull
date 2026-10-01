@@ -74,6 +74,8 @@ class ScrapingAgent:
               ├─ (more strategies) → select_strategy (loop)
               └─ (exhausted) → update_cache → END
         """
+        # ty: ignore[invalid-argument-type]  # langgraph's StateT bound is a private
+        # alias ty cannot resolve; ScrapingState is a TypedDict, which is what it wants.
         graph = StateGraph(ScrapingState)
 
         graph.add_node("check_cache", self._check_cache_node)

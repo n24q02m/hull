@@ -34,6 +34,7 @@ import tempfile
 import time
 import urllib.parse
 from pathlib import Path
+from typing import Any
 
 import filelock
 
@@ -168,8 +169,11 @@ engines:
     shortcut: wp
 """
 
+# Windows exposes no SIGKILL; terminate() is the strongest signal there.
+_SIGKILL = getattr(signal, "SIGKILL", signal.SIGTERM)
+
 # The running process, port, and whether this process started it.
-_searxng_process: subprocess.Popen[bytes] | None = None
+_searxng_process: subprocess.Popen[Any] | None = None
 _searxng_port: int | None = None
 _searxng_docker_container: str | None = None
 _searxng_settings_path: Path | None = None
@@ -645,7 +649,7 @@ async def _sigterm_then_kill(pid: int, label: str = "") -> bool:  # pragma: no c
 
     # Force kill.
     try:
-        os.kill(pid, signal.SIGKILL)
+        os.kill(pid, _SIGKILL)
         logger.debug("Process PID=%d%s force-killed", pid, tag)
         return True
     except (ProcessLookupError, PermissionError):
@@ -675,7 +679,7 @@ def _force_kill_process_sync(proc: subprocess.Popen) -> None:  # pragma: no cove
                 logger.debug("SearXNG process (PID=%d) SIGTERM timed out, proceeding to SIGKILL", pid)
 
             try:
-                os.killpg(os.getpgid(pid), signal.SIGKILL)
+                os.killpg(os.getpgid(pid), _SIGKILL)
             except (ProcessLookupError, PermissionError):
                 proc.kill()
             try:
@@ -715,7 +719,7 @@ async def _force_kill_process(proc: subprocess.Popen) -> None:  # pragma: no cov
                 logger.debug("SearXNG process (PID=%d) SIGTERM timed out, proceeding to SIGKILL", pid)
 
             try:
-                os.killpg(os.getpgid(pid), signal.SIGKILL)
+                os.killpg(os.getpgid(pid), _SIGKILL)
             except (ProcessLookupError, PermissionError):
                 proc.kill()
             try:
@@ -1217,7 +1221,7 @@ async def _start_searxng_subprocess(start_port: int) -> str | None:  # pragma: n
         else:
             cmd = [sys.executable, "-m", "searx.webapp"]
 
-        _searxng_process = await asyncio.to_thread(
+        proc: subprocess.Popen[Any] = await asyncio.to_thread(
             lambda: subprocess.Popen(
                 cmd,
                 shell=False,
@@ -1228,6 +1232,7 @@ async def _start_searxng_subprocess(start_port: int) -> str | None:  # pragma: n
                 **_get_process_kwargs(),
             )
         )
+        _searxng_process = proc
 
         # Register cleanup (idempotent -- atexit deduplicates internally).
         atexit.register(_cleanup_process)
@@ -1237,15 +1242,15 @@ async def _start_searxng_subprocess(start_port: int) -> str | None:  # pragma: n
         # Wait for SearXNG to be healthy.
         if await _wait_for_service(url, timeout=_STARTUP_HEALTH_TIMEOUT):
             logger.info("SearXNG ready at %s", url)
-            await asyncio.to_thread(_write_discovery, port, _searxng_process.pid)
+            await asyncio.to_thread(_write_discovery, port, proc.pid)
             _is_owner = True
             return url
 
         # Health check timed out.
         logger.warning("SearXNG started but not healthy at %s", url)
-        if _searxng_process.poll() is not None:
-            if _searxng_process.stderr:
-                stderr_raw = await asyncio.to_thread(_searxng_process.stderr.read)
+        if proc.poll() is not None:
+            if proc.stderr:
+                stderr_raw = await asyncio.to_thread(proc.stderr.read)
                 stderr = stderr_raw.decode()
             else:
                 stderr = ""
@@ -1253,9 +1258,9 @@ async def _start_searxng_subprocess(start_port: int) -> str | None:  # pragma: n
         else:
             logger.warning(
                 "SearXNG process (PID=%d) alive but not serving, killing stuck process",
-                _searxng_process.pid,
+                proc.pid,
             )
-            await _force_kill_process(_searxng_process)
+            await _force_kill_process(proc)
         _searxng_process = None
         _searxng_port = None
         return None

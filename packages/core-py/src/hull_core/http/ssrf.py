@@ -109,7 +109,11 @@ class AsyncSSRFSafeBackend(httpcore.AsyncNetworkBackend):
     """DNS-pinning backend: dial the vetted IP, never re-resolve (anti-TOCTOU)."""
 
     def __init__(self, *, allow_private: bool = False, allow_loopback: bool = False) -> None:
-        self._backend = httpcore.AnyIOBackend()
+        # httpcore re-exports AnyIOBackend as a conditional class union, which
+        # no checker can narrow; both members implement AsyncNetworkBackend.
+        self._backend: httpcore.AsyncNetworkBackend = typing.cast(
+            "httpcore.AsyncNetworkBackend", httpcore.AnyIOBackend()
+        )
         self._allow_private = allow_private
         self._allow_loopback = allow_loopback
 

@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from types import TracebackType
 
 import httpx
 from pydantic import BaseModel
@@ -127,7 +128,12 @@ class MangaDexClient:
             await self._client.__aenter__()
         return self
 
-    async def __aexit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         self._client_count -= 1
         if self._client_count <= 0 and self._client is not None:
             await self._client.__aexit__(exc_type, exc_val, exc_tb)
@@ -160,7 +166,7 @@ class MangaDexClient:
         if self._client is not None:
             resp = await self._client.get(
                 url,
-                params=params,
+                params=params,  # ty: ignore[invalid-argument-type]  # httpx's QueryParamTypes omits the int query values MangaDex uses
                 headers={"User-Agent": self._user_agent},
             )
             resp.raise_for_status()
@@ -169,7 +175,7 @@ class MangaDexClient:
         async with safe_httpx_client(timeout=30.0) as client:
             resp = await client.get(
                 url,
-                params=params,
+                params=params,  # ty: ignore[invalid-argument-type]  # same httpx alias gap as the shared-client call above
                 headers={"User-Agent": self._user_agent},
             )
             resp.raise_for_status()

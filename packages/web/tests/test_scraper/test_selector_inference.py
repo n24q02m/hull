@@ -133,7 +133,7 @@ async def test_infer_requires_llm_caller(monkeypatch):
     """Without an explicit llm_caller there is no inference at all."""
     _clear_llm_env(monkeypatch)
     with pytest.raises(TypeError, match="llm_caller"):
-        await infer_selectors_with_llm("https://test-example.com", "<html/>")
+        await infer_selectors_with_llm("https://test-example.com", "<html/>")  # ty: ignore[missing-argument]
 
 
 async def test_infer_ignores_env_api_keys(monkeypatch):
@@ -141,7 +141,7 @@ async def test_infer_ignores_env_api_keys(monkeypatch):
     for var in _LLM_ENV_VARS:
         monkeypatch.setenv(var, "dummy")
     with pytest.raises(TypeError, match="llm_caller"):
-        await infer_selectors_with_llm("https://test-example.com", "<html/>")
+        await infer_selectors_with_llm("https://test-example.com", "<html/>")  # ty: ignore[missing-argument]
 
 
 def test_get_domain_selectors_does_not_inject_env_cookies(monkeypatch):
@@ -285,12 +285,13 @@ async def test_infer_logs_provider_annotations():
     async def fake_caller(_prompt, _html):
         return {"content": "#c"}
 
-    fake_caller.__hull_web_provider__ = "custom-provider"
-    fake_caller.__hull_web_model__ = "custom-model"
+    # Caller annotations ride on the callable's own __dict__; functions allow it, a class body would not.
+    fake_caller.__dict__["__hull_web_provider__"] = "custom-provider"
+    fake_caller.__dict__["__hull_web_model__"] = "custom-model"
 
     records: list[logging.LogRecord] = []
     handler = logging.Handler()
-    handler.emit = lambda record: records.append(record)
+    handler.emit = lambda record: records.append(record)  # ty: ignore[invalid-assignment]  # capture handler
 
     logger = selector_inference.logger
     old_level = logger.level
@@ -304,8 +305,8 @@ async def test_infer_logs_provider_annotations():
 
     inferred = [r for r in records if r.message == "domain_selector_inferred"]
     assert inferred, "expected a domain_selector_inferred record"
-    assert inferred[0].provider == "custom-provider"
-    assert inferred[0].model == "custom-model"
+    assert inferred[0].provider == "custom-provider"  # ty: ignore[unresolved-attribute]  # extra LogRecord attrs
+    assert inferred[0].model == "custom-model"  # ty: ignore[unresolved-attribute]
 
 
 # -----------------------------------------------------------------------------

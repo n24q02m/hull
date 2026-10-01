@@ -60,7 +60,8 @@ def _pinned_getaddrinfo(host: str, port: int | str | None, *args: Any, **kwargs:
 
 
 # Monkey-patch socket.getaddrinfo at import time
-socket.getaddrinfo = _pinned_getaddrinfo  # type: ignore[assignment]
+# type: ignore[assignment]  # ty: ignore[invalid-assignment]  # deliberate global patch: the pinned resolver replaces the stdlib signature
+socket.getaddrinfo = _pinned_getaddrinfo
 
 # ---------------------------------------------------------------------------
 # IP safety check

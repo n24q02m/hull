@@ -122,7 +122,10 @@ async def test_chat_reserved_keys_rejected() -> None:
         # `messages` is a named parameter, so a keyword override cannot even
         # reach the body guard — Python rejects it at bind time.
         with pytest.raises(TypeError, match="multiple values"):
-            await client.chat([{"role": "user", "content": "ping"}], messages=[{"role": "user", "content": "evil"}])
+            await client.chat(
+                [{"role": "user", "content": "ping"}],
+                messages=[{"role": "user", "content": "evil"}],  # ty: ignore[parameter-already-assigned]  # bound twice: the point of the test
+            )
     finally:
         await client.aclose()
 
@@ -243,3 +246,19 @@ async def test_multi_mode_blocks_private_dns() -> None:
                 _cell(base_url="https://internal.example.test/v1"),
                 auth_mode="multi",
             )
+
+
+async def test_transport_failure_becomes_502() -> None:
+    """A dropped connection surfaces as a 502, not a raw httpx traceback."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("connection refused", request=request)
+
+    client = OpenAICompatClient(_cell(task="chat"), transport=httpx.MockTransport(handler))
+    try:
+        with pytest.raises(ProviderError) as excinfo:
+            await client.chat([{"role": "user", "content": "ping"}])
+    finally:
+        await client.aclose()
+    assert excinfo.value.status == 502
+    assert "transport error" in excinfo.value.detail

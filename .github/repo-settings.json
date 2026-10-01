@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "tier": 2,
-  "description": "hull — shared core for the wet / crg / mnemo self-hosted stack",
+  "description": "hull is the shared monorepo core for the wet, crg and mnemo self-hosted stack",
   "homepage": "",
   "topics": [
     "mcp",

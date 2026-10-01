@@ -6,11 +6,12 @@
 [![Python](https://img.shields.io/badge/python-3.13-3776AB.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green.svg)](LICENSE)
 
-`hull` is the shared monorepo core for three self-hostable products:
-**wet** (search), **crg** (code graph), **mnemo** (memory). It owns everything
-the three products share: token auth, per-task model configuration, per-user
-rate limiting, local SQLite storage, the HTTP MCP server lifecycle, web
-scraping/search infrastructure, and a local embedding daemon.
+**hull is the shared monorepo core for the wet, crg and mnemo self-hosted stack.**
+
+It owns everything the three products share — token auth, per-task model
+configuration, per-user rate limiting, local SQLite storage, the HTTP MCP server
+lifecycle, web scraping/search infrastructure, and a local embedding daemon —
+for **wet** (search), **crg** (code graph) and **mnemo** (memory).
 
 ## Install
 

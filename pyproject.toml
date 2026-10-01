@@ -125,3 +125,16 @@ branch = true
 fail_under = 95
 show_missing = true
 skip_covered = true
+
+[tool.semantic_release]
+tag_format = "v{version}"
+commit_message = "feat(release): v{version} [skip ci]"
+major_on_zero = false
+allow_zero_version = true
+version_toml = ["pyproject.toml:project.version"]
+
+[tool.semantic_release.changelog]
+changelog_file = "CHANGELOG.md"
+
+[tool.semantic_release.remote]
+type = "github"

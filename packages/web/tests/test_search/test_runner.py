@@ -531,7 +531,7 @@ class TestGetProcessKwargs:
         with patch("sys.platform", "win32"):
             kwargs = _get_process_kwargs()
             assert "creationflags" in kwargs
-            assert kwargs["creationflags"] == subprocess.CREATE_NEW_PROCESS_GROUP
+            assert kwargs["creationflags"] == getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
 
 
 # ===========================================================================

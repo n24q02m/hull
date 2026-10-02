@@ -51,6 +51,17 @@ web = [
     "pydantic>=2.12.5",
     "pillow>=12.3.0",
 ]
+# Identity layer: seeded coherent browser profiles (fingerprint.build_identity).
+# Optional: hull_web imports and all legacy strategy behavior work without it.
+identity = [
+    "invisible-core>=34.31.0,<35",
+]
+# Stealth engine tier (dots' InvisiblePlaywright) behind BrowserProvider.
+# Optional and heavy: downloads its own sealed Firefox build on first launch
+# unless STEALTHFOX_BINARY points at one.
+invisible = [
+    "invisible-playwright>=0.25.7,<0.26",
+]
 # hull_embedding_daemon: local ONNX embedding server (FastAPI). GPU: replace
 # onnxruntime with onnxruntime-gpu in the target environment; the two wheels
 # ship the same `onnxruntime` module and must not be co-installed.
@@ -112,6 +123,13 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
 
 [tool.ruff.format]
 exclude = ["*.md"]
+
+[tool.ty.rules]
+# Optional-dep seams carry `# ty: ignore[unresolved-import]` that is USED when
+# the extra is absent (CI) and UNUSED when it is installed (local --all-extras).
+# Flagging unused-ignore-comments would make `ty` results environment-dependent.
+unused-ignore-comment = "ignore"
+unused-type-ignore-comment = "ignore"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

@@ -278,8 +278,9 @@ class TestHeadlessStrategy:
             mock_bc.assert_called_once()
             config = mock_bc.call_args.kwargs
             assert config["enable_stealth"] is True
-            assert config["user_agent"].startswith("Mozilla/")
-            assert config["viewport_width"] > 0
+            # Identity is opt-in: without one, no UA override (legacy behavior).
+            assert "user_agent" not in config
+            assert "viewport_width" not in config
             # CrawlerRunConfig should have correct defaults
             mock_crc.assert_called_once_with(
                 wait_for="css:body",

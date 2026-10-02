@@ -2,16 +2,18 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
-from hull_web.fingerprint import FingerprintProfile
+from hull_web.fingerprint import IdentityProfile
 from hull_web.http.client import is_safe_url
-from hull_web.http.url import extract_domain
 from hull_web.scraper.base import BaseStrategy, ScrapingResult
+
+logger = logging.getLogger(__name__)
 
 
 class HeadlessStrategy(BaseStrategy):
-    """Use Crawl4AI headless browser with a stable optional profile."""
+    """Use Crawl4AI headless browser with a stable optional identity."""
 
     name: str = "headless"
 
@@ -22,17 +24,18 @@ class HeadlessStrategy(BaseStrategy):
         stealth: bool = True,
         proxy: str | None = None,
         crawler_factory: Any = None,
-        profile: FingerprintProfile | None = None,
+        identity: IdentityProfile | None = None,
     ):
         self.timeout = timeout
         self.wait_for = wait_for
         self.stealth = stealth
         self.proxy = proxy
-        self.profile = profile
+        self.identity = identity
         self._crawler_factory = crawler_factory
+        self._locale_warned = False
 
     def _build_browser_config(self) -> Any:
-        """Build a Crawl4AI BrowserConfig with profile and proxy settings."""
+        """Build a Crawl4AI BrowserConfig with identity and proxy settings."""
         from crawl4ai import BrowserConfig
 
         config: dict[str, Any] = {
@@ -41,12 +44,22 @@ class HeadlessStrategy(BaseStrategy):
             "enable_stealth": self.stealth,
             "verbose": False,
         }
-        if self.profile is not None:
+        if self.identity is not None:
             config.update(
-                user_agent=self.profile.user_agent,
-                viewport_width=self.profile.viewport_width,
-                viewport_height=self.profile.viewport_height,
+                user_agent=self.identity.user_agent,
+                viewport_width=self.identity.viewport_width,
+                viewport_height=self.identity.viewport_height,
             )
+            # Crawl4AI's BrowserConfig has no locale/timezone fields; the UA is
+            # Firefox but the clock/locale are the host's. Log once so the
+            # divergence is visible instead of silent.
+            if not self._locale_warned:
+                self._locale_warned = True
+                logger.info(
+                    "headless strategy: Crawl4AI has no locale/timezone config; "
+                    "identity %s sends Firefox UA but host clock/locale",
+                    self.identity.seed,
+                )
         browser_config = BrowserConfig(**config)
         if self.proxy is not None:
             browser_config.proxy_config = {"server": self.proxy}
@@ -67,8 +80,6 @@ class HeadlessStrategy(BaseStrategy):
         """Fetch *url* via Crawl4AI headless browser rendering."""
         if not is_safe_url(url):
             raise ValueError(f"SSRF blocked: {url}")
-        if self.profile is None:
-            self.profile = FingerprintProfile.for_domain(extract_domain(url))
         crawler_run_config = self._build_crawler_run_config()
         if self._crawler_factory is not None:
             crawler = self._crawler_factory()

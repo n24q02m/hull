@@ -49,6 +49,19 @@ class PatchrightStrategy(BaseStrategy):
         self.launch_config = launch_config
         self._provider = provider
 
+    def _resolve_provider(self) -> tuple[Any, bool]:
+        """Return ``(provider, owns_provider)`` for this fetch.
+
+        An injected provider is owned by the caller. Subclasses (e.g.
+        ``InvisibleStrategy``) override this to supply a different engine
+        while keeping the Cloudflare machinery in exactly one place.
+        """
+        if self._provider is not None:
+            return self._provider, False
+        from hull_web.browsers.patchright import PatchrightProvider
+
+        return PatchrightProvider(headless=self.headless), True
+
     async def _wait_for_cf_resolution(self, page: Any) -> str:
         """Wait for Cloudflare JS challenge to auto-resolve.
 
@@ -87,14 +100,7 @@ class PatchrightStrategy(BaseStrategy):
         """
         if not is_safe_url(url):
             raise ValueError(f"SSRF blocked: {url}")
-        if self._provider is not None:
-            provider = self._provider
-            owns_provider = False
-        else:
-            from hull_web.browsers.patchright import PatchrightProvider
-
-            provider = PatchrightProvider(headless=self.headless)
-            owns_provider = True
+        provider, owns_provider = self._resolve_provider()
         # Patchright raises its own TimeoutError (not the builtin) from page
         # waits; import the real exception alongside the provider.
         from patchright.async_api import TimeoutError as PatchrightTimeoutError

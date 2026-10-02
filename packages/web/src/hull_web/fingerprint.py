@@ -1,61 +1,209 @@
-"""Consistent browser identity profiles for a scraping session."""
+"""Browser identity, seeded and reproducible — replacing the domain-hash version.
+
+The previous implementation called FingerprintGenerator().generate() with no
+seed, picked viewport/locale/timezone independently from three bytes of
+sha256(domain), and reported empty WebGL strings when BrowserForge had no GPU
+profile. Three problems, all of them things a page can test:
+
+  1. No seed. Two processes on the same domain got two different people.
+  2. Independent picks. de-DE with America/New_York and UTC was reachable.
+  3. Empty WebGL. That is the headless signature, not a way to avoid it.
+
+invisible_core samples the whole profile from a Bayesian network, so screen,
+GPU, fonts, audio and codec agree with each other by construction, and one
+integer seed reproduces the same machine everywhere.
+
+invisible_core is an OPTIONAL dependency (``hull-core[identity]``): every
+import of it is lazy, inside the functions that need it, so ``hull_web``
+imports fine without the extra installed.
+"""
 
 from __future__ import annotations
 
-import hashlib
+import logging
+import os
 import re
+import secrets
 from dataclasses import dataclass
 from functools import lru_cache
+from typing import Any, get_args
 
-# Performance Optimization: Pre-compiling the regex avoids parsing overhead
-# on every domain profile generation, making the user-agent substitution ~33% faster.
-_CHROME_VERSION_RE = re.compile(r"Chrome/\d+(?:\.\d+)*")
+logger = logging.getLogger(__name__)
+
+#: One identity for the whole process, not one per domain. A scraper that is a
+#: different person on every host is the inconsistency this exists to remove:
+#: sites sharing a CDN, an analytics vendor or a login domain see the switches.
+IDENTITY_SEED_ENV = "WET_IDENTITY_SEED"
+
+#: TLS impersonation fallback when the installed curl_cffi ships no Firefox
+#: profile at all. Divergence (Chromium TLS under a Firefox UA) is logged once
+#: at build time — see :func:`_select_impersonate`.
+_FALLBACK_IMPERSONATE = "chrome131"
+
+_FIREFOX_TARGET_RE = re.compile(r"firefox(\d+)$")
 
 
 @dataclass(frozen=True, slots=True)
-class FingerprintProfile:
-    """Browser and TLS identity selected once for a domain."""
+class IdentityProfile:
+    """A coherent browser identity, plus the TLS impersonation that matches it."""
 
+    seed: int
     user_agent: str
+    oscpu: str
     platform: str
-    viewport_width: int
-    viewport_height: int
     locale: str
     timezone_id: str
+    viewport_width: int
+    viewport_height: int
     webgl_vendor: str
     webgl_renderer: str
-    impersonate: str = "chrome131"
-
-    @classmethod
-    def for_domain(cls, domain: str) -> FingerprintProfile:
-        """Return the stable in-process profile for *domain*."""
-        return _profile_for_domain(domain)
+    impersonate: str
+    raw: Any = None  # the invisible_core Profile, for consumers that want depth
 
 
-@lru_cache(maxsize=256)
-def _profile_for_domain(domain: str) -> FingerprintProfile:
-    """Generate a domain-seeded profile from BrowserForge data."""
-    from browserforge.fingerprints import FingerprintGenerator
+def _supported_impersonate_targets() -> list[str]:
+    """Return the impersonate target names the installed curl_cffi supports.
 
-    digest = hashlib.sha256(domain.encode("utf-8")).digest()
-    fingerprint = FingerprintGenerator().generate(browser="chrome", os="windows", device="desktop")
-    navigator = fingerprint.navigator
-    video_card = fingerprint.videoCard
-    user_agent = _CHROME_VERSION_RE.sub("Chrome/131.0.0.0", navigator.userAgent)
-    viewports = ((1280, 720), (1366, 768), (1440, 900), (1536, 864))
-    locales = ("en-US", "en-GB", "de-DE", "fr-FR")
-    timezones = ("UTC", "Europe/London", "Europe/Berlin", "America/New_York")
-    viewport_width, viewport_height = viewports[digest[0] % len(viewports)]
-    return FingerprintProfile(
-        user_agent=user_agent,
-        platform=navigator.platform,
-        viewport_width=viewport_width,
-        viewport_height=viewport_height,
-        locale=locales[digest[1] % len(locales)],
-        timezone_id=timezones[digest[2] % len(timezones)],
-        # BrowserForge leaves videoCard unset when it has no GPU profile for the
-        # requested device; headless Chrome reports empty WebGL strings there,
-        # so mirror that rather than inventing a vendor.
-        webgl_vendor=video_card.vendor if video_card is not None else "",
-        webgl_renderer=video_card.renderer if video_card is not None else "",
+    ``BrowserTypeLiteral`` is the authoritative source; ``REAL_TARGET_MAP``
+    values are the fallback for versions that dropped the literal. Anything
+    unreadable yields an empty list and the caller falls back to Chrome.
+    """
+    try:
+        from curl_cffi.requests.impersonate import BrowserTypeLiteral
+
+        targets = [str(t) for t in get_args(BrowserTypeLiteral)]
+    except Exception:  # pragma: no cover - curl_cffi API drift
+        targets = []
+    if not targets:
+        try:
+            from curl_cffi.requests.impersonate import REAL_TARGET_MAP
+
+            targets = [str(v) for v in REAL_TARGET_MAP.values()]
+        except Exception:  # pragma: no cover - curl_cffi API drift
+            targets = []
+    return targets
+
+
+def _select_impersonate(targets: list[str] | None = None) -> str:
+    """Pick the newest ``firefoxNNN`` target the installed curl_cffi supports.
+
+    curl_cffi can only impersonate a browser it ships a profile for, so this
+    is the seam where a Firefox identity meets the TLS layer: the honest move
+    is to take the newest Firefox profile available. With no Firefox target at
+    all we fall back to ``_FALLBACK_IMPERSONATE`` and log once — a Chromium
+    TLS fingerprint under a Firefox UA is a divergence, but a detectable one
+    beats a hard failure on curl_cffi versions that change the target list.
+    """
+    candidates = list(targets) if targets is not None else _supported_impersonate_targets()
+    best: tuple[int, str] | None = None
+    for target in candidates:
+        match = _FIREFOX_TARGET_RE.fullmatch(str(target))
+        if match is not None and (best is None or int(match.group(1)) > best[0]):
+            best = (int(match.group(1)), str(target))
+    if best is not None:
+        return best[1]
+    logger.warning(
+        "curl_cffi exposes no firefoxNNN impersonation target; falling back to %r. "
+        "The identity user-agent and the TLS fingerprint will diverge.",
+        _FALLBACK_IMPERSONATE,
     )
+    return _FALLBACK_IMPERSONATE
+
+
+def default_seed() -> int:
+    """The process-wide identity seed.
+
+    ``WET_IDENTITY_SEED`` wins when set (the consumer persists it across
+    restarts). Otherwise derive once per process and cache it: every caller in
+    this process then presents the same identity. A seed that must outlive the
+    process is the consumer's job — wet stores it in ``~/.wet-mcp/config.json``.
+    """
+    return _process_seed()
+
+
+@lru_cache(maxsize=1)
+def _process_seed() -> int:
+    raw = os.environ.get(IDENTITY_SEED_ENV, "").strip()
+    if raw:
+        try:
+            return int(raw)
+        except ValueError:
+            logger.warning("%s=%r is not an integer; deriving a random seed", IDENTITY_SEED_ENV, raw)
+    return secrets.randbelow(2**31 - 1) + 1
+
+
+def build_identity(
+    *,
+    seed: int,
+    timezone: str = "auto",
+    locale: str = "auto",
+    proxy: dict[str, str] | None = None,
+) -> IdentityProfile:
+    """Build one identity: sampled profile + geo-resolved locale/timezone.
+
+    ``locale``/``timezone`` default to ``"auto"``: invisible_core derives both
+    from the proxy egress country (or the host's public IP without a proxy), so
+    the language and the clock follow the exit. An explicit IANA zone wins and
+    triggers no network call.
+
+    Raises ``ImportError`` with the install hint when the ``identity`` extra
+    (invisible-core) is not installed.
+    """
+    try:
+        from invisible_core import (  # ty: ignore[unresolved-import]  # optional [identity] extra
+            generate_profile,
+            resolve_session_locale,
+            resolve_session_timezone,
+        )
+        from invisible_core.constants import (  # ty: ignore[unresolved-import]
+            OSCPU_OVERRIDE,
+            PLATFORM_OVERRIDE,
+            USER_AGENT,
+        )
+    except ImportError as exc:
+        raise ImportError(
+            "build_identity requires the optional 'identity' extra (invisible-core). "
+            'Install it with: pip install "hull-core[identity]"',
+        ) from exc
+
+    profile = generate_profile(seed)
+
+    # USER_AGENT is a module constant tied to the sealed Firefox build, not a
+    # per-seed field: one engine presents one Firefox. That is the point - the
+    # UA in basic_http's headers and the UA the engine sends are the same string.
+    try:
+        tz = resolve_session_timezone(timezone, proxy)
+        loc = resolve_session_locale(None, proxy)
+    except Exception as exc:
+        # unresolvable (proxy, offline, missing mmdb). Identity stays coherent
+        # with the documented en-US/UTC fallback instead of failing the build
+        # or raising into MCP callers.
+        logger.warning(f"geo resolution failed ({exc}); identity falls back to en-US/UTC")
+        tz, loc = "UTC", "en-US"
+
+    return IdentityProfile(
+        seed=seed,
+        user_agent=USER_AGENT,
+        oscpu=OSCPU_OVERRIDE,
+        platform=PLATFORM_OVERRIDE,
+        locale=loc,
+        timezone_id=tz,
+        viewport_width=profile.screen.width,
+        viewport_height=profile.screen.height,
+        # Populated, not blank. A real desktop has a GPU; an empty string here
+        # is the headless tell the old code deliberately mirrored.
+        webgl_vendor=profile.gpu.vendor,
+        webgl_renderer=profile.gpu.renderer,
+        impersonate=_select_impersonate(),
+        raw=profile,
+    )
+
+
+@lru_cache(maxsize=4)
+def _cached_identity(seed: int, timezone: str, locale: str) -> IdentityProfile:
+    """Process-wide, so repeated calls in one scrape reuse one identity.
+
+    Unlike the old lru_cache(maxsize=256) keyed by domain, this is keyed by the
+    seed: re-keying on the hot path cannot silently swap the identity mid-run.
+    """
+    return build_identity(seed=seed, timezone=timezone, locale=locale)

@@ -171,8 +171,15 @@ def build_identity(
     # USER_AGENT is a module constant tied to the sealed Firefox build, not a
     # per-seed field: one engine presents one Firefox. That is the point - the
     # UA in basic_http's headers and the UA the engine sends are the same string.
-    tz = resolve_session_timezone(timezone, proxy)
-    loc = resolve_session_locale(None, proxy)
+    try:
+        tz = resolve_session_timezone(timezone, proxy)
+        loc = resolve_session_locale(None, proxy)
+    except Exception as exc:
+        # unresolvable (proxy, offline, missing mmdb). Identity stays coherent
+        # with the documented en-US/UTC fallback instead of failing the build
+        # or raising into MCP callers.
+        logger.warning(f"geo resolution failed ({exc}); identity falls back to en-US/UTC")
+        tz, loc = "UTC", "en-US"
 
     return IdentityProfile(
         seed=seed,

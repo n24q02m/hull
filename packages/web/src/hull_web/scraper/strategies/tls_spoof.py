@@ -4,9 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from hull_web.fingerprint import FingerprintProfile
+from hull_web.fingerprint import IdentityProfile
 from hull_web.http.client import is_safe_url
-from hull_web.http.url import extract_domain
 from hull_web.scraper.base import BaseStrategy, ScrapingResult
 
 
@@ -21,12 +20,12 @@ class TLSSpoofStrategy(BaseStrategy):
         timeout: float = 30.0,
         session_factory: Any = None,
         proxy: str | None = None,
-        profile: FingerprintProfile | None = None,
+        identity: IdentityProfile | None = None,
     ):
         self.impersonate = impersonate
         self.timeout = timeout
         self.proxy = proxy
-        self.profile = profile
+        self.identity = identity
         self._session_factory = session_factory
 
     async def fetch(self, url: str, selectors: dict[str, Any] | None = None) -> ScrapingResult:
@@ -34,8 +33,10 @@ class TLSSpoofStrategy(BaseStrategy):
         if not is_safe_url(url):
             raise ValueError(f"SSRF blocked: {url}")
 
-        profile = self.profile or FingerprintProfile.for_domain(extract_domain(url))
-        impersonate = profile.impersonate if self.profile is not None else self.impersonate
+        # Identity (seeded Firefox) wins when wired; otherwise the explicit
+        # impersonate target stands. The old profile-or-default branch
+        # computed a profile and then discarded it - deleted.
+        impersonate = self.identity.impersonate if self.identity is not None else self.impersonate
         cookies = self._extract_cookies(selectors)
 
         if self._session_factory is not None:

@@ -124,6 +124,13 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
 [tool.ruff.format]
 exclude = ["*.md"]
 
+[tool.ty.rules]
+# Optional-dep seams carry `# ty: ignore[unresolved-import]` that is USED when
+# the extra is absent (CI) and UNUSED when it is installed (local --all-extras).
+# Flagging unused-ignore-comments would make `ty` results environment-dependent.
+unused-ignore-comment = "ignore"
+unused-type-ignore-comment = "ignore"
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests", "packages/core-py/tests", "packages/embedding-daemon/tests", "packages/web/tests"]

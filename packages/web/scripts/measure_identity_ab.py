@@ -173,7 +173,10 @@ def fingerprint_stability_check() -> dict[str, object]:
     from hull_web.fingerprint import IdentityProfile, build_identity
 
     def sig(p: IdentityProfile) -> tuple[Any, ...]:
-        return (p.user_agent, p.locale, p.timezone_id, p.viewport_width, p.impersonate)
+        # Seed-sensitive: webgl vendor/renderer (hardware persona) + seed itself.
+        # user_agent/locale/timezone/viewport are environment-derived (egress IP,
+        # installed engine version) and are intentionally seed-invariant.
+        return (p.seed, p.webgl_vendor, p.webgl_renderer, p.user_agent, p.impersonate)
 
     a1, a2 = build_identity(seed=TEST_SEED), build_identity(seed=TEST_SEED)
     b = build_identity(seed=TEST_SEED + 1)

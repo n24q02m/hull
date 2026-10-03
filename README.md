@@ -22,6 +22,7 @@ import packages; the heavy stacks are opt-in extras:
 pip install hull-core               # hull_core only (crg, mnemo)
 pip install "hull-core[web]"        # + hull_web scraping/browser stack (wet)
 pip install "hull-core[embedding]"  # + hull_embedding_daemon server stack
+pip install "hull-core[mteb]"       # + pyarrow for model_selection MTEB fetchers
 ```
 
 `import hull_web` without the `[web]` extra raises `ImportError` naming the
@@ -31,7 +32,7 @@ missing modules and the install command.
 
 | Source dir | Import package | Extra | Purpose |
 |---|---|---|---|
-| `packages/core-py` | `hull_core` | (base) | Auth (3 modes), per-task model cells, limiter, `~/.hull/` SQLite WAL storage, `server start` + `/mcp` endpoint, CLI, SSRF-safe HTTP, lifecycle lock |
+| `packages/core-py` | `hull_core` | (base; MTEB boards need `[mteb]`) | Auth (3 modes), per-task model cells, limiter, `~/.hull/` SQLite WAL storage, `server start` + `/mcp` endpoint, CLI, SSRF-safe HTTP, lifecycle lock, `model_selection` leaderboard picker + runtime registry (refresh → eval-on-change → promote) |
 | `packages/embedding-daemon` | `hull_embedding_daemon` | `[embedding]` | Local ONNX/GGUF embedding server (FastAPI) |
 | `packages/web` | `hull_web` | `[web]` | Search (SearXNG), scraping strategies, stealth browsers, fingerprinting, HTTP/SSRF security |
 

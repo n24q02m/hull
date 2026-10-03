@@ -87,7 +87,7 @@ jobs:
       # filelock (search runner), patchright/crawl4ai/curl_cffi (scrapers) and
       # fastapi (embedding daemon), and the test suite imports them too, so a
       # base+dev environment can neither type-check nor collect the tests.
-      - run: uv sync --locked --group dev --extra web --extra embedding
+      - run: uv sync --locked --group dev --extra web --extra embedding --extra llm --extra dspy
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run ty check

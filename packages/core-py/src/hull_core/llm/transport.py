@@ -93,9 +93,9 @@ def cohere_routing(op: str, *, env_prefix: str = "HULL_") -> dict[str, Any]:
     ``op`` is ``"embed"`` or ``"rerank"`` (per-op endpoint path).
     """
     path = _COHERE_OP_PATH[op]
-    params: dict[str, Any] = {}
-    if key := _env("COHERE_API_KEY", env_prefix):
-        params["api_key"] = key
+    # api_key stays present (None when unset) — consumers distinguish "no key,
+    # litellm reads the provider env" from a missing kwarg.
+    params: dict[str, Any] = {"api_key": _env("COHERE_API_KEY", env_prefix) or None}
 
     gateway_url = _env("CF_AI_GATEWAY_URL", env_prefix)
     run_token = _env("CF_AIG_RUN_TOKEN", env_prefix)

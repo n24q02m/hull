@@ -83,6 +83,14 @@ def test_cohere_routing_direct_without_gateway(monkeypatch):
     assert "extra_headers" not in params
 
 
+def test_cohere_routing_api_key_absent_is_none(monkeypatch):
+    monkeypatch.delenv("COHERE_API_KEY", raising=False)
+    monkeypatch.delenv("HULL_COHERE_API_KEY", raising=False)
+    params = transport.cohere_routing("embed")
+    assert "api_key" in params
+    assert params["api_key"] is None
+
+
 def test_cohere_routing_rerank_path():
     params = transport.cohere_routing("rerank")
     assert params["api_base"] == "https://api.cohere.com/v1/rerank"

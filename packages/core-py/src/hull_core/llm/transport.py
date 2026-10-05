@@ -137,6 +137,27 @@ def completion(
     return litellm.completion(model=model, messages=messages, **api_kwargs)
 
 
+def _reject_stream(kwargs: dict[str, Any], *, use: str) -> None:
+    """Refuse ``stream=True`` in a text helper BEFORE any request is sent.
+
+    A streamed call returns a litellm stream wrapper, not a ``ModelResponse``,
+    so the text helpers could only fail after the (paid) request went out.
+    """
+    if kwargs.get("stream"):
+        raise ValueError(f"text helpers are non-streaming; call {use}(..., stream=True) to stream")
+
+
+def _response_text(resp: Any) -> str:
+    """Assistant text of a ``ModelResponse`` (``None`` content -> ``""``).
+
+    Anything else (e.g. a stream wrapper) raises ``TypeError`` naming its type
+    instead of an opaque ``AttributeError`` on ``.choices``.
+    """
+    if not isinstance(resp, litellm.ModelResponse):
+        raise TypeError(f"expected litellm.ModelResponse, got {type(resp).__qualname__}")
+    return resp.choices[0].message.content or ""
+
+
 async def acompletion_text(
     *,
     model: str,
@@ -147,7 +168,13 @@ async def acompletion_text(
     strict_api_base: bool = False,
     **kwargs: Any,
 ) -> str:
-    """Like :func:`acompletion` but returns the assistant text (empty-safe)."""
+    """Like :func:`acompletion` but returns the assistant text (empty-safe).
+
+    Non-streaming only: ``stream=True`` raises ``ValueError`` before any
+    request is sent (use :func:`acompletion` to stream), and a response that
+    is not a litellm ``ModelResponse`` raises ``TypeError``.
+    """
+    _reject_stream(kwargs, use="acompletion")
     resp = await acompletion(
         model=model,
         messages=messages,
@@ -157,7 +184,7 @@ async def acompletion_text(
         strict_api_base=strict_api_base,
         **kwargs,
     )
-    return resp.choices[0].message.content or ""
+    return _response_text(resp)
 
 
 def completion_text(
@@ -170,7 +197,13 @@ def completion_text(
     strict_api_base: bool = False,
     **kwargs: Any,
 ) -> str:
-    """Sync sibling of :func:`acompletion_text`. Do NOT call from an async loop."""
+    """Sync sibling of :func:`acompletion_text`. Do NOT call from an async loop.
+
+    Non-streaming only: ``stream=True`` raises ``ValueError`` before any
+    request is sent (use :func:`completion` to stream), and a response that
+    is not a litellm ``ModelResponse`` raises ``TypeError``.
+    """
+    _reject_stream(kwargs, use="completion")
     resp = completion(
         model=model,
         messages=messages,
@@ -180,7 +213,7 @@ def completion_text(
         strict_api_base=strict_api_base,
         **kwargs,
     )
-    return resp.choices[0].message.content or ""
+    return _response_text(resp)
 
 
 async def aembedding(

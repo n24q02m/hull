@@ -94,7 +94,7 @@ llm = [
 # (knowledge-core) pin ==3.2.1 exactly; don't raise the ceiling here.
 dspy = [
     "hull-core[llm]",
-    "dspy>=3.2.1,<3.3.0",
+    "dspy>=3.4.0,<3.5.0",
 ]
 
 # Optional GGUF runtime for `*-GGUF` model names (llama.cpp backend).
@@ -125,7 +125,7 @@ dev = [
     # llm transport tests exercise litellm call paths (mocked HTTP); dspy
     # pinned <3.3.0 — see the [dspy] extra note about the numpy lazy-proxy bug.
     "litellm>=1.102.0",
-    "dspy>=3.2.1,<3.3.0",
+    "dspy>=3.4.0,<3.5.0",
 ]
 
 [tool.hatch.build.targets.wheel]

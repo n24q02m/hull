@@ -22,3 +22,8 @@ htmlcov/
 # OS
 .DS_Store
 Thumbs.db
+
+# e2e scratch (mode-3 isolation runs) — never track
+e2e-mode3-home/
+.e2e_mode3.py
+e2e_token*.txt

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import litellm
 import pytest
 
 from hull_core.llm import transport
@@ -107,25 +108,71 @@ def test_completion_vertex_express_prefix_no_special_dispatch():
 # ---------------------------------------------------------------------------
 
 
+def _model_response(content: str | None) -> litellm.ModelResponse:
+    """Build a real litellm ``ModelResponse`` (the *_text helpers type-check it)."""
+    return litellm.ModelResponse(choices=[litellm.Choices(message=litellm.Message(content=content))])
+
+
 async def test_acompletion_text_returns_content():
-    resp = _completion_response("the answer")
+    resp = _model_response("the answer")
     with patch("hull_core.llm.transport.litellm.acompletion", new=AsyncMock(return_value=resp)):
         out = await transport.acompletion_text(model="openai/gpt", messages=[])
     assert out == "the answer"
 
 
 async def test_acompletion_text_none_content_empty():
-    resp = MagicMock()
-    resp.choices = [MagicMock(message=MagicMock(content=None))]
+    resp = _model_response(None)
     with patch("hull_core.llm.transport.litellm.acompletion", new=AsyncMock(return_value=resp)):
         out = await transport.acompletion_text(model="openai/gpt", messages=[])
     assert out == ""
 
 
 def test_completion_text_returns_content():
-    resp = _completion_response("done")
+    resp = _model_response("done")
     with patch("hull_core.llm.transport.litellm.completion", return_value=resp):
         assert transport.completion_text(model="openai/gpt", messages=[]) == "done"
+
+
+def test_completion_text_none_content_empty():
+    resp = _model_response(None)
+    with patch("hull_core.llm.transport.litellm.completion", return_value=resp):
+        assert transport.completion_text(model="openai/gpt", messages=[]) == ""
+
+
+async def test_acompletion_text_rejects_stream_before_request():
+    """stream=True would return a stream wrapper; reject it before any paid request."""
+    with patch("hull_core.llm.transport.litellm.acompletion", new=AsyncMock()) as m:
+        with pytest.raises(ValueError, match=r"call acompletion\("):
+            await transport.acompletion_text(model="openai/gpt", messages=[], stream=True)
+    m.assert_not_called()
+
+
+def test_completion_text_rejects_stream_before_request():
+    with patch("hull_core.llm.transport.litellm.completion") as m:
+        with pytest.raises(ValueError, match=r"call completion\("):
+            transport.completion_text(model="openai/gpt", messages=[], stream=True)
+    m.assert_not_called()
+
+
+async def test_acompletion_text_stream_false_allowed():
+    resp = _model_response("ok")
+    with patch("hull_core.llm.transport.litellm.acompletion", new=AsyncMock(return_value=resp)) as m:
+        out = await transport.acompletion_text(model="openai/gpt", messages=[], stream=False)
+    assert out == "ok"
+    assert m.call_args.kwargs["stream"] is False
+
+
+async def test_acompletion_text_non_model_response_raises_type_error():
+    """A non-ModelResponse (e.g. a stream wrapper) fails loudly, naming the type."""
+    with patch("hull_core.llm.transport.litellm.acompletion", new=AsyncMock(return_value=object())):
+        with pytest.raises(TypeError, match="object"):
+            await transport.acompletion_text(model="openai/gpt", messages=[])
+
+
+def test_completion_text_non_model_response_raises_type_error():
+    with patch("hull_core.llm.transport.litellm.completion", return_value=_completion_response("x")):
+        with pytest.raises(TypeError, match="MagicMock"):
+            transport.completion_text(model="openai/gpt", messages=[])
 
 
 # ---------------------------------------------------------------------------

@@ -1,28 +1,20 @@
 """Unified LLM transport — ONE call surface for chat / embed / rerank.
 
-Library mode (litellm, no proxy). Three former call paths converge here:
+Library mode (litellm, no proxy). Two former call paths converge here:
 
 * kcore ``infra/llm/dispatch`` (litellm passthrough + api_base SSRF vetting)
 * KP ``core/llm._call_model`` (litellm + provider auth params)
-* KP ``infrastructure/ai/vertex_express`` (Express passthrough for the
-  ``vertex_express/`` provider prefix, litellm#21036)
 
-``model`` strings carry their provider prefix (``openrouter/...``,
-``vertex_ai/...``, ``cohere/...``, ``vertex_express/...``). OpenRouter is the
-default provider for bare names in the DSPy builder; litellm model strings are
-always passed through verbatim.
+``model`` strings carry their litellm provider prefix (``openrouter/...``,
+``vertex_ai/...``, ``cohere/...``). OpenRouter is the default provider for
+bare names in the DSPy builder; litellm model strings are always passed
+through verbatim.
 
-Credentials are never hardcoded: ``api_key``/``api_base`` kwargs win, else the
-``env_prefix`` namespace is consulted (``KLPRISM_`` ->
+Credentials are never hardcoded: ``api_key``/``api_base`` kwargs win, else
+``provider_params()`` consults the ``env_prefix`` namespace (``KLPRISM_`` ->
 ``KLPRISM_OPENROUTER_API_KEY``; the default ``HULL_`` ->
-``HULL_OPENROUTER_API_KEY``), else litellm's own provider env resolution
-applies. An ``env_prefix`` of ``""`` reads the canonical names directly
-(``OPENROUTER_API_KEY``, ``XAI_API_KEY``, ...).
-
-CF AI Gateway BYOK flips are config-only: when both
-``<prefix>CF_AI_GATEWAY_URL`` and ``<prefix>CF_AIG_RUN_TOKEN`` are set, xai and
-cohere traffic routes through the gateway with the ``cf-aig-authorization``
-header; either missing keeps the direct provider endpoint (backward-safe).
+``HULL_OPENROUTER_API_KEY``; an ``env_prefix`` of ``""`` reads the canonical
+``OPENROUTER_API_KEY``), else litellm's own provider env resolution applies.
 """
 
 from __future__ import annotations
@@ -33,18 +25,9 @@ from typing import Any
 import litellm
 
 from hull_core.http.ssrf import validate_url_and_get_ip, vet_api_base
-from hull_core.llm.vertex_express import (
-    VERTEX_EXPRESS_PREFIX,
-    acompletion_express,
-    completion_express,
-)
 
 # Drop unsupported params silently instead of erroring (provider-agnostic).
 litellm.drop_params = True
-
-_COHERE_DIRECT_BASE = "https://api.cohere.com"
-# Per-op endpoint path (litellm cohere: embed=/v2/embed, rerank=/v1/rerank).
-_COHERE_OP_PATH = {"embed": "v2/embed", "rerank": "v1/rerank"}
 
 
 def _env(name: str, env_prefix: str) -> str:
@@ -66,47 +49,7 @@ def provider_params(provider: str, *, env_prefix: str = "HULL_") -> dict[str, An
         if base := _env("LLM_API_BASE_OPENROUTER", env_prefix):
             params["api_base"] = base
         return params
-    if provider == "xai":
-        params = {}
-        if key := _env("XAI_API_KEY", env_prefix):
-            params["api_key"] = key
-        # CF AI Gateway flip: BYOK routing needs BOTH the gateway base URL and
-        # the run-token auth header; either missing keeps grok DIRECT to
-        # api.x.ai (backward-safe).
-        gateway_url = _env("CF_AI_GATEWAY_URL", env_prefix)
-        run_token = _env("CF_AIG_RUN_TOKEN", env_prefix)
-        if gateway_url and run_token:
-            params["api_base"] = f"{gateway_url.rstrip('/')}/grok/v1"
-            params["extra_headers"] = {"cf-aig-authorization": f"Bearer {run_token}"}
-        return params
     return {}
-
-
-def cohere_routing(op: str, *, env_prefix: str = "HULL_") -> dict[str, Any]:
-    """litellm kwargs (api_base, api_key, [headers, extra_headers]) for one cohere op.
-
-    With both ``<prefix>CF_AI_GATEWAY_URL`` + ``<prefix>CF_AIG_RUN_TOKEN``
-    present, routes via CF AI Gateway BYOK (``cf-aig-authorization`` header);
-    otherwise calls api.cohere.com directly. The Cohere key always comes from
-    ``<prefix>COHERE_API_KEY`` (litellm attaches it as ``Authorization: Bearer``).
-
-    ``op`` is ``"embed"`` or ``"rerank"`` (per-op endpoint path).
-    """
-    path = _COHERE_OP_PATH[op]
-    # api_key stays present (None when unset) — consumers distinguish "no key,
-    # litellm reads the provider env" from a missing kwarg.
-    params: dict[str, Any] = {"api_key": _env("COHERE_API_KEY", env_prefix) or None}
-
-    gateway_url = _env("CF_AI_GATEWAY_URL", env_prefix)
-    run_token = _env("CF_AIG_RUN_TOKEN", env_prefix)
-    if gateway_url and run_token:
-        params["api_base"] = f"{gateway_url.rstrip('/')}/cohere/{path}"
-        header = {"cf-aig-authorization": f"Bearer {run_token}"}
-        params["headers"] = header
-        params["extra_headers"] = header
-    else:
-        params["api_base"] = f"{_COHERE_DIRECT_BASE}/{path}"
-    return params
 
 
 def _provider_of(model: str) -> str:
@@ -158,14 +101,9 @@ async def acompletion(
 ) -> Any:
     """Call any chat model; return the litellm ``ModelResponse``.
 
-    ``vertex_express/<model>`` routes through the Express passthrough (litellm
-    cannot route it); every other id goes to ``litellm.acompletion`` with
-    env-derived provider params (see ``provider_params``).
+    Every id goes to ``litellm.acompletion`` with env-derived provider params
+    (see ``provider_params``).
     """
-    if _provider_of(model) == VERTEX_EXPRESS_PREFIX:
-        return await acompletion_express(
-            model=model, messages=messages, api_key=api_key, env_prefix=env_prefix, **kwargs
-        )
     api_kwargs = _resolved_kwargs(
         model,
         env_prefix=env_prefix,
@@ -188,8 +126,6 @@ def completion(
     **kwargs: Any,
 ) -> Any:
     """Sync sibling of :func:`acompletion`. Do NOT call from an async loop."""
-    if _provider_of(model) == VERTEX_EXPRESS_PREFIX:
-        return completion_express(model=model, messages=messages, api_key=api_key, env_prefix=env_prefix, **kwargs)
     api_kwargs = _resolved_kwargs(
         model,
         env_prefix=env_prefix,

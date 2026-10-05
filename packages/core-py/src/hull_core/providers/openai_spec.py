@@ -4,7 +4,8 @@ One client per task cell. ``base_url`` is vetted through the SSRF guard with
 mode-derived policy: shared/multi deployments block loopback + private ranges
 unconditionally; single-user (no-auth) keeps loopback for self-hosted
 Ollama/vLLM. Endpoints: ``/embeddings``, ``/chat/completions``, ``/rerank``
-(Cohere-compatible shape served by OpenRouter and rerank providers).
+(Cohere-compatible shape served by generic OpenAI-spec endpoints such as
+OpenRouter and rerank providers).
 """
 
 from __future__ import annotations

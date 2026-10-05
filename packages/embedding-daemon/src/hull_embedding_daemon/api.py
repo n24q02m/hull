@@ -1,15 +1,20 @@
 """HTTP API for shared embedding daemon.
 
-Exposes /embed (text to vector), /rerank (query + docs to scores), /health.
-Used by the wet / crg / mnemo products (via hull) to share a single
-ONNX/GGUF model instance instead of loading per-server.
+Exposes /embed (text to vector), /rerank (query + docs to scores), /health
+and /models (alias table). Used by the wet / crg / mnemo products (via
+hull) to share a single ONNX/GGUF model instance instead of loading
+per-server.
 
-v0.1.0 alpha: /health works. /embed and /rerank return 501 Not Implemented
-with a pointer to the roadmap because the ONNX + GGUF backends ship as
-thin adapters around qwen3-embed in a follow-up release.
+Models resolve to the ``n24q02m/Qwen3-*`` ONNX exports served by
+``qwen3-embed``; artifacts download from Hugging Face into the user cache
+lazily on first use. ``*-GGUF`` names select the llama.cpp backend and need
+``hull-core[embedding-gguf]``.
 """
 
 from __future__ import annotations
+
+import asyncio
+import logging
 
 from hull_embedding_daemon._extra import require_embedding_extra
 
@@ -18,15 +23,19 @@ from hull_embedding_daemon._extra import require_embedding_extra
 require_embedding_extra()
 
 from fastapi import FastAPI, HTTPException, status  # noqa: E402
-from pydantic import BaseModel  # noqa: E402
+from pydantic import BaseModel, Field  # noqa: E402
 
 from hull_embedding_daemon import __version__  # noqa: E402
+from hull_embedding_daemon.backends._qwen3 import DIM_MAX  # noqa: E402
+from hull_embedding_daemon.backends import registry  # noqa: E402
+
+logger = logging.getLogger(__name__)
 
 
 class EmbedRequest(BaseModel):
     model: str = "qwen3-0.6b"
     input: list[str]
-    dims: int = 768
+    dims: int = DIM_MAX
 
 
 class EmbedResponse(BaseModel):
@@ -39,11 +48,16 @@ class RerankRequest(BaseModel):
     model: str = "qwen3-rerank-0.6b"
     query: str
     documents: list[str]
-    top_n: int | None = None
+    top_n: int | None = Field(default=None, ge=1)
+
+
+class RerankResult(BaseModel):
+    index: int
+    relevance_score: float
 
 
 class RerankResponse(BaseModel):
-    results: list[dict]
+    results: list[RerankResult]
     model: str
 
 
@@ -52,13 +66,27 @@ class HealthResponse(BaseModel):
     version: str
 
 
+class ModelsResponse(BaseModel):
+    embed: dict[str, str]
+    rerank: dict[str, str]
+
+
 app = FastAPI(title="hull-embedding-daemon", version=__version__)
 
 
-NOT_IMPLEMENTED_DETAIL = (
-    "Embedding backend (ONNX / GGUF) is not yet wired in v0.1.0. "
-    "Track progress at https://github.com/n24q02m/hull/issues"
-)
+def _backend_error(exc: Exception) -> HTTPException:
+    """Map backend failures to client-visible HTTP errors."""
+    if isinstance(exc, ValueError):
+        # Unsupported model name or out-of-range dims.
+        return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    if isinstance(exc, ImportError):
+        # Model class needs an opt-in runtime (e.g. llama-cpp-python for GGUF).
+        return HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc))
+    logger.exception("embedding backend failed")
+    return HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail=f"embedding backend failed: {type(exc).__name__}: {exc}",
+    )
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -66,17 +94,32 @@ async def health() -> HealthResponse:
     return HealthResponse(status="ok", version=__version__)
 
 
+@app.get("/models", response_model=ModelsResponse)
+async def models() -> ModelsResponse:
+    """Advertise the public alias table and the canonical names it maps to."""
+    return ModelsResponse(embed=dict(registry.EMBED_MODELS), rerank=dict(registry.RERANK_MODELS))
+
+
 @app.post("/embed", response_model=EmbedResponse)
 async def embed(req: EmbedRequest) -> EmbedResponse:
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail=NOT_IMPLEMENTED_DETAIL,
-    )
+    backend = registry.get_backend(req.model, "embed")
+    try:
+        vectors = await asyncio.to_thread(backend.embed, req.input, req.dims)
+    except Exception as exc:  # mapped below; FastAPI re-raises HTTPException unchanged
+        raise _backend_error(exc) from exc
+    resolved = registry.resolve_model(req.model, "embed")
+    return EmbedResponse(data=vectors, model=resolved, dims=len(vectors[0]) if vectors else req.dims)
 
 
 @app.post("/rerank", response_model=RerankResponse)
 async def rerank(req: RerankRequest) -> RerankResponse:
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail=NOT_IMPLEMENTED_DETAIL,
+    backend = registry.get_backend(req.model, "rerank")
+    try:
+        ranked = await asyncio.to_thread(backend.rerank, req.query, req.documents, req.top_n)
+    except Exception as exc:
+        raise _backend_error(exc) from exc
+    resolved = registry.resolve_model(req.model, "rerank")
+    return RerankResponse(
+        results=[RerankResult(index=i, relevance_score=s) for i, s in ranked],
+        model=resolved,
     )

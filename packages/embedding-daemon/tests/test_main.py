@@ -50,6 +50,29 @@ def test_main_default_args() -> None:
             )
 
 
+def test_main_cache_dir_and_threads_flags_set_env() -> None:
+    """--cache-dir/--threads flow into the env knobs the registry reads."""
+    import os
+
+    with (
+        patch("uvicorn.run"),
+        patch(
+            "sys.argv",
+            ["hull-embedding-daemon", "--cache-dir", "/tmp/m", "--threads", "3"],
+        ),
+    ):
+        os.environ.pop("HULL_EMBEDDING_CACHE_DIR", None)
+        os.environ.pop("HULL_EMBEDDING_THREADS", None)
+        try:
+            result = main()
+            assert result == 0
+            assert os.environ["HULL_EMBEDDING_CACHE_DIR"] == "/tmp/m"
+            assert os.environ["HULL_EMBEDDING_THREADS"] == "3"
+        finally:
+            os.environ.pop("HULL_EMBEDDING_CACHE_DIR", None)
+            os.environ.pop("HULL_EMBEDDING_THREADS", None)
+
+
 def test_main_module_execution() -> None:
     """Test the if __name__ == "__main__": block."""
     import runpy

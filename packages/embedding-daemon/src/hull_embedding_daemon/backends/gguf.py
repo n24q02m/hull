@@ -1,17 +1,18 @@
 """GGUF backend via llama-cpp-python.
 
-Used when ONNX unavailable or quantized GGUF preferred for CPU inference.
+Used when ONNX is unavailable or a quantized GGUF is preferred for CPU
+inference. Wraps ``qwen3_embed``'s GGUF loaders, which require the extra
+``llama-cpp-python`` dependency -- that package ships source-only on PyPI
+(needs a C++ toolchain), so it is opt-in via ``hull-core[embedding-gguf]``
+rather than part of the base ``[embedding]`` stack.
 """
 
 from __future__ import annotations
 
+from hull_embedding_daemon.backends._qwen3 import Qwen3BackendBase
 
-class GGUFBackend:
-    def __init__(self, model_path: str) -> None:
-        self._model_path = model_path
 
-    def embed(self, texts: list[str]) -> list[list[float]]:
-        raise NotImplementedError("Wire to llama-cpp-python in a follow-up Phase I task")
+class GGUFBackend(Qwen3BackendBase):
+    """GGUF embedding / rerank sessions; needs ``llama-cpp-python``."""
 
-    def rerank(self, query: str, docs: list[str]) -> list[tuple[int, float]]:
-        raise NotImplementedError("Wire to llama-cpp-python in a follow-up Phase I task")
+    _INSTALL_HINT = 'pip install "hull-core[embedding-gguf]"'

@@ -62,14 +62,17 @@ identity = [
 invisible = [
     "invisible-playwright>=0.25.7,<0.26",
 ]
-# hull_embedding_daemon: local ONNX embedding server (FastAPI). GPU: replace
-# onnxruntime with onnxruntime-gpu in the target environment; the two wheels
-# ship the same `onnxruntime` module and must not be co-installed.
+# hull_embedding_daemon: local ONNX embedding server (FastAPI) backed by
+# qwen3-embed (n24q02m's fastembed fork serving the n24q02m/Qwen3-* ONNX
+# exports). GPU: replace onnxruntime with onnxruntime-gpu in the target
+# environment; the two wheels ship the same `onnxruntime` module and must
+# not be co-installed. numpy is pinned to qwen3-embed's supported band.
 embedding = [
     "fastapi>=0.141.1",
     "uvicorn>=0.53.0",
+    "qwen3-embed>=1.14.0",
     "onnxruntime>=1.30.0",
-    "numpy>=2.5.3",
+    "numpy>=2.4.6,<2.5",
     "httpx>=0.28.1",
     "pydantic>=2.12.5,<3",
 ]
@@ -93,6 +96,12 @@ dspy = [
     "dspy>=3.2.1,<3.3.0",
 ]
 
+# Optional GGUF runtime for `*-GGUF` model names (llama.cpp backend).
+# llama-cpp-python ships source-only on PyPI (needs a C++ toolchain), so it
+# is opt-in instead of part of the base [embedding] stack.
+embedding-gguf = [
+    "llama-cpp-python>=0.3.34",
+]
 
 [project.scripts]
 hull = "hull_core.cli:main"

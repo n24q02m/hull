@@ -18,6 +18,7 @@ from typing import Any
 EMBEDDING_EXTRA_MODULES: tuple[str, ...] = (
     "fastapi",
     "uvicorn",
+    "qwen3_embed",
     "onnxruntime",
     "numpy",
     "httpx",

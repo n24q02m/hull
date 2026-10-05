@@ -82,12 +82,13 @@ embedding = [
 mteb = [
     "pyarrow>=15.0.0",
 ]
-# hull_core.llm: unified LLM transport (chat/embed/rerank via litellm library
-# mode + the vertex_express passthrough). httpx ships in base deps already.
+# hull_core.llm: unified LLM transport (chat/embed/rerank via litellm
+# library mode; OpenRouter is the default provider). httpx ships in base
+# deps already.
 llm = [
     "litellm>=1.102.0",
 ]
-# DSPy integration (hull_core.llm.dspy_lm: VertexExpressLM + build_lm).
+# DSPy integration (hull_core.llm.dspy_lm: build_lm).
 # >=3.2.1 floor only: dspy 3.3.0's lazy numpy proxy re-enters numpy init and
 # crashes on `import dspy; import numpy.typing` in either order — consumers
 # (knowledge-core) pin ==3.2.1 exactly; don't raise the ceiling here.

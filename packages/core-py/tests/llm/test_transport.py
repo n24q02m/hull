@@ -40,75 +40,15 @@ def test_provider_params_empty_env_yields_nothing(monkeypatch):
     assert transport.provider_params("openrouter") == {}
 
 
-def test_provider_params_xai_direct_when_gateway_incomplete(monkeypatch):
-    monkeypatch.setenv("KLPRISM_XAI_API_KEY", "xkey")
-    monkeypatch.setenv("KLPRISM_CF_AI_GATEWAY_URL", "https://gw.example")
-    monkeypatch.delenv("KLPRISM_CF_AIG_RUN_TOKEN", raising=False)
-    params = transport.provider_params("xai", env_prefix="KLPRISM_")
-    # Only the api_key: gateway routing needs BOTH env vars.
-    assert params == {"api_key": "xkey"}
-
-
-def test_provider_params_xai_gateway_flip(monkeypatch):
-    monkeypatch.setenv("KLPRISM_XAI_API_KEY", "xkey")
-    monkeypatch.setenv("KLPRISM_CF_AI_GATEWAY_URL", "https://gw.example/")
-    monkeypatch.setenv("KLPRISM_CF_AIG_RUN_TOKEN", "tok")
-    params = transport.provider_params("xai", env_prefix="KLPRISM_")
-    assert params["api_base"] == "https://gw.example/grok/v1"
-    assert params["extra_headers"] == {"cf-aig-authorization": "Bearer tok"}
-
-
 def test_provider_params_unknown_provider_empty():
     assert transport.provider_params("vertex_ai") == {}
+    assert transport.provider_params("xai") == {}
     assert transport.provider_params("ollama") == {}
 
 
 def test_provider_params_empty_prefix_reads_canonical(monkeypatch):
     monkeypatch.setenv("OPENROUTER_API_KEY", "canonical")
     assert transport.provider_params("openrouter", env_prefix="") == {"api_key": "canonical"}
-
-
-# ---------------------------------------------------------------------------
-# cohere_routing
-# ---------------------------------------------------------------------------
-
-
-def test_cohere_routing_direct_without_gateway(monkeypatch):
-    monkeypatch.setenv("KLPRISM_COHERE_API_KEY", "ck")
-    monkeypatch.delenv("KLPRISM_CF_AI_GATEWAY_URL", raising=False)
-    monkeypatch.delenv("KLPRISM_CF_AIG_RUN_TOKEN", raising=False)
-    params = transport.cohere_routing("embed", env_prefix="KLPRISM_")
-    assert params["api_key"] == "ck"
-    assert params["api_base"] == "https://api.cohere.com/v2/embed"
-    assert "extra_headers" not in params
-
-
-def test_cohere_routing_api_key_absent_is_none(monkeypatch):
-    monkeypatch.delenv("COHERE_API_KEY", raising=False)
-    monkeypatch.delenv("HULL_COHERE_API_KEY", raising=False)
-    params = transport.cohere_routing("embed")
-    assert "api_key" in params
-    assert params["api_key"] is None
-
-
-def test_cohere_routing_rerank_path():
-    params = transport.cohere_routing("rerank")
-    assert params["api_base"] == "https://api.cohere.com/v1/rerank"
-
-
-def test_cohere_routing_gateway_flip(monkeypatch):
-    monkeypatch.setenv("KLPRISM_COHERE_API_KEY", "ck")
-    monkeypatch.setenv("KLPRISM_CF_AI_GATEWAY_URL", "https://gw.example")
-    monkeypatch.setenv("KLPRISM_CF_AIG_RUN_TOKEN", "tok")
-    params = transport.cohere_routing("embed", env_prefix="KLPRISM_")
-    assert params["api_base"] == "https://gw.example/cohere/v2/embed"
-    assert params["headers"] == {"cf-aig-authorization": "Bearer tok"}
-    assert params["extra_headers"] == params["headers"]
-
-
-def test_cohere_routing_rejects_unknown_op():
-    with pytest.raises(KeyError):
-        transport.cohere_routing("chat")
 
 
 # ---------------------------------------------------------------------------
@@ -145,28 +85,6 @@ async def test_acompletion_explicit_key_wins_over_env(monkeypatch):
     assert m.call_args.kwargs["api_key"] == "explicit"
 
 
-async def test_acompletion_vertex_express_routes_to_adapter():
-    resp = _completion_response("hola")
-    with (
-        patch("hull_core.llm.transport.acompletion_express", new=AsyncMock(return_value=resp)) as m,
-        patch("hull_core.llm.transport.litellm.acompletion", new=AsyncMock()) as litellm_mock,
-    ):
-        out = await transport.acompletion(
-            model="vertex_express/gemini-3.5-flash",
-            messages=[{"role": "user", "content": "hi"}],
-            api_key="K",
-            env_prefix="KLPRISM_",
-            response_format={"type": "json_object"},
-        )
-    assert out is resp
-    litellm_mock.assert_not_called()
-    kw = m.call_args.kwargs
-    assert kw["model"] == "vertex_express/gemini-3.5-flash"
-    assert kw["api_key"] == "K"
-    assert kw["env_prefix"] == "KLPRISM_"
-    assert kw["response_format"] == {"type": "json_object"}
-
-
 def test_completion_sync_litellm():
     resp = _completion_response("ok")
     with patch("hull_core.llm.transport.litellm.completion", return_value=resp) as m:
@@ -175,15 +93,12 @@ def test_completion_sync_litellm():
     assert m.call_args.kwargs["temperature"] == 0.1
 
 
-def test_completion_vertex_express_routes_to_adapter():
+def test_completion_vertex_express_prefix_no_special_dispatch():
+    """The former vertex_express prefix is now a plain litellm id."""
     resp = _completion_response("ok")
-    with (
-        patch("hull_core.llm.transport.completion_express", return_value=resp) as m,
-        patch("hull_core.llm.transport.litellm.completion") as litellm_mock,
-    ):
+    with patch("hull_core.llm.transport.litellm.completion", return_value=resp) as m:
         out = transport.completion(model="vertex_express/m", messages=[{"role": "user", "content": "hi"}])
     assert out is resp
-    litellm_mock.assert_not_called()
     assert m.call_args.kwargs["model"] == "vertex_express/m"
 
 

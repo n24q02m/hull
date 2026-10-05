@@ -64,7 +64,7 @@ class TestBaseStrategy:
 
     def test_cannot_instantiate_directly(self):
         with pytest.raises(TypeError):
-            BaseStrategy()  # type: ignore[abstract]
+            BaseStrategy()  # type: ignore[abstract] # ty: ignore[call-non-callable]
 
     def test_subclass_without_fetch_raises_type_error(self):
         """A concrete subclass that does not implement fetch cannot be instantiated."""
@@ -73,7 +73,7 @@ class TestBaseStrategy:
             name = "incomplete"
 
         with pytest.raises(TypeError):
-            Incomplete()  # type: ignore[abstract]
+            Incomplete()  # type: ignore[abstract] # ty: ignore[call-non-callable]
 
     def test_concrete_subclass_works(self):
         """A subclass that implements fetch can be instantiated."""

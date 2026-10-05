@@ -12,29 +12,17 @@ from hull_core.llm.transport import (
     acompletion_text,
     aembedding,
     arerank,
-    cohere_routing,
     completion,
     completion_text,
     provider_params,
 )
-from hull_core.llm.vertex_express import (
-    VERTEX_EXPRESS_PREFIX,
-    VertexExpressError,
-    acompletion_express,
-    completion_express,
-)
 
 __all__ = [
-    "VERTEX_EXPRESS_PREFIX",
-    "VertexExpressError",
     "acompletion",
-    "acompletion_express",
     "acompletion_text",
     "aembedding",
     "arerank",
-    "cohere_routing",
     "completion",
-    "completion_express",
     "completion_text",
     "provider_params",
 ]

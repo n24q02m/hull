@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 
 from hull_embedding_daemon._extra import require_embedding_extra
@@ -30,7 +31,24 @@ def main() -> int:
         choices=["critical", "error", "warning", "info", "debug", "trace"],
         help="uvicorn log level (default: info)",
     )
+    parser.add_argument(
+        "--cache-dir",
+        default=None,
+        metavar="DIR",
+        help="Model cache directory (env HULL_EMBEDDING_CACHE_DIR; default: qwen3-embed user cache)",
+    )
+    parser.add_argument(
+        "--threads",
+        type=int,
+        default=None,
+        help="ONNX intra-op threads per session (env HULL_EMBEDDING_THREADS)",
+    )
     args = parser.parse_args()
+
+    if args.cache_dir:
+        os.environ["HULL_EMBEDDING_CACHE_DIR"] = args.cache_dir
+    if args.threads and args.threads > 0:
+        os.environ["HULL_EMBEDDING_THREADS"] = str(args.threads)
 
     try:
         require_embedding_extra()

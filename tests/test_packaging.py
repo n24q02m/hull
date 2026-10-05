@@ -34,7 +34,7 @@ WEB_DEPS = {
     "pydantic",
     "pillow",
 }
-EMBEDDING_DEPS = {"fastapi", "uvicorn", "onnxruntime", "numpy", "httpx", "pydantic"}
+EMBEDDING_DEPS = {"fastapi", "uvicorn", "qwen3-embed", "onnxruntime", "numpy", "httpx", "pydantic"}
 WEB_ONLY = WEB_DEPS - BASE_DEPS
 EMBEDDING_ONLY = EMBEDDING_DEPS - BASE_DEPS
 

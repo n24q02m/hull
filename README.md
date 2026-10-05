@@ -23,6 +23,7 @@ pip install hull-core               # hull_core only (crg, mnemo)
 pip install "hull-core[web]"        # + hull_web scraping/browser stack (wet)
 pip install "hull-core[embedding]"  # + hull_embedding_daemon server stack
 pip install "hull-core[mteb]"       # + pyarrow for model_selection MTEB fetchers
+pip install "hull-core[embedding,embedding-gguf]"  # + llama.cpp runtime for *-GGUF models
 ```
 
 `import hull_web` without the `[web]` extra raises `ImportError` naming the

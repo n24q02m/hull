@@ -1,17 +1,18 @@
 """ONNX backend -- CPU or CUDA ExecutionProvider.
 
-Reuses qwen3-embed repo model loader. Auto-detects CUDA availability.
+Wraps ``qwen3_embed``'s ONNX loaders (Qwen3-Embedding / Qwen3-Reranker).
+The ExecutionProvider is auto-detected by onnxruntime: with plain
+``onnxruntime`` it runs on CPU; with ``onnxruntime-gpu`` the same module
+picks up CUDA automatically. Models download from Hugging Face into the
+user cache on first use, never at import.
 """
 
 from __future__ import annotations
 
+from hull_embedding_daemon.backends._qwen3 import Qwen3BackendBase
 
-class ONNXBackend:
-    def __init__(self, model_path: str) -> None:
-        self._model_path = model_path
 
-    def embed(self, texts: list[str]) -> list[list[float]]:
-        raise NotImplementedError("Wire to qwen3-embed in a follow-up Phase I task")
+class ONNXBackend(Qwen3BackendBase):
+    """ONNX embedding / rerank sessions over ``qwen3_embed`` models."""
 
-    def rerank(self, query: str, docs: list[str]) -> list[tuple[int, float]]:
-        raise NotImplementedError("Wire to qwen3-embed in a follow-up Phase I task")
+    _INSTALL_HINT = 'pip install "hull-core[embedding]"'

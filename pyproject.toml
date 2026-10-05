@@ -89,9 +89,11 @@ llm = [
     "litellm>=1.102.0",
 ]
 # DSPy integration (hull_core.llm.dspy_lm: build_lm).
-# >=3.2.1 floor only: dspy 3.3.0's lazy numpy proxy re-enters numpy init and
-# crashes on `import dspy; import numpy.typing` in either order — consumers
-# (knowledge-core) pin ==3.2.1 exactly; don't raise the ceiling here.
+# Ceiling <3.3.0: dspy 3.3.0 and 3.4.0 park a lazy numpy proxy in sys.modules,
+# so `import dspy; import numpy.typing` (pyarrow, pandas, ...) dies on a numpy
+# circular import. tests/llm/test_dspy_numpy_import.py turns that red on a bump
+# that still has it; raise the ceiling only once that test passes. Consumers
+# (knowledge-core) pin ==3.2.1 exactly.
 dspy = [
     "hull-core[llm]",
     "dspy>=3.2.1,<3.3.0",

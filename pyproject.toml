@@ -188,6 +188,20 @@ commit_message = "feat(release): v{version} [skip ci]"
 major_on_zero = false
 allow_zero_version = true
 version_toml = ["pyproject.toml:project.version"]
+# uv.lock records this package's own version and version_toml only stamps
+# pyproject, so without a relock every release leaves the lock a version behind.
+# v0.2.0-beta.1 did exactly that: the release commit is [skip ci], so nothing
+# caught it until every open PR failed `uv sync --locked` in ci.yml.
+#
+# `--upgrade-package` touches only this project's entry; a bare `uv lock` could
+# pull in any dependency released since the last resolve and ship a release
+# nobody tested. `set -e` because PSR runs the block as one `sh -c` and only
+# checks the last line's status (`git add`, which succeeds either way).
+build_command = """
+set -e
+uv lock --upgrade-package "$PACKAGE_NAME"
+git add uv.lock
+"""
 
 [tool.semantic_release.changelog]
 changelog_file = "CHANGELOG.md"

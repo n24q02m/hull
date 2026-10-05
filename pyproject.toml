@@ -108,7 +108,7 @@ dev = [
     "pytest-cov>=7.1.0",
     "pytest-timeout>=2.4.0",
     "ruff>=0.16.7",
-    "ty==0.0.75",
+    "ty==0.0.84",
     # pyarrow: model_selection MTEB fetcher tests exercise the real parquet
     # reader (pytest.importorskip otherwise skips that whole file in CI).
     "pyarrow>=15.0.0",

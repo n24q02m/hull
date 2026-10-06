@@ -8,8 +8,14 @@ name: Model Candidates Publish
 # sticky issues. Model defaults in code stay empty and fail-closed
 # everywhere; this snapshot never carries human-managed fields (tiers /
 # active / nsfw decisions live in each consumer's own registry, reviewed by
-# humans). The PR re-uses one sticky branch and one sticky PR so the weekly
-# cadence stays a single reviewable diff.
+# humans).
+#
+# Canonical read surface: the `data/model-candidates` BRANCH, not main.
+# Personal repos cannot grant GITHUB_TOKEN pull-request creation (repo-level
+# setting, not exposed via REST — verified by run 37461764776 failing at
+# gh pr create), so the branch is force-pushed every week and stays the
+# latest always-green contract for consumers. Humans review the weekly diff
+# on the branch directly.
 
 on:
   schedule:
@@ -18,11 +24,10 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
 
 concurrency:
-  # A manual dispatch racing the weekly cron would otherwise open two
-  # branches/PRs for the same snapshot; serialize instead of cancelling.
+  # A manual dispatch racing the weekly cron would otherwise double-push the
+  # snapshot branch; serialize instead of cancelling.
   group: model-candidates-publish
   cancel-in-progress: false
 
@@ -46,7 +51,7 @@ jobs:
       - name: Build snapshot
         run: uv run --no-sync python scripts/publish_candidates.py
 
-      - name: Push sticky branch and PR
+      - name: Push snapshot branch
         run: |
           BRANCH=data/model-candidates
           git config user.name "hull-publish-bot"
@@ -58,16 +63,12 @@ jobs:
             exit 0
           fi
           git commit -m "fix: weekly model-candidates snapshot"
-          # Bot-owned data branch: --force overwrites last week's snapshot;
-          # the sticky PR diff always shows this week vs merged main.
+          # Canonical read surface is the BRANCH, not main: personal repos do
+          # not allow GITHUB_TOKEN to open pull requests (repo-level setting
+          # not exposed via REST, verified 2026-10-06 run 37461764776), so a
+          # PR-per-week design would silently go stale. Consumers pull
+          # raw.githubusercontent.com/n24q02m/hull/data/model-candidates/data/model-candidates.json
+          # which always reflects this week's scan; human review happens on
+          # the branch diff, not on main.
           git push --force origin "$BRANCH"
-          if gh pr list --head "$BRANCH" --state open --json number -q '.[0].number' | grep -q .; then
-            echo "Sticky PR already open; diff updated in place."
-          else
-            gh pr create \
-              --head "$BRANCH" \
-              --title "fix: weekly model-candidates snapshot" \
-              --body "Automated weekly refresh of \`data/model-candidates.json\` (public boards + OpenRouter catalog, scan-only — no evals, no secrets, no paid calls, no human-managed fields). Consumer stacks pull this file to propose per-task model config pins; review the diff like any other data change."
-          fi
-        env:
-          GH_TOKEN: ${{ github.token }}
+          echo "Published to $BRANCH. Raw URL: https://raw.githubusercontent.com/n24q02m/hull/$BRANCH/data/model-candidates.json"

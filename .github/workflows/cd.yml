@@ -1,9 +1,9 @@
 # =============================================================================
 # CD Template: Python. Publish steps are opt-in per repo via
-# vars.PUBLISH_PYPI / vars.PUBLISH_DOCKER / vars.PUBLISH_MCP_REGISTRY.
+# vars.PUBLISH_PYPI / vars.PUBLISH_MCP_REGISTRY.
 # Managed by n24q02m repo-bootstrap; local changes may be overwritten.
 #
-# Pipeline: PSR v10 -> PyPI -> Docker multi-arch (amd64+arm64) -> MCP Registry
+# Pipeline: PSR v10 -> PyPI -> MCP Registry
 # CUSTOMIZE: Search for "# CUSTOMIZE:" comments and adjust for your repo.
 # =============================================================================
 name: CD

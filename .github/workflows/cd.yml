@@ -30,8 +30,6 @@ permissions:
 env:
   # Release lane: dispatch-only (release_type=beta, then stable); a push never releases.
   RELEASE_TYPE: ${{ inputs.release_type }}
-  DOCKERHUB_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/hull-core
-  GHCR_IMAGE: ghcr.io/${{ github.repository }}
 
 concurrency:
   group: release
@@ -196,150 +194,15 @@ jobs:
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
 
   # ============================================================================
-  # Build Docker (multi-arch: amd64 + arm64)
-  # ============================================================================
-  build-docker:
-    name: Build Docker (${{ matrix.platform }})
-    # readme-sync, because this job pushes an image to a registry and
-    # merge-docker then publishes ./README.md as the Docker Hub description.
-    # The gate is only a gate if it runs BEFORE the push.
-    needs: [readme-sync, release]
-    if: needs.release.outputs.released == 'true' && vars.PUBLISH_DOCKER == 'true'
-    permissions:
-      contents: read
-      packages: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: linux/amd64
-            runner: ubuntu-latest
-            artifact: linux-amd64
-          - platform: linux/arm64
-            runner: ubuntu-24.04-arm
-            artifact: linux-arm64
-    runs-on: ${{ matrix.runner }}
-    steps:
-      - name: Harden Runner
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
-        with:
-          egress-policy: audit
-
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ needs.release.outputs.tag }}
-      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        id: build
-        with:
-          context: .
-          platforms: ${{ matrix.platform }}
-          outputs: type=image,"name=${{ env.DOCKERHUB_IMAGE }},${{ env.GHCR_IMAGE }}",push-by-digest=true,name-canonical=true,push=true
-          cache-from: type=gha,scope=${{ github.ref_name }}-${{ matrix.artifact }}
-          cache-to: type=gha,mode=max,scope=${{ github.ref_name }}-${{ matrix.artifact }}
-      - run: |
-          mkdir -p ${{ runner.temp }}/digests
-          echo "${{ steps.build.outputs.digest }}" > "${{ runner.temp }}/digests/${{ matrix.artifact }}"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: digest-${{ matrix.artifact }}
-          path: ${{ runner.temp }}/digests/*
-          retention-days: 1
-
-  # ============================================================================
-  # Merge Docker Manifests
-  # ============================================================================
-  merge-docker:
-    name: Merge Docker Manifests
-    needs: [release, build-docker]
-    if: needs.release.outputs.released == 'true' && vars.PUBLISH_DOCKER == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: Harden Runner
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
-        with:
-          egress-policy: audit
-
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
-        with:
-          pattern: digest-*
-          path: ${{ runner.temp }}/digests
-          merge-multiple: true
-      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Create and push manifests
-        env:
-          VERSION: ${{ needs.release.outputs.version }}
-          IS_PRERELEASE: ${{ needs.release.outputs.is_prerelease }}
-        run: |
-          if [ "$IS_PRERELEASE" = "true" ]; then
-            TAGS="beta ${VERSION}"
-          else
-            MAJOR=$(echo "$VERSION" | cut -d. -f1)
-            MINOR=$(echo "$VERSION" | cut -d. -f1-2)
-            TAGS="latest ${VERSION} ${MINOR} ${MAJOR}"
-          fi
-
-          for IMAGE in "$DOCKERHUB_IMAGE" "$GHCR_IMAGE"; do
-            tag_args=()
-            for TAG in $TAGS; do
-              tag_args+=("-t" "${IMAGE}:${TAG}")
-            done
-
-            digest_args=()
-            for digest_file in "${{ runner.temp }}/digests/"*; do
-              while IFS= read -r digest; do
-                if [ -n "$digest" ]; then
-                  digest_args+=("${IMAGE}@${digest}")
-                fi
-              done < "$digest_file"
-            done
-
-            docker buildx imagetools create "${tag_args[@]}" "${digest_args[@]}"
-          done
-
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          sparse-checkout: README.md
-      - uses: peter-evans/dockerhub-description@1b9a80c056b620d92cedb9d9b5a223409c68ddfa # v5.0.0
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-          # CUSTOMIZE: DockerHub repository name
-          repository: ${{ env.DOCKERHUB_IMAGE }}
-          short-description: ${{ github.event.repository.description }}
-          readme-filepath: ./README.md
-
-  # ============================================================================
   # Publish to MCP Registry (stable only)
   # ============================================================================
   publish-mcp-registry:
     name: Publish to MCP Registry
-    needs: [release, publish-pypi, merge-docker]
+    needs: [release, publish-pypi]
     if: >-
       needs.release.outputs.released == 'true'
       && needs.release.outputs.is_prerelease != 'true'
       && vars.PUBLISH_PYPI == 'true'
-      && vars.PUBLISH_DOCKER == 'true'
       && vars.PUBLISH_MCP_REGISTRY == 'true'
     runs-on: ubuntu-latest
     permissions:

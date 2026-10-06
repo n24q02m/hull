@@ -76,6 +76,18 @@ def test_embed_defaults(client) -> None:
     assert fake.embed_calls == [(["x"], 1024)]
 
 
+def test_embed_mrl_truncation_dims_512(client) -> None:
+    """dims=512 < 768 native width: MRL-truncated vectors, one per input."""
+    c, fake = client
+    resp = c.post("/embed", json={"input": ["alpha", "beta"], "dims": 512})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["dims"] == 512
+    assert len(body["data"]) == 2
+    assert all(len(vector) == 512 for vector in body["data"])
+    assert fake.embed_calls == [(["alpha", "beta"], 512)]
+
+
 def test_embed_resolves_canonical_model_name(client) -> None:
     c, _ = client
     resp = c.post("/embed", json={"model": "custom/model", "input": ["x"], "dims": 4})

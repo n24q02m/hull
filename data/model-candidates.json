@@ -1,0 +1,4001 @@
+{
+  "generated_at": "2026-10-06T12:14:03+00:00",
+  "generator": "hull_core.model_selection.candidates() \u2014 public boards + OpenRouter catalog, scan-only (no eval, no paid calls, no human-managed fields)",
+  "schema_version": 1,
+  "tasks": {
+    "agentic": {
+      "candidates": [
+        {
+          "canonical_slug": "inclusionai/ling-3.1-flash-20261002",
+          "context": 262144,
+          "cost_1m_blended": 0.0,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/inclusionai/ling-3.1-flash",
+          "modalities": [
+            "text"
+          ],
+          "name": "inclusionAI: Ling 3.1 Flash",
+          "or_slug": "inclusionai/ling-3.1-flash",
+          "pareto_rank": 0,
+          "quality": 69.33085501858737,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 69.33085501858737
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logprobs",
+            "max_tokens",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "seed",
+            "stop",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "z-ai/glm-5.3-flash-20260826",
+          "context": 1048576,
+          "cost_1m_blended": 0.11120000000000001,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/z-ai/glm-5.3-flash:batch",
+          "modalities": [
+            "text",
+            "image",
+            "video"
+          ],
+          "name": "Z.ai: GLM 5.3 Flash (batch)",
+          "or_slug": "z-ai/glm-5.3-flash:batch",
+          "pareto_rank": 1,
+          "quality": 70.63197026022304,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 70.63197026022304
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "xiaomi/mimo-v2.6-pro-20260921",
+          "context": 1050000,
+          "cost_1m_blended": 0.56586,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/xiaomi/mimo-v2.6-pro",
+          "modalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "name": "Xiaomi: MiMo-V2.6-Pro",
+          "or_slug": "xiaomi/mimo-v2.6-pro",
+          "pareto_rank": 2,
+          "quality": 78.99628252788104,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 78.99628252788104
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "meta/muse-spark-1.3-20260902",
+          "context": 1048576,
+          "cost_1m_blended": 2.34,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/meta/muse-spark-1.3",
+          "modalities": [
+            "text",
+            "image",
+            "file",
+            "video"
+          ],
+          "name": "Meta: Muse Spark 1.3",
+          "or_slug": "meta/muse-spark-1.3",
+          "pareto_rank": 3,
+          "quality": 82.34200743494424,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 82.34200743494424
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "repetition_penalty",
+            "response_format",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-sonnet-5.5-20260928",
+          "context": 1000000,
+          "cost_1m_blended": 2.5100000000000002,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-sonnet-5.5:batch",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Sonnet 5.5 (batch)",
+          "or_slug": "anthropic/claude-sonnet-5.5:batch",
+          "pareto_rank": 4,
+          "quality": 97.02602230483272,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 97.02602230483272
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-opus-5.5-20260921",
+          "context": 1000000,
+          "cost_1m_blended": 5.010000000000001,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-opus-5.5:batch",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Opus 5.5 (batch)",
+          "or_slug": "anthropic/claude-opus-5.5:batch",
+          "pareto_rank": 5,
+          "quality": 100.0,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 100.0
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-opus-5.5-20260921",
+          "context": 1000000,
+          "cost_1m_blended": 10.020000000000001,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-opus-5.5",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Opus 5.5",
+          "or_slug": "anthropic/claude-opus-5.5",
+          "pareto_rank": null,
+          "quality": 100.0,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 100.0
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-sonnet-5.5-20260928",
+          "context": 1000000,
+          "cost_1m_blended": 5.0200000000000005,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-sonnet-5.5",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Sonnet 5.5",
+          "or_slug": "anthropic/claude-sonnet-5.5",
+          "pareto_rank": null,
+          "quality": 97.02602230483272,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 97.02602230483272
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-fable-5.1-20260831",
+          "context": 1000000,
+          "cost_1m_blended": 25.025000000000002,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-fable-5.1",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Fable 5.1",
+          "or_slug": "anthropic/claude-fable-5.1",
+          "pareto_rank": null,
+          "quality": 92.19330855018588,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 92.19330855018588
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-fable-5.1-20260831",
+          "context": 1000000,
+          "cost_1m_blended": 12.512500000000001,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-fable-5.1:batch",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Fable 5.1 (batch)",
+          "or_slug": "anthropic/claude-fable-5.1:batch",
+          "pareto_rank": null,
+          "quality": 92.19330855018588,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 92.19330855018588
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        }
+      ],
+      "or_backbone_empty": false
+    },
+    "aqi-advice": {
+      "candidates": [
+        {
+          "canonical_slug": "inclusionai/ling-3.1-flash-20261002",
+          "context": 262144,
+          "cost_1m_blended": 0.0,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/inclusionai/ling-3.1-flash",
+          "modalities": [
+            "text"
+          ],
+          "name": "inclusionAI: Ling 3.1 Flash",
+          "or_slug": "inclusionai/ling-3.1-flash",
+          "pareto_rank": 0,
+          "quality": 69.33085501858737,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 69.33085501858737
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logprobs",
+            "max_tokens",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "seed",
+            "stop",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "z-ai/glm-5.3-flash-20260826",
+          "context": 1048576,
+          "cost_1m_blended": 0.040400000000000005,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/z-ai/glm-5.3-flash:batch",
+          "modalities": [
+            "text",
+            "image",
+            "video"
+          ],
+          "name": "Z.ai: GLM 5.3 Flash (batch)",
+          "or_slug": "z-ai/glm-5.3-flash:batch",
+          "pareto_rank": 1,
+          "quality": 70.63197026022304,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 70.63197026022304
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "xiaomi/mimo-v2.6-pro-20260921",
+          "context": 1050000,
+          "cost_1m_blended": 0.17652,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/xiaomi/mimo-v2.6-pro",
+          "modalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "name": "Xiaomi: MiMo-V2.6-Pro",
+          "or_slug": "xiaomi/mimo-v2.6-pro",
+          "pareto_rank": 2,
+          "quality": 78.99628252788104,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 78.99628252788104
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-sonnet-5.5-20260928",
+          "context": 1000000,
+          "cost_1m_blended": 0.77,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-sonnet-5.5:batch",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Sonnet 5.5 (batch)",
+          "or_slug": "anthropic/claude-sonnet-5.5:batch",
+          "pareto_rank": 3,
+          "quality": 97.02602230483272,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 97.02602230483272
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-opus-5.5-20260921",
+          "context": 1000000,
+          "cost_1m_blended": 1.4700000000000002,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-opus-5.5:batch",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Opus 5.5 (batch)",
+          "or_slug": "anthropic/claude-opus-5.5:batch",
+          "pareto_rank": 4,
+          "quality": 100.0,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 100.0
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-opus-5.5-20260921",
+          "context": 1000000,
+          "cost_1m_blended": 2.9400000000000004,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-opus-5.5",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Opus 5.5",
+          "or_slug": "anthropic/claude-opus-5.5",
+          "pareto_rank": null,
+          "quality": 100.0,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 100.0
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-sonnet-5.5-20260928",
+          "context": 1000000,
+          "cost_1m_blended": 1.54,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-sonnet-5.5",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Sonnet 5.5",
+          "or_slug": "anthropic/claude-sonnet-5.5",
+          "pareto_rank": null,
+          "quality": 97.02602230483272,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 97.02602230483272
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-fable-5.1-20260831",
+          "context": 1000000,
+          "cost_1m_blended": 7.175000000000001,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-fable-5.1",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Fable 5.1",
+          "or_slug": "anthropic/claude-fable-5.1",
+          "pareto_rank": null,
+          "quality": 92.19330855018588,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 92.19330855018588
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-fable-5.1-20260831",
+          "context": 1000000,
+          "cost_1m_blended": 3.5875000000000004,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-fable-5.1:batch",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Fable 5.1 (batch)",
+          "or_slug": "anthropic/claude-fable-5.1:batch",
+          "pareto_rank": null,
+          "quality": 92.19330855018588,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 92.19330855018588
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "openai/gpt-6-astra-20260903",
+          "context": 1050000,
+          "cost_1m_blended": 7.700000000000001,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/openai/gpt-6-astra",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "OpenAI: GPT-6 Astra",
+          "or_slug": "openai/gpt-6-astra",
+          "pareto_rank": null,
+          "quality": 90.89219330855019,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 90.89219330855019
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "seed",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        }
+      ],
+      "or_backbone_empty": false
+    },
+    "classification": {
+      "candidates": [
+        {
+          "canonical_slug": "nvidia/nemotron-3-super-120b-a12b-20230311",
+          "context": 262144,
+          "cost_1m_blended": 0.0,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/nvidia/nemotron-3-super-120b-a12b:free",
+          "modalities": [
+            "text"
+          ],
+          "name": "NVIDIA: Nemotron 3 Super (free)",
+          "or_slug": "nvidia/nemotron-3-super-120b-a12b:free",
+          "pareto_rank": 0,
+          "quality": 16.728624535315983,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 16.728624535315983
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "seed",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "inclusionai/ling-3.0-flash-vl-20260910",
+          "context": 262144,
+          "cost_1m_blended": 0.029120000000000004,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/inclusionai/ling-3.0-flash-vl",
+          "modalities": [
+            "text",
+            "image",
+            "video"
+          ],
+          "name": "inclusionAI: Ling 3.0 Flash VL",
+          "or_slug": "inclusionai/ling-3.0-flash-vl",
+          "pareto_rank": 1,
+          "quality": 38.66171003717472,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 38.66171003717472
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "logprobs",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "z-ai/glm-5.3-flash-20260826",
+          "context": 1048576,
+          "cost_1m_blended": 0.088,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/z-ai/glm-5.3-flash:batch",
+          "modalities": [
+            "text",
+            "image",
+            "video"
+          ],
+          "name": "Z.ai: GLM 5.3 Flash (batch)",
+          "or_slug": "z-ai/glm-5.3-flash:batch",
+          "pareto_rank": 2,
+          "quality": 70.63197026022304,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 70.63197026022304
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "xiaomi/mimo-v2.6-pro-20260921",
+          "context": 1050000,
+          "cost_1m_blended": 0.522,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/xiaomi/mimo-v2.6-pro",
+          "modalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "name": "Xiaomi: MiMo-V2.6-Pro",
+          "or_slug": "xiaomi/mimo-v2.6-pro",
+          "pareto_rank": 3,
+          "quality": 78.99628252788104,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 78.99628252788104
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-sonnet-5.5-20260928",
+          "context": 1000000,
+          "cost_1m_blended": 1.8,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-sonnet-5.5:batch",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Sonnet 5.5 (batch)",
+          "or_slug": "anthropic/claude-sonnet-5.5:batch",
+          "pareto_rank": 4,
+          "quality": 97.02602230483272,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 97.02602230483272
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-opus-5.5-20260921",
+          "context": 1000000,
+          "cost_1m_blended": 3.6,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-opus-5.5:batch",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Opus 5.5 (batch)",
+          "or_slug": "anthropic/claude-opus-5.5:batch",
+          "pareto_rank": 5,
+          "quality": 100.0,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 100.0
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-opus-5.5-20260921",
+          "context": 1000000,
+          "cost_1m_blended": 7.2,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-opus-5.5",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Opus 5.5",
+          "or_slug": "anthropic/claude-opus-5.5",
+          "pareto_rank": null,
+          "quality": 100.0,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 100.0
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-sonnet-5.5-20260928",
+          "context": 1000000,
+          "cost_1m_blended": 3.6,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-sonnet-5.5",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Sonnet 5.5",
+          "or_slug": "anthropic/claude-sonnet-5.5",
+          "pareto_rank": null,
+          "quality": 97.02602230483272,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 97.02602230483272
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-fable-5.1-20260831",
+          "context": 1000000,
+          "cost_1m_blended": 18.000000000000004,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-fable-5.1",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Fable 5.1",
+          "or_slug": "anthropic/claude-fable-5.1",
+          "pareto_rank": null,
+          "quality": 92.19330855018588,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 92.19330855018588
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-fable-5.1-20260831",
+          "context": 1000000,
+          "cost_1m_blended": 9.000000000000002,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-fable-5.1:batch",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Fable 5.1 (batch)",
+          "or_slug": "anthropic/claude-fable-5.1:batch",
+          "pareto_rank": null,
+          "quality": 92.19330855018588,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 92.19330855018588
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        }
+      ],
+      "or_backbone_empty": false
+    },
+    "embedding": {
+      "candidates": [
+        {
+          "canonical_slug": "inclusionai/ling-3.1-flash-20261002",
+          "context": 262144,
+          "cost_1m_blended": 0.0,
+          "evidence": [],
+          "litellm_id": "openrouter/inclusionai/ling-3.1-flash",
+          "modalities": [
+            "text"
+          ],
+          "name": "inclusionAI: Ling 3.1 Flash",
+          "or_slug": "inclusionai/ling-3.1-flash",
+          "pareto_rank": 0,
+          "quality": 0.0,
+          "quality_ci": null,
+          "scores": {},
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logprobs",
+            "max_tokens",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "seed",
+            "stop",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "weak_evidence": true
+        },
+        {
+          "canonical_slug": "apodex/apodex-1.1-mini-20261001",
+          "context": 262144,
+          "cost_1m_blended": 0.0,
+          "evidence": [],
+          "litellm_id": "openrouter/apodex/apodex-1.1-mini:free",
+          "modalities": [
+            "text"
+          ],
+          "name": "Apodex: Apodex 1.1 Mini (free)",
+          "or_slug": "apodex/apodex-1.1-mini:free",
+          "pareto_rank": 1,
+          "quality": 0.0,
+          "quality_ci": null,
+          "scores": {},
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "max_tokens",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p"
+          ],
+          "weak_evidence": true
+        },
+        {
+          "canonical_slug": "inclusionai/ling-3.0-flash-sante-20260904",
+          "context": 262144,
+          "cost_1m_blended": 0.0,
+          "evidence": [],
+          "litellm_id": "openrouter/inclusionai/ling-3.0-flash-sante:free",
+          "modalities": [
+            "text"
+          ],
+          "name": "inclusionAI: Ling 3.0 Flash Sante (free)",
+          "or_slug": "inclusionai/ling-3.0-flash-sante:free",
+          "pareto_rank": 2,
+          "quality": 0.0,
+          "quality_ci": null,
+          "scores": {},
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logprobs",
+            "max_tokens",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "seed",
+            "stop",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "weak_evidence": true
+        },
+        {
+          "canonical_slug": "dots-studio/dots-3-note-preview-20260813",
+          "context": 512000,
+          "cost_1m_blended": 0.0,
+          "evidence": [],
+          "litellm_id": "openrouter/dots-studio/dots-3-note-preview:free",
+          "modalities": [
+            "text",
+            "image"
+          ],
+          "name": "Dots Studio: Dots3-Note Preview (free)",
+          "or_slug": "dots-studio/dots-3-note-preview:free",
+          "pareto_rank": 3,
+          "quality": 0.0,
+          "quality_ci": null,
+          "scores": {},
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "response_format",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_p"
+          ],
+          "weak_evidence": true
+        },
+        {
+          "canonical_slug": "liquid/lfm-2.5-2.6b-20260811",
+          "context": 65536,
+          "cost_1m_blended": 0.0,
+          "evidence": [],
+          "litellm_id": "openrouter/liquid/lfm-2.5-2.6b:free",
+          "modalities": [
+            "text"
+          ],
+          "name": "LiquidAI: LFM2.5-2.6B (free)",
+          "or_slug": "liquid/lfm-2.5-2.6b:free",
+          "pareto_rank": 4,
+          "quality": 0.0,
+          "quality_ci": null,
+          "scores": {},
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logprobs",
+            "max_completion_tokens",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "weak_evidence": true
+        },
+        {
+          "canonical_slug": "nvidia/nemotron-3.5-lightning-20260807",
+          "context": 1000000,
+          "cost_1m_blended": 0.0,
+          "evidence": [],
+          "litellm_id": "openrouter/nvidia/nemotron-3.5-lightning:free",
+          "modalities": [
+            "text"
+          ],
+          "name": "NVIDIA: Nemotron 3.5 Lightning (free)",
+          "or_slug": "nvidia/nemotron-3.5-lightning:free",
+          "pareto_rank": 5,
+          "quality": 0.0,
+          "quality_ci": null,
+          "scores": {},
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "seed",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_p"
+          ],
+          "weak_evidence": true
+        },
+        {
+          "canonical_slug": "thinkingmachines/inkling-small-20260730",
+          "context": 1048576,
+          "cost_1m_blended": 0.0,
+          "evidence": [],
+          "litellm_id": "openrouter/thinkingmachines/inkling-small:free",
+          "modalities": [
+            "text",
+            "image",
+            "audio"
+          ],
+          "name": "Thinking Machines: Inkling Small (free)",
+          "or_slug": "thinkingmachines/inkling-small:free",
+          "pareto_rank": 6,
+          "quality": 0.0,
+          "quality_ci": null,
+          "scores": {},
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "max_tokens",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "seed",
+            "stop",
+            "temperature",
+            "tools",
+            "top_p"
+          ],
+          "weak_evidence": true
+        },
+        {
+          "canonical_slug": "poolside/laguna-s-2.1-20260720",
+          "context": 262144,
+          "cost_1m_blended": 0.0,
+          "evidence": [],
+          "litellm_id": "openrouter/poolside/laguna-s-2.1:free",
+          "modalities": [
+            "text"
+          ],
+          "name": "Poolside: Laguna S 2.1 (free)",
+          "or_slug": "poolside/laguna-s-2.1:free",
+          "pareto_rank": 7,
+          "quality": 0.0,
+          "quality_ci": null,
+          "scores": {},
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "temperature",
+            "tool_choice",
+            "tools"
+          ],
+          "weak_evidence": true
+        },
+        {
+          "canonical_slug": "thinkingmachines/inkling-20260715",
+          "context": 1048576,
+          "cost_1m_blended": 0.0,
+          "evidence": [],
+          "litellm_id": "openrouter/thinkingmachines/inkling:free",
+          "modalities": [
+            "text",
+            "image",
+            "audio"
+          ],
+          "name": "Thinking Machines: Inkling (free)",
+          "or_slug": "thinkingmachines/inkling:free",
+          "pareto_rank": 8,
+          "quality": 0.0,
+          "quality_ci": null,
+          "scores": {},
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "max_tokens",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "seed",
+            "stop",
+            "temperature",
+            "tools",
+            "top_p"
+          ],
+          "weak_evidence": true
+        },
+        {
+          "canonical_slug": "poolside/laguna-xs-2.1-20260625",
+          "context": 262144,
+          "cost_1m_blended": 0.0,
+          "evidence": [],
+          "litellm_id": "openrouter/poolside/laguna-xs-2.1:free",
+          "modalities": [
+            "text"
+          ],
+          "name": "Poolside: Laguna XS 2.1 (free)",
+          "or_slug": "poolside/laguna-xs-2.1:free",
+          "pareto_rank": 9,
+          "quality": 0.0,
+          "quality_ci": null,
+          "scores": {},
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "temperature",
+            "tool_choice",
+            "tools"
+          ],
+          "weak_evidence": true
+        }
+      ],
+      "or_backbone_empty": false
+    },
+    "healthcare-advice": {
+      "candidates": [
+        {
+          "canonical_slug": "inclusionai/ling-3.1-flash-20261002",
+          "context": 262144,
+          "cost_1m_blended": 0.0,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/inclusionai/ling-3.1-flash",
+          "modalities": [
+            "text"
+          ],
+          "name": "inclusionAI: Ling 3.1 Flash",
+          "or_slug": "inclusionai/ling-3.1-flash",
+          "pareto_rank": 0,
+          "quality": 69.33085501858737,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 69.33085501858737
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logprobs",
+            "max_tokens",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "seed",
+            "stop",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "z-ai/glm-5.3-flash-20260826",
+          "context": 1048576,
+          "cost_1m_blended": 0.040400000000000005,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/z-ai/glm-5.3-flash:batch",
+          "modalities": [
+            "text",
+            "image",
+            "video"
+          ],
+          "name": "Z.ai: GLM 5.3 Flash (batch)",
+          "or_slug": "z-ai/glm-5.3-flash:batch",
+          "pareto_rank": 1,
+          "quality": 70.63197026022304,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 70.63197026022304
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "xiaomi/mimo-v2.6-pro-20260921",
+          "context": 1050000,
+          "cost_1m_blended": 0.17652,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/xiaomi/mimo-v2.6-pro",
+          "modalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "name": "Xiaomi: MiMo-V2.6-Pro",
+          "or_slug": "xiaomi/mimo-v2.6-pro",
+          "pareto_rank": 2,
+          "quality": 78.99628252788104,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 78.99628252788104
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-sonnet-5.5-20260928",
+          "context": 1000000,
+          "cost_1m_blended": 0.77,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-sonnet-5.5:batch",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Sonnet 5.5 (batch)",
+          "or_slug": "anthropic/claude-sonnet-5.5:batch",
+          "pareto_rank": 3,
+          "quality": 97.02602230483272,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 97.02602230483272
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-opus-5.5-20260921",
+          "context": 1000000,
+          "cost_1m_blended": 1.4700000000000002,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-opus-5.5:batch",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Opus 5.5 (batch)",
+          "or_slug": "anthropic/claude-opus-5.5:batch",
+          "pareto_rank": 4,
+          "quality": 100.0,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 100.0
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-opus-5.5-20260921",
+          "context": 1000000,
+          "cost_1m_blended": 2.9400000000000004,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-opus-5.5",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Opus 5.5",
+          "or_slug": "anthropic/claude-opus-5.5",
+          "pareto_rank": null,
+          "quality": 100.0,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 100.0
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-sonnet-5.5-20260928",
+          "context": 1000000,
+          "cost_1m_blended": 1.54,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-sonnet-5.5",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Sonnet 5.5",
+          "or_slug": "anthropic/claude-sonnet-5.5",
+          "pareto_rank": null,
+          "quality": 97.02602230483272,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 97.02602230483272
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-fable-5.1-20260831",
+          "context": 1000000,
+          "cost_1m_blended": 7.175000000000001,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-fable-5.1",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Fable 5.1",
+          "or_slug": "anthropic/claude-fable-5.1",
+          "pareto_rank": null,
+          "quality": 92.19330855018588,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 92.19330855018588
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-fable-5.1-20260831",
+          "context": 1000000,
+          "cost_1m_blended": 3.5875000000000004,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-fable-5.1:batch",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Fable 5.1 (batch)",
+          "or_slug": "anthropic/claude-fable-5.1:batch",
+          "pareto_rank": null,
+          "quality": 92.19330855018588,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 92.19330855018588
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "openai/gpt-6-astra-20260903",
+          "context": 1050000,
+          "cost_1m_blended": 7.700000000000001,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/openai/gpt-6-astra",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "OpenAI: GPT-6 Astra",
+          "or_slug": "openai/gpt-6-astra",
+          "pareto_rank": null,
+          "quality": 90.89219330855019,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 90.89219330855019
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "seed",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        }
+      ],
+      "or_backbone_empty": false
+    },
+    "manga-text": {
+      "candidates": [
+        {
+          "canonical_slug": "dots-studio/dots-3-note-preview-20260813",
+          "context": 512000,
+          "cost_1m_blended": 0.0,
+          "evidence": [],
+          "litellm_id": "openrouter/dots-studio/dots-3-note-preview:free",
+          "modalities": [
+            "text",
+            "image"
+          ],
+          "name": "Dots Studio: Dots3-Note Preview (free)",
+          "or_slug": "dots-studio/dots-3-note-preview:free",
+          "pareto_rank": 0,
+          "quality": 0.0,
+          "quality_ci": null,
+          "scores": {},
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "response_format",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_p"
+          ],
+          "weak_evidence": true
+        },
+        {
+          "canonical_slug": "thinkingmachines/inkling-small-20260730",
+          "context": 1048576,
+          "cost_1m_blended": 0.0,
+          "evidence": [],
+          "litellm_id": "openrouter/thinkingmachines/inkling-small:free",
+          "modalities": [
+            "text",
+            "image",
+            "audio"
+          ],
+          "name": "Thinking Machines: Inkling Small (free)",
+          "or_slug": "thinkingmachines/inkling-small:free",
+          "pareto_rank": 1,
+          "quality": 0.0,
+          "quality_ci": null,
+          "scores": {},
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "max_tokens",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "seed",
+            "stop",
+            "temperature",
+            "tools",
+            "top_p"
+          ],
+          "weak_evidence": true
+        },
+        {
+          "canonical_slug": "thinkingmachines/inkling-20260715",
+          "context": 1048576,
+          "cost_1m_blended": 0.0,
+          "evidence": [],
+          "litellm_id": "openrouter/thinkingmachines/inkling:free",
+          "modalities": [
+            "text",
+            "image",
+            "audio"
+          ],
+          "name": "Thinking Machines: Inkling (free)",
+          "or_slug": "thinkingmachines/inkling:free",
+          "pareto_rank": 2,
+          "quality": 0.0,
+          "quality_ci": null,
+          "scores": {},
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "max_tokens",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "seed",
+            "stop",
+            "temperature",
+            "tools",
+            "top_p"
+          ],
+          "weak_evidence": true
+        },
+        {
+          "canonical_slug": "nvidia/nemotron-3.5-content-safety-20260604",
+          "context": 128000,
+          "cost_1m_blended": 0.0,
+          "evidence": [],
+          "litellm_id": "openrouter/nvidia/nemotron-3.5-content-safety:free",
+          "modalities": [
+            "text",
+            "image"
+          ],
+          "name": "NVIDIA: Nemotron 3.5 Content Safety (free)",
+          "or_slug": "nvidia/nemotron-3.5-content-safety:free",
+          "pareto_rank": 3,
+          "quality": 0.0,
+          "quality_ci": null,
+          "scores": {},
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "seed",
+            "temperature",
+            "top_p"
+          ],
+          "weak_evidence": true
+        },
+        {
+          "canonical_slug": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning-20260428",
+          "context": 256000,
+          "cost_1m_blended": 0.0,
+          "evidence": [],
+          "litellm_id": "openrouter/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+          "modalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "name": "NVIDIA: Nemotron 3 Nano Omni (free)",
+          "or_slug": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+          "pareto_rank": 4,
+          "quality": 0.0,
+          "quality_ci": null,
+          "scores": {},
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "seed",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_p"
+          ],
+          "weak_evidence": true
+        },
+        {
+          "canonical_slug": "google/gemma-4-26b-a4b-it-20260403",
+          "context": 262144,
+          "cost_1m_blended": 0.0,
+          "evidence": [],
+          "litellm_id": "openrouter/google/gemma-4-26b-a4b-it:free",
+          "modalities": [
+            "text",
+            "image",
+            "video"
+          ],
+          "name": "Google: Gemma 4 26B A4B  (free)",
+          "or_slug": "google/gemma-4-26b-a4b-it:free",
+          "pareto_rank": 5,
+          "quality": 0.0,
+          "quality_ci": null,
+          "scores": {},
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "response_format",
+            "seed",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_p"
+          ],
+          "weak_evidence": true
+        },
+        {
+          "canonical_slug": "google/gemma-4-31b-it-20260402",
+          "context": 262144,
+          "cost_1m_blended": 0.0,
+          "evidence": [],
+          "litellm_id": "openrouter/google/gemma-4-31b-it:free",
+          "modalities": [
+            "text",
+            "image",
+            "video"
+          ],
+          "name": "Google: Gemma 4 31B (free)",
+          "or_slug": "google/gemma-4-31b-it:free",
+          "pareto_rank": 6,
+          "quality": 0.0,
+          "quality_ci": null,
+          "scores": {},
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "response_format",
+            "seed",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_p"
+          ],
+          "weak_evidence": true
+        },
+        {
+          "canonical_slug": "google/lyria-3-pro-preview-20260330",
+          "context": 1048576,
+          "cost_1m_blended": 0.0,
+          "evidence": [],
+          "litellm_id": "openrouter/google/lyria-3-pro-preview",
+          "modalities": [
+            "text",
+            "image"
+          ],
+          "name": "Google: Lyria 3 Pro Preview",
+          "or_slug": "google/lyria-3-pro-preview",
+          "pareto_rank": 7,
+          "quality": 0.0,
+          "quality_ci": null,
+          "scores": {},
+          "supported_parameters": [
+            "max_tokens",
+            "response_format",
+            "seed",
+            "temperature",
+            "top_p"
+          ],
+          "weak_evidence": true
+        },
+        {
+          "canonical_slug": "google/lyria-3-clip-preview-20260330",
+          "context": 1048576,
+          "cost_1m_blended": 0.0,
+          "evidence": [],
+          "litellm_id": "openrouter/google/lyria-3-clip-preview",
+          "modalities": [
+            "text",
+            "image"
+          ],
+          "name": "Google: Lyria 3 Clip Preview",
+          "or_slug": "google/lyria-3-clip-preview",
+          "pareto_rank": 8,
+          "quality": 0.0,
+          "quality_ci": null,
+          "scores": {},
+          "supported_parameters": [
+            "max_tokens",
+            "response_format",
+            "seed",
+            "temperature",
+            "top_p"
+          ],
+          "weak_evidence": true
+        },
+        {
+          "canonical_slug": "openrouter/free",
+          "context": 200000,
+          "cost_1m_blended": 0.0,
+          "evidence": [],
+          "litellm_id": "openrouter/openrouter/free",
+          "modalities": [
+            "text",
+            "image"
+          ],
+          "name": "Free Models Router",
+          "or_slug": "openrouter/free",
+          "pareto_rank": 9,
+          "quality": 0.0,
+          "quality_ci": null,
+          "scores": {},
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logprobs",
+            "max_completion_tokens",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "weak_evidence": true
+        }
+      ],
+      "or_backbone_empty": false
+    },
+    "permissive": {
+      "candidates": [
+        {
+          "canonical_slug": "thinkingmachines/inkling-small-20260730",
+          "context": 1048576,
+          "cost_1m_blended": 0.0,
+          "evidence": [
+            "aa_agentic_index"
+          ],
+          "litellm_id": "openrouter/thinkingmachines/inkling-small:free",
+          "modalities": [
+            "text",
+            "image",
+            "audio"
+          ],
+          "name": "Thinking Machines: Inkling Small (free)",
+          "or_slug": "thinkingmachines/inkling-small:free",
+          "pareto_rank": 0,
+          "quality": 40.484429065743946,
+          "quality_ci": null,
+          "scores": {
+            "aa_agentic_index": 40.484429065743946
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "max_tokens",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "seed",
+            "stop",
+            "temperature",
+            "tools",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "inclusionai/ling-3.0-flash-vl-20260910",
+          "context": 262144,
+          "cost_1m_blended": 0.041299999999999996,
+          "evidence": [
+            "aa_agentic_index"
+          ],
+          "litellm_id": "openrouter/inclusionai/ling-3.0-flash-vl",
+          "modalities": [
+            "text",
+            "image",
+            "video"
+          ],
+          "name": "inclusionAI: Ling 3.0 Flash VL",
+          "or_slug": "inclusionai/ling-3.0-flash-vl",
+          "pareto_rank": 1,
+          "quality": 49.48096885813148,
+          "quality_ci": null,
+          "scores": {
+            "aa_agentic_index": 49.48096885813148
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "logprobs",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "z-ai/glm-5.3-flash-20260826",
+          "context": 1048576,
+          "cost_1m_blended": 0.13,
+          "evidence": [
+            "aa_agentic_index"
+          ],
+          "litellm_id": "openrouter/z-ai/glm-5.3-flash:batch",
+          "modalities": [
+            "text",
+            "image",
+            "video"
+          ],
+          "name": "Z.ai: GLM 5.3 Flash (batch)",
+          "or_slug": "z-ai/glm-5.3-flash:batch",
+          "pareto_rank": 2,
+          "quality": 87.88927335640139,
+          "quality_ci": null,
+          "scores": {
+            "aa_agentic_index": 87.88927335640139
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "z-ai/glm-5.3-20260816",
+          "context": 1048576,
+          "cost_1m_blended": 1.2249999999999999,
+          "evidence": [
+            "aa_agentic_index"
+          ],
+          "litellm_id": "openrouter/z-ai/glm-5.3:batch",
+          "modalities": [
+            "text"
+          ],
+          "name": "Z.ai: GLM 5.3 (batch)",
+          "or_slug": "z-ai/glm-5.3:batch",
+          "pareto_rank": 3,
+          "quality": 91.69550173010381,
+          "quality_ci": null,
+          "scores": {
+            "aa_agentic_index": 91.69550173010381
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "meta/muse-spark-1.3-20260902",
+          "context": 1048576,
+          "cost_1m_blended": 2.75,
+          "evidence": [
+            "aa_agentic_index"
+          ],
+          "litellm_id": "openrouter/meta/muse-spark-1.3",
+          "modalities": [
+            "text",
+            "image",
+            "file",
+            "video"
+          ],
+          "name": "Meta: Muse Spark 1.3",
+          "or_slug": "meta/muse-spark-1.3",
+          "pareto_rank": 4,
+          "quality": 95.8477508650519,
+          "quality_ci": null,
+          "scores": {
+            "aa_agentic_index": 95.8477508650519
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "repetition_penalty",
+            "response_format",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "qwen/qwen3.8-max-20260902",
+          "context": 1000000,
+          "cost_1m_blended": 4.0,
+          "evidence": [
+            "aa_agentic_index"
+          ],
+          "litellm_id": "openrouter/qwen/qwen3.8-max-0902",
+          "modalities": [
+            "text",
+            "image",
+            "video"
+          ],
+          "name": "Qwen: Qwen3.8 Max (0902)",
+          "or_slug": "qwen/qwen3.8-max-0902",
+          "pareto_rank": 5,
+          "quality": 96.7128027681661,
+          "quality_ci": null,
+          "scores": {
+            "aa_agentic_index": 96.7128027681661
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logprobs",
+            "max_tokens",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-opus-5-20260723",
+          "context": 1000000,
+          "cost_1m_blended": 7.5,
+          "evidence": [
+            "aa_agentic_index"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-opus-5:batch",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Opus 5 (batch)",
+          "or_slug": "anthropic/claude-opus-5:batch",
+          "pareto_rank": 6,
+          "quality": 97.57785467128028,
+          "quality_ci": null,
+          "scores": {
+            "aa_agentic_index": 97.57785467128028
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-fable-5.1-20260831",
+          "context": 1000000,
+          "cost_1m_blended": 15.0,
+          "evidence": [
+            "aa_agentic_index"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-fable-5.1:batch",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Fable 5.1 (batch)",
+          "or_slug": "anthropic/claude-fable-5.1:batch",
+          "pareto_rank": 7,
+          "quality": 100.0,
+          "quality_ci": null,
+          "scores": {
+            "aa_agentic_index": 100.0
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-fable-5.1-20260831",
+          "context": 1000000,
+          "cost_1m_blended": 30.0,
+          "evidence": [
+            "aa_agentic_index"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-fable-5.1",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Fable 5.1",
+          "or_slug": "anthropic/claude-fable-5.1",
+          "pareto_rank": null,
+          "quality": 100.0,
+          "quality_ci": null,
+          "scores": {
+            "aa_agentic_index": 100.0
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-opus-5-20260723",
+          "context": 1000000,
+          "cost_1m_blended": 15.0,
+          "evidence": [
+            "aa_agentic_index"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-opus-5",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Opus 5",
+          "or_slug": "anthropic/claude-opus-5",
+          "pareto_rank": null,
+          "quality": 97.57785467128028,
+          "quality_ci": null,
+          "scores": {
+            "aa_agentic_index": 97.57785467128028
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        }
+      ],
+      "or_backbone_empty": false
+    },
+    "rerank": {
+      "candidates": [
+        {
+          "canonical_slug": "inclusionai/ling-3.1-flash-20261002",
+          "context": 262144,
+          "cost_1m_blended": 0.0,
+          "evidence": [],
+          "litellm_id": "openrouter/inclusionai/ling-3.1-flash",
+          "modalities": [
+            "text"
+          ],
+          "name": "inclusionAI: Ling 3.1 Flash",
+          "or_slug": "inclusionai/ling-3.1-flash",
+          "pareto_rank": 0,
+          "quality": 0.0,
+          "quality_ci": null,
+          "scores": {},
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logprobs",
+            "max_tokens",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "seed",
+            "stop",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "weak_evidence": true
+        },
+        {
+          "canonical_slug": "apodex/apodex-1.1-mini-20261001",
+          "context": 262144,
+          "cost_1m_blended": 0.0,
+          "evidence": [],
+          "litellm_id": "openrouter/apodex/apodex-1.1-mini:free",
+          "modalities": [
+            "text"
+          ],
+          "name": "Apodex: Apodex 1.1 Mini (free)",
+          "or_slug": "apodex/apodex-1.1-mini:free",
+          "pareto_rank": 1,
+          "quality": 0.0,
+          "quality_ci": null,
+          "scores": {},
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "max_tokens",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p"
+          ],
+          "weak_evidence": true
+        },
+        {
+          "canonical_slug": "inclusionai/ling-3.0-flash-sante-20260904",
+          "context": 262144,
+          "cost_1m_blended": 0.0,
+          "evidence": [],
+          "litellm_id": "openrouter/inclusionai/ling-3.0-flash-sante:free",
+          "modalities": [
+            "text"
+          ],
+          "name": "inclusionAI: Ling 3.0 Flash Sante (free)",
+          "or_slug": "inclusionai/ling-3.0-flash-sante:free",
+          "pareto_rank": 2,
+          "quality": 0.0,
+          "quality_ci": null,
+          "scores": {},
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logprobs",
+            "max_tokens",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "seed",
+            "stop",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "weak_evidence": true
+        },
+        {
+          "canonical_slug": "dots-studio/dots-3-note-preview-20260813",
+          "context": 512000,
+          "cost_1m_blended": 0.0,
+          "evidence": [],
+          "litellm_id": "openrouter/dots-studio/dots-3-note-preview:free",
+          "modalities": [
+            "text",
+            "image"
+          ],
+          "name": "Dots Studio: Dots3-Note Preview (free)",
+          "or_slug": "dots-studio/dots-3-note-preview:free",
+          "pareto_rank": 3,
+          "quality": 0.0,
+          "quality_ci": null,
+          "scores": {},
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "response_format",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_p"
+          ],
+          "weak_evidence": true
+        },
+        {
+          "canonical_slug": "liquid/lfm-2.5-2.6b-20260811",
+          "context": 65536,
+          "cost_1m_blended": 0.0,
+          "evidence": [],
+          "litellm_id": "openrouter/liquid/lfm-2.5-2.6b:free",
+          "modalities": [
+            "text"
+          ],
+          "name": "LiquidAI: LFM2.5-2.6B (free)",
+          "or_slug": "liquid/lfm-2.5-2.6b:free",
+          "pareto_rank": 4,
+          "quality": 0.0,
+          "quality_ci": null,
+          "scores": {},
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logprobs",
+            "max_completion_tokens",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "weak_evidence": true
+        },
+        {
+          "canonical_slug": "nvidia/nemotron-3.5-lightning-20260807",
+          "context": 1000000,
+          "cost_1m_blended": 0.0,
+          "evidence": [],
+          "litellm_id": "openrouter/nvidia/nemotron-3.5-lightning:free",
+          "modalities": [
+            "text"
+          ],
+          "name": "NVIDIA: Nemotron 3.5 Lightning (free)",
+          "or_slug": "nvidia/nemotron-3.5-lightning:free",
+          "pareto_rank": 5,
+          "quality": 0.0,
+          "quality_ci": null,
+          "scores": {},
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "seed",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_p"
+          ],
+          "weak_evidence": true
+        },
+        {
+          "canonical_slug": "thinkingmachines/inkling-small-20260730",
+          "context": 1048576,
+          "cost_1m_blended": 0.0,
+          "evidence": [],
+          "litellm_id": "openrouter/thinkingmachines/inkling-small:free",
+          "modalities": [
+            "text",
+            "image",
+            "audio"
+          ],
+          "name": "Thinking Machines: Inkling Small (free)",
+          "or_slug": "thinkingmachines/inkling-small:free",
+          "pareto_rank": 6,
+          "quality": 0.0,
+          "quality_ci": null,
+          "scores": {},
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "max_tokens",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "seed",
+            "stop",
+            "temperature",
+            "tools",
+            "top_p"
+          ],
+          "weak_evidence": true
+        },
+        {
+          "canonical_slug": "poolside/laguna-s-2.1-20260720",
+          "context": 262144,
+          "cost_1m_blended": 0.0,
+          "evidence": [],
+          "litellm_id": "openrouter/poolside/laguna-s-2.1:free",
+          "modalities": [
+            "text"
+          ],
+          "name": "Poolside: Laguna S 2.1 (free)",
+          "or_slug": "poolside/laguna-s-2.1:free",
+          "pareto_rank": 7,
+          "quality": 0.0,
+          "quality_ci": null,
+          "scores": {},
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "temperature",
+            "tool_choice",
+            "tools"
+          ],
+          "weak_evidence": true
+        },
+        {
+          "canonical_slug": "thinkingmachines/inkling-20260715",
+          "context": 1048576,
+          "cost_1m_blended": 0.0,
+          "evidence": [],
+          "litellm_id": "openrouter/thinkingmachines/inkling:free",
+          "modalities": [
+            "text",
+            "image",
+            "audio"
+          ],
+          "name": "Thinking Machines: Inkling (free)",
+          "or_slug": "thinkingmachines/inkling:free",
+          "pareto_rank": 8,
+          "quality": 0.0,
+          "quality_ci": null,
+          "scores": {},
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "max_tokens",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "seed",
+            "stop",
+            "temperature",
+            "tools",
+            "top_p"
+          ],
+          "weak_evidence": true
+        },
+        {
+          "canonical_slug": "poolside/laguna-xs-2.1-20260625",
+          "context": 262144,
+          "cost_1m_blended": 0.0,
+          "evidence": [],
+          "litellm_id": "openrouter/poolside/laguna-xs-2.1:free",
+          "modalities": [
+            "text"
+          ],
+          "name": "Poolside: Laguna XS 2.1 (free)",
+          "or_slug": "poolside/laguna-xs-2.1:free",
+          "pareto_rank": 9,
+          "quality": 0.0,
+          "quality_ci": null,
+          "scores": {},
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "temperature",
+            "tool_choice",
+            "tools"
+          ],
+          "weak_evidence": true
+        }
+      ],
+      "or_backbone_empty": false
+    },
+    "story-gen": {
+      "candidates": [
+        {
+          "canonical_slug": "inclusionai/ling-3.1-flash-20261002",
+          "context": 262144,
+          "cost_1m_blended": 0.0,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/inclusionai/ling-3.1-flash",
+          "modalities": [
+            "text"
+          ],
+          "name": "inclusionAI: Ling 3.1 Flash",
+          "or_slug": "inclusionai/ling-3.1-flash",
+          "pareto_rank": 0,
+          "quality": 69.33085501858737,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 69.33085501858737
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logprobs",
+            "max_tokens",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "seed",
+            "stop",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "z-ai/glm-5.3-flash-20260826",
+          "context": 1048576,
+          "cost_1m_blended": 0.144,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/z-ai/glm-5.3-flash:batch",
+          "modalities": [
+            "text",
+            "image",
+            "video"
+          ],
+          "name": "Z.ai: GLM 5.3 Flash (batch)",
+          "or_slug": "z-ai/glm-5.3-flash:batch",
+          "pareto_rank": 1,
+          "quality": 70.63197026022304,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 70.63197026022304
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "xiaomi/mimo-v2.6-pro-20260921",
+          "context": 1050000,
+          "cost_1m_blended": 0.6960000000000001,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/xiaomi/mimo-v2.6-pro",
+          "modalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "name": "Xiaomi: MiMo-V2.6-Pro",
+          "or_slug": "xiaomi/mimo-v2.6-pro",
+          "pareto_rank": 2,
+          "quality": 78.99628252788104,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 78.99628252788104
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "meta/muse-spark-1.3-20260902",
+          "context": 1048576,
+          "cost_1m_blended": 3.0499999999999994,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/meta/muse-spark-1.3",
+          "modalities": [
+            "text",
+            "image",
+            "file",
+            "video"
+          ],
+          "name": "Meta: Muse Spark 1.3",
+          "or_slug": "meta/muse-spark-1.3",
+          "pareto_rank": 3,
+          "quality": 82.34200743494424,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 82.34200743494424
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "repetition_penalty",
+            "response_format",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-sonnet-5.5-20260928",
+          "context": 1000000,
+          "cost_1m_blended": 3.4,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-sonnet-5.5:batch",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Sonnet 5.5 (batch)",
+          "or_slug": "anthropic/claude-sonnet-5.5:batch",
+          "pareto_rank": 4,
+          "quality": 97.02602230483272,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 97.02602230483272
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-opus-5.5-20260921",
+          "context": 1000000,
+          "cost_1m_blended": 6.8,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-opus-5.5:batch",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Opus 5.5 (batch)",
+          "or_slug": "anthropic/claude-opus-5.5:batch",
+          "pareto_rank": 5,
+          "quality": 100.0,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 100.0
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-opus-5.5-20260921",
+          "context": 1000000,
+          "cost_1m_blended": 13.6,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-opus-5.5",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Opus 5.5",
+          "or_slug": "anthropic/claude-opus-5.5",
+          "pareto_rank": null,
+          "quality": 100.0,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 100.0
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-sonnet-5.5-20260928",
+          "context": 1000000,
+          "cost_1m_blended": 6.8,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-sonnet-5.5",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Sonnet 5.5",
+          "or_slug": "anthropic/claude-sonnet-5.5",
+          "pareto_rank": null,
+          "quality": 97.02602230483272,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 97.02602230483272
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-fable-5.1-20260831",
+          "context": 1000000,
+          "cost_1m_blended": 34.0,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-fable-5.1",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Fable 5.1",
+          "or_slug": "anthropic/claude-fable-5.1",
+          "pareto_rank": null,
+          "quality": 92.19330855018588,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 92.19330855018588
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-fable-5.1-20260831",
+          "context": 1000000,
+          "cost_1m_blended": 17.0,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-fable-5.1:batch",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Fable 5.1 (batch)",
+          "or_slug": "anthropic/claude-fable-5.1:batch",
+          "pareto_rank": null,
+          "quality": 92.19330855018588,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 92.19330855018588
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        }
+      ],
+      "or_backbone_empty": false
+    },
+    "translation": {
+      "candidates": [
+        {
+          "canonical_slug": "inclusionai/ling-3.1-flash-20261002",
+          "context": 262144,
+          "cost_1m_blended": 0.0,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/inclusionai/ling-3.1-flash",
+          "modalities": [
+            "text"
+          ],
+          "name": "inclusionAI: Ling 3.1 Flash",
+          "or_slug": "inclusionai/ling-3.1-flash",
+          "pareto_rank": 0,
+          "quality": 69.33085501858737,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 69.33085501858737
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logprobs",
+            "max_tokens",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "seed",
+            "stop",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "z-ai/glm-5.3-flash-20260826",
+          "context": 1048576,
+          "cost_1m_blended": 0.102,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/z-ai/glm-5.3-flash:batch",
+          "modalities": [
+            "text",
+            "image",
+            "video"
+          ],
+          "name": "Z.ai: GLM 5.3 Flash (batch)",
+          "or_slug": "z-ai/glm-5.3-flash:batch",
+          "pareto_rank": 1,
+          "quality": 70.63197026022304,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 70.63197026022304
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "xiaomi/mimo-v2.6-pro-20260921",
+          "context": 1050000,
+          "cost_1m_blended": 0.5655,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/xiaomi/mimo-v2.6-pro",
+          "modalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "name": "Xiaomi: MiMo-V2.6-Pro",
+          "or_slug": "xiaomi/mimo-v2.6-pro",
+          "pareto_rank": 2,
+          "quality": 78.99628252788104,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 78.99628252788104
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "meta/muse-spark-1.3-20260902",
+          "context": 1048576,
+          "cost_1m_blended": 2.15,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/meta/muse-spark-1.3",
+          "modalities": [
+            "text",
+            "image",
+            "file",
+            "video"
+          ],
+          "name": "Meta: Muse Spark 1.3",
+          "or_slug": "meta/muse-spark-1.3",
+          "pareto_rank": 3,
+          "quality": 82.34200743494424,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 82.34200743494424
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "repetition_penalty",
+            "response_format",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-sonnet-5.5-20260928",
+          "context": 1000000,
+          "cost_1m_blended": 2.2,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-sonnet-5.5:batch",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Sonnet 5.5 (batch)",
+          "or_slug": "anthropic/claude-sonnet-5.5:batch",
+          "pareto_rank": 4,
+          "quality": 97.02602230483272,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 97.02602230483272
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-opus-5.5-20260921",
+          "context": 1000000,
+          "cost_1m_blended": 4.4,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-opus-5.5:batch",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Opus 5.5 (batch)",
+          "or_slug": "anthropic/claude-opus-5.5:batch",
+          "pareto_rank": 5,
+          "quality": 100.0,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 100.0
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-opus-5.5-20260921",
+          "context": 1000000,
+          "cost_1m_blended": 8.8,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-opus-5.5",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Opus 5.5",
+          "or_slug": "anthropic/claude-opus-5.5",
+          "pareto_rank": null,
+          "quality": 100.0,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 100.0
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-sonnet-5.5-20260928",
+          "context": 1000000,
+          "cost_1m_blended": 4.4,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-sonnet-5.5",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Sonnet 5.5",
+          "or_slug": "anthropic/claude-sonnet-5.5",
+          "pareto_rank": null,
+          "quality": 97.02602230483272,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 97.02602230483272
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-fable-5.1-20260831",
+          "context": 1000000,
+          "cost_1m_blended": 22.0,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-fable-5.1",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Fable 5.1",
+          "or_slug": "anthropic/claude-fable-5.1",
+          "pareto_rank": null,
+          "quality": 92.19330855018588,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 92.19330855018588
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-fable-5.1-20260831",
+          "context": 1000000,
+          "cost_1m_blended": 11.0,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-fable-5.1:batch",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Fable 5.1 (batch)",
+          "or_slug": "anthropic/claude-fable-5.1:batch",
+          "pareto_rank": null,
+          "quality": 92.19330855018588,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 92.19330855018588
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        }
+      ],
+      "or_backbone_empty": false
+    },
+    "vision": {
+      "candidates": [
+        {
+          "canonical_slug": "thinkingmachines/inkling-small-20260730",
+          "context": 1048576,
+          "cost_1m_blended": 0.0,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/thinkingmachines/inkling-small:free",
+          "modalities": [
+            "text",
+            "image",
+            "audio"
+          ],
+          "name": "Thinking Machines: Inkling Small (free)",
+          "or_slug": "thinkingmachines/inkling-small:free",
+          "pareto_rank": 0,
+          "quality": 40.70631970260222,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 40.70631970260222
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "max_tokens",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "seed",
+            "stop",
+            "temperature",
+            "tools",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "openai/gpt-6-luna-20260922",
+          "context": 1050000,
+          "cost_1m_blended": 0.03849999999999999,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/openai/gpt-6-luna:batch",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "OpenAI: GPT-6 Luna (batch)",
+          "or_slug": "openai/gpt-6-luna:batch",
+          "pareto_rank": 1,
+          "quality": 63.7546468401487,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 63.7546468401487
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "seed",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "z-ai/glm-5.3-flash-20260826",
+          "context": 1048576,
+          "cost_1m_blended": 0.040400000000000005,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/z-ai/glm-5.3-flash:batch",
+          "modalities": [
+            "text",
+            "image",
+            "video"
+          ],
+          "name": "Z.ai: GLM 5.3 Flash (batch)",
+          "or_slug": "z-ai/glm-5.3-flash:batch",
+          "pareto_rank": 2,
+          "quality": 70.63197026022304,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 70.63197026022304
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "xiaomi/mimo-v2.6-pro-20260921",
+          "context": 1050000,
+          "cost_1m_blended": 0.17652,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/xiaomi/mimo-v2.6-pro",
+          "modalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "name": "Xiaomi: MiMo-V2.6-Pro",
+          "or_slug": "xiaomi/mimo-v2.6-pro",
+          "pareto_rank": 3,
+          "quality": 78.99628252788104,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 78.99628252788104
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-sonnet-5.5-20260928",
+          "context": 1000000,
+          "cost_1m_blended": 0.77,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-sonnet-5.5:batch",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Sonnet 5.5 (batch)",
+          "or_slug": "anthropic/claude-sonnet-5.5:batch",
+          "pareto_rank": 4,
+          "quality": 97.02602230483272,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 97.02602230483272
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-opus-5.5-20260921",
+          "context": 1000000,
+          "cost_1m_blended": 1.4700000000000002,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-opus-5.5:batch",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Opus 5.5 (batch)",
+          "or_slug": "anthropic/claude-opus-5.5:batch",
+          "pareto_rank": 5,
+          "quality": 100.0,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 100.0
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-opus-5.5-20260921",
+          "context": 1000000,
+          "cost_1m_blended": 2.9400000000000004,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-opus-5.5",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Opus 5.5",
+          "or_slug": "anthropic/claude-opus-5.5",
+          "pareto_rank": null,
+          "quality": 100.0,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 100.0
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-sonnet-5.5-20260928",
+          "context": 1000000,
+          "cost_1m_blended": 1.54,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-sonnet-5.5",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Sonnet 5.5",
+          "or_slug": "anthropic/claude-sonnet-5.5",
+          "pareto_rank": null,
+          "quality": 97.02602230483272,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 97.02602230483272
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-fable-5.1-20260831",
+          "context": 1000000,
+          "cost_1m_blended": 7.175000000000001,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-fable-5.1",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Fable 5.1",
+          "or_slug": "anthropic/claude-fable-5.1",
+          "pareto_rank": null,
+          "quality": 92.19330855018588,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 92.19330855018588
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-fable-5.1-20260831",
+          "context": 1000000,
+          "cost_1m_blended": 3.5875000000000004,
+          "evidence": [
+            "artificial_analysis"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-fable-5.1:batch",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Fable 5.1 (batch)",
+          "or_slug": "anthropic/claude-fable-5.1:batch",
+          "pareto_rank": null,
+          "quality": 92.19330855018588,
+          "quality_ci": null,
+          "scores": {
+            "artificial_analysis": 92.19330855018588
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        }
+      ],
+      "or_backbone_empty": false
+    }
+  },
+  "top_n": 10
+}

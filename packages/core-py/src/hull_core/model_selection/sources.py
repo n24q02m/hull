@@ -272,11 +272,12 @@ class LiveBenchSource(_BaseSource):
 
 
 class UGISource(_BaseSource):
-    """UGI leaderboard (HF CSV) — PLUGIN SOURCE, not part of the shared TaskProfiles.
+    """UGI leaderboard (HF CSV) — the ``permissive`` profile's specialized board.
 
-    Register via ``candidates(..., sources={..., "ugi": UGISource()})`` or
-    provide an in-house Source; the default registry does not wire UGI into
-    any task.
+    Registered in ``SOURCE_REGISTRY`` as ``"ugi"`` and wired into the
+    ``permissive`` TaskProfile (spec 2026-09-28 D-KP6, phase H); consumers may
+    still override it via ``candidates(..., sources={..., "ugi": <Source>})``
+    with an in-house Source.
     """
 
     name = "ugi"
@@ -495,7 +496,7 @@ def fetch_endpoint_stats(or_slug: str) -> dict[str, Any]:
 
 # Default registry. Source names in a TaskProfile without an entry here are
 # skipped (fail-open) — the registry may point at fetchers not yet written or
-# supplied by the consumer as plugins (e.g. "eqbench_creative_v3", "ugi").
+# supplied by the consumer as plugins (e.g. "eqbench_creative_v3", "wmt24pp").
 SOURCE_REGISTRY: dict[str, Source] = {
     "openrouter_models": OpenRouterModelsSource(),
     "artificial_analysis": ArtificialAnalysisSource(),

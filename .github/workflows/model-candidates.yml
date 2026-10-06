@@ -1,0 +1,73 @@
+name: Model Candidates Publish
+
+# Weekly snapshot of the leaderboard-driven candidate lists (public boards +
+# OpenRouter catalog, scan-only: no evals, no secrets, no paid calls). The
+# committed data/model-candidates.json is the neutral, cross-repo contract:
+# consumer stacks (crg/wet/mnemo model-sync workflows) pull this file's raw
+# URL and propose per-task model config pins through label-gated PRs and
+# sticky issues. Model defaults in code stay empty and fail-closed
+# everywhere; this snapshot never carries human-managed fields (tiers /
+# active / nsfw decisions live in each consumer's own registry, reviewed by
+# humans). The PR re-uses one sticky branch and one sticky PR so the weekly
+# cadence stays a single reviewable diff.
+
+on:
+  schedule:
+    - cron: "41 4 * * 1" # Mondays 04:41 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  # A manual dispatch racing the weekly cron would otherwise open two
+  # branches/PRs for the same snapshot; serialize instead of cancelling.
+  group: model-candidates-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish candidates snapshot
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: uv sync --locked --extra mteb
+
+      - name: Build snapshot
+        run: uv run --no-sync python scripts/publish_candidates.py
+
+      - name: Push sticky branch and PR
+        run: |
+          BRANCH=data/model-candidates
+          git config user.name "hull-publish-bot"
+          git config user.email "hull-publish-bot@users.noreply.github.com"
+          git checkout -B "$BRANCH"
+          git add data/model-candidates.json
+          if git diff --cached --quiet; then
+            echo "Snapshot unchanged; nothing to publish."
+            exit 0
+          fi
+          git commit -m "fix: weekly model-candidates snapshot"
+          # Bot-owned data branch: --force overwrites last week's snapshot;
+          # the sticky PR diff always shows this week vs merged main.
+          git push --force origin "$BRANCH"
+          if gh pr list --head "$BRANCH" --state open --json number -q '.[0].number' | grep -q .; then
+            echo "Sticky PR already open; diff updated in place."
+          else
+            gh pr create \
+              --head "$BRANCH" \
+              --title "fix: weekly model-candidates snapshot" \
+              --body "Automated weekly refresh of \`data/model-candidates.json\` (public boards + OpenRouter catalog, scan-only — no evals, no secrets, no paid calls, no human-managed fields). Consumer stacks pull this file to propose per-task model config pins; review the diff like any other data change."
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}

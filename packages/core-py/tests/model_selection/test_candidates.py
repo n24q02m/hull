@@ -139,6 +139,30 @@ def test_alias_join_canonical_and_hf():
     assert len(cands) == 2  # ghost creates no new candidate
 
 
+def test_alias_join_vendorless_part_unique():
+    """Boards publishing vendor-less keys join via the unique model-part fallback."""
+    or_records = _or_source(
+        [
+            _or_row("anthropic/claude-opus-5.5", name="Claude Opus 5.5"),
+            _or_row("google/gemini-4-argon", name="Gemini 4 Argon"),
+            _or_row("vendor-a/mini", name="Mini A"),
+            _or_row("vendor-b/mini", name="Mini B"),  # ambiguous part must not join
+        ]
+    )
+    board = {
+        "claude": SourceRecord(key="claude-opus-5-5", name="claude-opus-5-5", score=91.0),
+        "gemini": SourceRecord(key="google_gemini-4-argon", name="google_gemini-4-argon", score=88.0),
+        "mini": SourceRecord(key="mini", name="mini", score=50.0),  # ambiguous -> dropped
+        "ghost": SourceRecord(key="totally-unknown-model", name="totally-unknown-model", score=1.0),
+    }
+    cands = {c.or_slug: c for c in join_sources(or_records, {"board": board})}
+    assert cands["anthropic/claude-opus-5.5"].scores["board"] == 91.0
+    assert cands["google/gemini-4-argon"].scores["board"] == 88.0
+    assert "board" not in cands["vendor-a/mini"].scores
+    assert "board" not in cands["vendor-b/mini"].scores
+    assert len(cands) == 4  # board records create no new candidates
+
+
 def test_slugify():
     assert slugify("GPT-6 Astra") == "gpt-6-astra"
     assert slugify("x-ai/grok-4.7-20260916") == "x-ai-grok-4-7-20260916"

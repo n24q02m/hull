@@ -162,6 +162,50 @@ def test_boards_first_qualification_drops_unmeasured():
     assert slugs == ["m/evidenced"]
 
 
+def test_boards_backbone_ranks_mteb_without_or():
+    """Embed/rerank profiles: the boards are the backbone — OR absence is not fatal."""
+    task = TaskProfile(
+        name="rerank-boards",
+        specialized_sources=("mteb_reranking",),
+        aggregate_sources=(),
+        backbone="boards",
+    )
+    sources = {
+        # no openrouter_models source at all
+        "mteb_reranking": _FakeSource(
+            "mteb_reranking",
+            {
+                "BAAI/bge-reranker-v2.5": SourceRecord(key="BAAI/bge-reranker-v2.5", name="bge-reranker", score=0.61),
+                "jina/reranker-v4": SourceRecord(key="jina/reranker-v4", name="jina-reranker", score=0.68),
+            },
+        ),
+    }
+    cands = candidates(task, sources=sources)
+    assert [c.or_slug for c in cands] == [None, None]
+    assert [c.litellm_id for c in cands] == ["jina/reranker-v4", "BAAI/bge-reranker-v2.5"]  # quality desc
+    assert [c.pareto_rank for c in cands] == [0, 1]
+    assert cands[0].quality == pytest.approx(100.0)  # minmax-normalized 0-100
+
+
+def test_or_backbone_excludes_free_tier_models():
+    """$0 promo slots are never selected — paid board-evidenced models only."""
+    or_rows = [
+        _or_row("vendor-a/free-promo", prompt="0", completion="0"),  # free -> excluded
+        _or_row("vendor-a/paid", prompt="0.000005", completion="0.00001"),
+    ]
+    spec = {
+        "vendor-a/free-promo": SourceRecord(key="vendor-a/free-promo", score=99.0),
+        "vendor-a/paid": SourceRecord(key="vendor-a/paid", score=70.0),
+    }
+    sources = {
+        "openrouter_models": _FakeSource("openrouter_models", _or_source(or_rows)),
+        "spec_board": _FakeSource("spec_board", spec),
+        "agg_board": _FakeSource("agg_board", {}),
+    }
+    cands = candidates(_TASK, sources=sources)
+    assert [c.or_slug for c in cands] == ["vendor-a/paid"]  # free model dropped despite q=99
+
+
 def test_join_sources_records_matched_count():
     """source_status gains matched_count: row_count=214 matched_count=0 exposes a broken join."""
     or_records = _or_source([_or_row("m/a"), _or_row("m/b")])

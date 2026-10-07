@@ -95,18 +95,18 @@ def test_aggregate_tables_means_per_task_then_family():
     tables = [
         _table(
             [
-                # BIOSSES: mean over rows (test split only)
-                {"model_name": "m/a", "task_name": "BIOSSES", "split": "test", "score": 0.80},
-                {"model_name": "m/a", "task_name": "BIOSSES", "split": "test", "score": 0.60},
-                # SICK-R: one row -> task mean 0.50
-                {"model_name": "m/a", "task_name": "SICK-R", "split": "test", "score": 0.50},
+                # IndicCrosslingualSTS: mean over rows (test split only)
+                {"model_name": "m/a", "task_name": "IndicCrosslingualSTS", "split": "test", "score": 0.80},
+                {"model_name": "m/a", "task_name": "IndicCrosslingualSTS", "split": "test", "score": 0.60},
+                # STSBenchmarkMultilingualSTS: one row -> task mean 0.50
+                {"model_name": "m/a", "task_name": "STSBenchmarkMultilingualSTS", "split": "test", "score": 0.50},
                 # non-test split ignored
-                {"model_name": "m/a", "task_name": "BIOSSES", "split": "validation", "score": 0.99},
+                {"model_name": "m/a", "task_name": "IndicCrosslingualSTS", "split": "validation", "score": 0.99},
             ]
         ),
     ]
     agg = _aggregate_tables(tables)
-    # family score = mean of task means: BIOSSES 0.70, SICK-R 0.50 -> 0.60
+    # family score = mean of task means: Indic 0.70, STSBench-multi 0.50 -> 0.60
     assert agg["sts"]["m/a"] == pytest.approx(0.60)
 
 
@@ -114,11 +114,32 @@ def test_aggregate_tables_multiple_families_and_unknown_tasks():
     tables = [
         _table(
             [
-                {"model_name": "m/a", "task_name": "Banking77Classification", "split": "test", "score": 0.90},
-                {"model_name": "m/a", "task_name": "ArguAna", "split": "test", "score": 0.55},
+                {
+                    "model_name": "m/a",
+                    "task_name": "MultilingualSentimentClassification",
+                    "split": "test",
+                    "score": 0.90,
+                },
+                {"model_name": "m/a", "task_name": "MIRACLRetrieval", "split": "test", "score": 0.55},
                 {"model_name": "m/a", "task_name": "ArxivClusteringP2P", "split": "test", "score": 0.70},  # ignored
-                {"model_name": "", "task_name": "ArguAna", "split": "test", "score": 0.40},  # empty model ignored
-                {"model_name": "m/a", "task_name": "ArguAna", "split": "test", "score": None},  # null mean ignored
+                {
+                    "model_name": "m/a",
+                    "task_name": "Banking77Classification",
+                    "split": "test",
+                    "score": 0.99,
+                },  # English-only ignored
+                {
+                    "model_name": "",
+                    "task_name": "MIRACLRetrieval",
+                    "split": "test",
+                    "score": 0.40,
+                },  # empty model ignored
+                {
+                    "model_name": "m/a",
+                    "task_name": "MIRACLRetrieval",
+                    "split": "test",
+                    "score": None,
+                },  # null mean ignored
             ]
         )
     ]
@@ -158,8 +179,8 @@ def _patch_pipeline(tables, urls=None):
 
 def test_shared_family_scores_one_download_shared_across_fetchers():
     tables = [
-        _table([{"model_name": "m/a", "task_name": "ArguAna", "split": "test", "score": 0.50}]),
-        _table([{"model_name": "m/a", "task_name": "BIOSSES", "split": "test", "score": 0.70}]),
+        _table([{"model_name": "m/a", "task_name": "MIRACLRetrieval", "split": "test", "score": 0.50}]),
+        _table([{"model_name": "m/a", "task_name": "IndicCrosslingualSTS", "split": "test", "score": 0.70}]),
     ]
     p1, p2, p3 = _patch_pipeline(tables)
     with p1 as urls_mock, p2 as bytes_mock, p3 as read_mock:
@@ -192,40 +213,20 @@ def test_shared_family_scores_refresh_bypasses_memo():
     ],
 )
 def test_family_fetcher_returns_records_keyed_by_model_name(cls, family):
+    multilingual_task = {
+        "classification": "MultilingualSentimentClassification",
+        "retrieval": "MIRACLRetrieval",
+        "sts": "IndicCrosslingualSTS",
+        "reranking": "MIRACLReranking",
+    }[family]
     tables = [
         _table(
             [
-                {"model_name": f"org/model-{family}", "task_name": "ArguAna", "split": "test", "score": 0.55},
-                {"model_name": f"org/model-{family}", "task_name": "SICK-R", "split": "test", "score": 0.65},
+                {"model_name": f"org/model-{family}", "task_name": multilingual_task, "split": "test", "score": 0.55},
+                {"model_name": f"org/model-{family}", "task_name": multilingual_task, "split": "test", "score": 0.75},
             ]
         )
     ]
-    if family == "reranking":
-        tables = [
-            _table(
-                [
-                    {
-                        "model_name": f"org/model-{family}",
-                        "task_name": "AskUbuntuDupQuestions",
-                        "split": "test",
-                        "score": 0.6,
-                    }
-                ]
-            )
-        ]
-    if family == "classification":
-        tables = [
-            _table(
-                [
-                    {
-                        "model_name": f"org/model-{family}",
-                        "task_name": "Banking77Classification",
-                        "split": "test",
-                        "score": 0.9,
-                    }
-                ]
-            )
-        ]
     p1, p2, p3 = _patch_pipeline(tables)
     with p1, p2, p3:
         recs = cls().fetch()
@@ -239,8 +240,7 @@ def test_family_fetcher_returns_records_keyed_by_model_name(cls, family):
     assert set(recs) == {f"org/model-{family}"}
     rec = recs[f"org/model-{family}"]
     assert rec.key == f"org/model-{family}"  # raw HF id: joins via the alias index
-    expected = {"classification": 0.9, "retrieval": 0.55, "sts": 0.65, "reranking": 0.6}[family]
-    assert rec.score == pytest.approx(expected)
+    assert rec.score == pytest.approx(0.65)  # mean of the two task rows
 
 
 def test_family_fetcher_empty_family_returns_empty():

@@ -41,6 +41,11 @@ class TaskProfile:
     aggregate_sources: tuple[str, ...] = ()  # merge/fallback layer
     constraints: Constraints = field(default_factory=Constraints)
     quality_weight: float = 0.7  # w_spec when specialized covers >=80% of candidates; else 0.5
+    # Candidate backbone: "or" = OpenRouter catalog (general chat models —
+    # OR prices/routes, boards qualify); "boards" = the boards themselves are
+    # the backbone (embed/rerank models measured by MTEB that OR does not
+    # list; litellm_id carries the board key, consumers map their providers).
+    backbone: str = "or"
     # Token mix (input, output, cache_read) measured on the app — do NOT hardcode
     # a generic one: KP ingestion is input-heavy, Aiora chat is ~ AA 7:2:1
     # (cache:input:output).
@@ -68,17 +73,19 @@ TASKS: dict[str, TaskProfile] = {
     "embedding": TaskProfile(
         name="embedding",
         specialized_sources=("mteb_classification", "mteb_retrieval", "mteb_sts"),
-        # Embedders do not route through OpenRouter -> the OR backbone returns
-        # thin/empty for now; the profile stays so consumers can supply their
-        # own sources + join keys via a ``sources`` override.
+        # Embedders are measured by the MTEB boards and mostly are NOT listed
+        # on OpenRouter -> the boards themselves are the candidate backbone
+        # (litellm_id = HF/board key; consumers map their own providers).
         aggregate_sources=(),
         constraints=Constraints(),
+        backbone="boards",
     ),
     "rerank": TaskProfile(
         name="rerank",
         specialized_sources=("mteb_reranking",),
         aggregate_sources=(),
         constraints=Constraints(),
+        backbone="boards",
     ),
     "manga-text": TaskProfile(
         name="manga-text",

@@ -33,7 +33,7 @@ _COST_UNKNOWN = math.inf
 class ModelCandidate:
     """An OR-routable model after join + normalize + pareto."""
 
-    or_slug: str
+    or_slug: str | None  # None = boards-backbone candidate (embed/rerank): identity is hf/board key
     name: str = ""
     hf_id: str | None = None
     litellm_id: str | None = None
@@ -116,6 +116,7 @@ def join_sources(
     *,
     task: TaskProfile | None = None,
     status_out: dict[str, dict[str, Any]] | None = None,
+    include_unmatched_backbone: bool = False,
 ) -> list[ModelCandidate]:
     """Join every source into the OR backbone. Unmatched records are dropped.
 
@@ -164,6 +165,33 @@ def join_sources(
             # Self-monitoring: ``row_count=214 matched_count=0`` exposes a broken
             # join instead of silently falling back to catalog-embedded scores.
             status_out.setdefault(source_name, {})["matched_count"] = matched
+
+    if include_unmatched_backbone:
+        # Boards-backbone profiles (embed/rerank): models the OR catalog does
+        # not list stay measurable on their own — hf/board key becomes the
+        # identity; records that DID match an OR row are already merged above.
+        board_cands: dict[str, ModelCandidate] = {}
+        for source_name, records in source_records.items():
+            if source_name == "openrouter_models":
+                continue
+            for key, rec in records.items():
+                if rec.score is None or _match_key(rec, alias_index, part_index) is not None:
+                    continue
+                k = slugify(rec.key)
+                cand = board_cands.get(k)
+                if cand is None:
+                    cand = ModelCandidate(
+                        or_slug=None,
+                        name=rec.name or str(key),
+                        hf_id=str(key) if "/" in str(key) else None,
+                        litellm_id=str(key),
+                        raw={"board_backbone": source_name, "board_key": str(key)},
+                    )
+                    board_cands[k] = cand
+                cand.scores[source_name] = rec.score
+                if rec.score_ci is not None:
+                    cand.score_cis[source_name] = rec.score_ci
+        candidates.update({f"board:{k}": v for k, v in board_cands.items()})
     return list(candidates.values())
 
 

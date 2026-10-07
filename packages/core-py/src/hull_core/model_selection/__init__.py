@@ -212,20 +212,23 @@ def candidates(
     that for its ``source_status`` snapshot block).
 
     Returns ``[]`` when the OpenRouter backbone is missing or empty
-    (``or_backbone_empty`` is logged): without catalog rows there is nothing
-    the module is allowed to auto-promote.
+    (``or_backbone_empty`` is logged) for ``backbone="or"`` profiles: without
+    catalog rows there is nothing the module is allowed to auto-promote.
+    ``backbone="boards"`` profiles (embed/rerank) rank the fetched boards
+    directly — OR is optional there. Free-tier ($0) models are never selected
+    on ``backbone="or"`` profiles.
     """
     profile = get_task(task)
     registry = sources if sources is not None else SOURCE_REGISTRY
     use_cache = cache if sources is None else None  # fixtures/plugins do not write cache
 
     or_source = registry.get("openrouter_models")
-    if or_source is None:
+    if or_source is None and profile.backbone == "or":
         logger.warning("model_selection: missing openrouter_models backbone")
         _record_status(status_out, "openrouter_models", "missing", reason="backbone_source_absent")
         return []
-    or_records = _fetch_source(or_source, use_cache, refresh, status_out)
-    if not or_records:
+    or_records = _fetch_source(or_source, use_cache, refresh, status_out) if or_source is not None else {}
+    if not or_records and profile.backbone == "or":
         logger.warning(
             "model_selection or_backbone_empty: task=%s — no OpenRouter-listed models to "
             "auto-promote; pass a sources override with joinable OR-catalog entries to proceed",
@@ -240,7 +243,13 @@ def candidates(
             continue  # source missing from an override map — fail-open
         source_records[name] = _fetch_source(source, use_cache, refresh, status_out)
 
-    cands = join_sources(or_records, source_records, task=profile, status_out=status_out)
+    cands = join_sources(
+        or_records,
+        source_records,
+        task=profile,
+        status_out=status_out,
+        include_unmatched_backbone=profile.backbone == "boards",
+    )
     version_guard(cands)
     minmax_normalize(cands)
     blend_quality(cands, profile)
@@ -250,12 +259,26 @@ def candidates(
     cands = [c for c in cands if c.scores]
     for cand in cands:
         cand.cost_1m_blended = blended_cost_1m(cand, profile)
+    if profile.backbone == "or":
+        # Selection never uses free-tier models (2026-10-07 directive): $0
+        # pricing is a promo slot, not evidence-backed quality. Unknown-cost
+        # rows stay but cannot rank (pareto_rank None).
+        free = sum(1 for c in cands if c.cost_1m_blended == 0)
+        if free:
+            logger.info("model_selection: excluded %d free-tier models", free)
+        cands = [c for c in cands if c.cost_1m_blended != 0]
     cands = [c for c in cands if passes_constraints(c, profile.constraints)]
-    assign_pareto_ranks(cands)
-    # Sentinel inf instead of len(cands): while list.sort() runs, the list is
-    # detached and len() returns 0 — dominated members would be pushed to the
-    # front. None-cost candidates keep rank None -> also sort to the back.
-    cands.sort(key=lambda c: (c.pareto_rank if c.pareto_rank is not None else math.inf, -c.quality))
+    if profile.backbone == "boards":
+        # No cost dimension (boards don't price) — rank purely by blended quality.
+        cands.sort(key=lambda c: -c.quality)
+        for i, cand in enumerate(cands):
+            cand.pareto_rank = i
+    else:
+        assign_pareto_ranks(cands)
+        # Sentinel inf instead of len(cands): while list.sort() runs, the list is
+        # detached and len() returns 0 — dominated members would be pushed to the
+        # front. None-cost candidates keep rank None -> also sort to the back.
+        cands.sort(key=lambda c: (c.pareto_rank if c.pareto_rank is not None else math.inf, -c.quality))
     return cands
 
 
@@ -279,6 +302,8 @@ def enrich_uptime(cands: list[ModelCandidate], *, limit: int = 20) -> list[Model
     this data.
     """
     for cand in cands[:limit]:
+        if cand.or_slug is None:
+            continue  # boards-backbone candidate: no OR endpoints to enrich
         stats = fetch_endpoint_stats(cand.or_slug)
         if not stats:
             continue

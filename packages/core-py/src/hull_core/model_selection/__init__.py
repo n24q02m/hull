@@ -47,7 +47,6 @@ knowledge_core.model_selection); hull_core conventions: stdlib logging, no struc
 from __future__ import annotations
 
 import logging
-import math
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any, Literal
@@ -62,7 +61,6 @@ from hull_core.model_selection.normalize import (
     passes_constraints,
     version_guard,
 )
-from hull_core.model_selection.pareto import assign_pareto_ranks
 from hull_core.model_selection.pareto import pick as _pick
 from hull_core.model_selection.registry import (
     ModelRegistry,
@@ -85,6 +83,10 @@ from hull_core.model_selection.sources import (
 from hull_core.model_selection.tasks import TASKS, Constraints, TaskProfile, get_task
 
 logger = logging.getLogger(__name__)
+
+# "Rank cao" tier: models within 1 blended-quality point of the leader share
+# the top tier; price decides inside it (matches the drift tolerance).
+_QUALITY_TIER_TOLERANCE = 1.0
 
 __all__ = [
     "SOURCE_REGISTRY",
@@ -199,7 +201,7 @@ def candidates(
     sources: Mapping[str, Source] | None = None,
     status_out: dict[str, dict[str, Any]] | None = None,
 ) -> list[ModelCandidate]:
-    """Ranked candidate list for a task, frontier first, dominated after.
+    """Ranked candidate list for a task, leaderboard-rank first, unranked after.
 
     ``sources`` overrides the registry (tests/plugins); defaults to
     ``SOURCE_REGISTRY``. Names in the TaskProfile resolve against the map;
@@ -274,11 +276,32 @@ def candidates(
         for i, cand in enumerate(cands):
             cand.pareto_rank = i
     else:
-        assign_pareto_ranks(cands)
-        # Sentinel inf instead of len(cands): while list.sort() runs, the list is
-        # detached and len() returns 0 — dominated members would be pushed to the
-        # front. None-cost candidates keep rank None -> also sort to the back.
-        cands.sort(key=lambda c: (c.pareto_rank if c.pareto_rank is not None else math.inf, -c.quality))
+        # Leaderboard-rank-first (2026-10-07 directive "rank cao mà giá rẻ
+        # nhất"): a model must be measured by >= 2 boards AND carry known
+        # blended cost to be a ranked joined result (single-board or unpriced
+        # models stay unranked/weak — "giá rẻ nhất" is undefinable without a
+        # price); among ranked models the top quality tier (within tolerance)
+        # leads, cheapest first inside the tier — price breaks ties, it never
+        # outranks board standing.
+        multi = [c for c in cands if len(c.scores) >= 2 and c.cost_1m_blended is not None]
+        single = [c for c in cands if len(c.scores) < 2 or c.cost_1m_blended is None]
+
+        def _cost(c: ModelCandidate) -> float:
+            assert c.cost_1m_blended is not None  # filtered into ``multi`` above
+            return c.cost_1m_blended
+
+        single.sort(key=lambda c: -c.quality)
+        multi.sort(key=lambda c: (-c.quality, _cost(c)))
+        if multi:
+            top_q = multi[0].quality
+            tier = [c for c in multi if c.quality >= top_q - _QUALITY_TIER_TOLERANCE]
+            rest = [c for c in multi if c.quality < top_q - _QUALITY_TIER_TOLERANCE]
+            tier.sort(key=_cost)
+            rest.sort(key=lambda c: (-c.quality, _cost(c)))
+            multi = tier + rest
+        for i, cand in enumerate(multi):
+            cand.pareto_rank = i
+        cands = multi + single
     return cands
 
 

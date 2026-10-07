@@ -42,6 +42,7 @@ FIELDS = (
     "cost_1m_blended",
     "context",
     "pareto_rank",
+    "rank_distance",
     "scores",
     "evidence",
     "weak_evidence",

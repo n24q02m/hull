@@ -206,12 +206,12 @@ def test_or_backbone_excludes_free_tier_models():
     assert [c.or_slug for c in cands] == ["vendor-a/paid"]  # free model dropped despite q=99
 
 
-def test_leaderboard_rank_first_cheapest_wins_top_tier():
-    """Within the top quality tier price decides; below the tier quality leads.
+def test_rank_aggregation_cheap_in_points_wins():
+    """Board points -> board_rank; price -> price_rank; min sum wins rank-0.
 
-    Board scores are relative (normalized per source), so the fixture keeps the
-    two rivals' relative standing within the 1.0 tier tolerance after blending:
-    spec favors pro, agg favors value, blended gap ~0.67 < 1.0."""
+    pro/value tie on board points (119/119) but value is 10x cheaper, so its
+    price_rank pulls the sum down: value rank-0. anchor accumulates no points
+    and trails on both ranks despite mid price."""
     or_rows = [
         _or_row("vendor-a/pro", prompt="0.00001", completion="0.00002"),  # 10x pricier
         _or_row("vendor-a/value", prompt="0.000001", completion="0.000002"),
@@ -233,12 +233,44 @@ def test_leaderboard_rank_first_cheapest_wins_top_tier():
         "agg_board": _FakeSource("agg_board", agg),
     }
     cands = candidates(_TASK, sources=sources)
-    # pro and value blend into the same top tier (within 1.0) -> cheaper value leads;
-    # anchor has bottom-tier quality -> ranked after despite being cheap.
-    assert cands[0].or_slug == "vendor-a/value"
+    # board: pro/value tie 119 pts (pro first by slug tie-break), anchor 0
+    # price: value 1.5, anchor 1.5 (worse quality), pro 15 -> 1,2,3
+    # sums: value 3, pro 4, anchor 5 -> value, pro, anchor
+    assert [c.or_slug for c in cands] == ["vendor-a/value", "vendor-a/pro", "vendor-a/anchor"]
+    assert [c.rank_distance for c in cands] == [1, 2, 1]
     assert cands[0].pareto_rank == 0
-    assert cands[1].or_slug == "vendor-a/pro"
-    assert cands[2].or_slug == "vendor-a/anchor"
+
+
+def test_rank_aggregation_sweet_spot_beats_leader():
+    """Best-on-boards + expensive loses to the near-top model that is cheap.
+
+    leader: board #1 (200 pts) but price #3 -> sum 4;
+    sweet:  board #2 (185 pts) and price #1 -> sum 3 wins rank-0;
+    tail:   worst on both -> last."""
+    or_rows = [
+        _or_row("vendor-a/leader", prompt="0.0001", completion="0.0002"),
+        _or_row("vendor-a/sweet", prompt="0.000001", completion="0.000002"),
+        _or_row("vendor-a/tail", prompt="0.00001", completion="0.00002"),
+    ]
+    spec = {
+        "vendor-a/leader": SourceRecord(key="vendor-a/leader", score=90.0),
+        "vendor-a/sweet": SourceRecord(key="vendor-a/sweet", score=80.0),
+        "vendor-a/tail": SourceRecord(key="vendor-a/tail", score=10.0),
+    }
+    agg = {
+        "vendor-a/leader": SourceRecord(key="vendor-a/leader", score=88.0),
+        "vendor-a/sweet": SourceRecord(key="vendor-a/sweet", score=86.0),
+        "vendor-a/tail": SourceRecord(key="vendor-a/tail", score=8.0),
+    }
+    sources = {
+        "openrouter_models": _FakeSource("openrouter_models", _or_source(or_rows)),
+        "spec_board": _FakeSource("spec_board", spec),
+        "agg_board": _FakeSource("agg_board", agg),
+    }
+    cands = candidates(_TASK, sources=sources)
+    assert [c.or_slug for c in cands] == ["vendor-a/sweet", "vendor-a/leader", "vendor-a/tail"]
+    assert [c.rank_distance for c in cands] == [1, 2, 1]
+    assert cands[0].pareto_rank == 0
 
 
 def test_single_board_models_stay_unranked():
@@ -453,12 +485,14 @@ def test_candidates_end_to_end():
     cands = candidates(_TASK, sources=_fixture_sources())
     slugs = [c.or_slug for c in cands]
     assert "m/no-ctx" not in slugs  # prefilter
-    # leaderboard-rank-first: highest blended board quality leads the list
-    assert cands[0].or_slug == "m/best"
-    ranks = {c.or_slug: c.pareto_rank for c in cands}
-    assert set(ranks) == {"m/best", "m/knee", "m/cheap-bad", "m/dominated"}
-    assert all(r is not None for r in ranks.values())  # every 2-board model is ranked
-    assert sorted(r for r in ranks.values() if r is not None) == [0, 1, 2, 3]
+    # rank-aggregation: order by board_rank + price_rank, then |distance|.
+    # points: best 200, knee ~180, cheap ~31, dom 0 -> board 1,2,3,4
+    # price: cheap .15, knee .75, best 7.5, dom 15 -> price 1,2,3,4
+    # sums 4/4/4/8, distances 0/2/2/0 -> knee, best, cheap, dominated
+    assert [c.or_slug for c in cands] == ["m/knee", "m/best", "m/cheap-bad", "m/dominated"]
+    assert [c.rank_distance for c in cands] == [0, 2, 2, 0]
+    ranks = [c.pareto_rank for c in cands]
+    assert ranks == [0, 1, 2, 3]
 
 
 def test_pick_knee_end_to_end():

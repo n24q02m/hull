@@ -49,7 +49,8 @@ from __future__ import annotations
 import logging
 import math
 from collections.abc import Mapping
-from typing import Literal
+from datetime import UTC, datetime
+from typing import Any, Literal
 
 from hull_core.model_selection.cache import FileCache
 from hull_core.model_selection.normalize import (
@@ -77,6 +78,8 @@ from hull_core.model_selection.sources import (
     SOURCE_REGISTRY,
     Source,
     SourceRecord,
+    SourceStatus,
+    UnimplementedSource,
     fetch_endpoint_stats,
 )
 from hull_core.model_selection.tasks import TASKS, Constraints, TaskProfile, get_task
@@ -91,6 +94,7 @@ __all__ = [
     "ModelCandidate",
     "Source",
     "SourceRecord",
+    "SourceStatus",
     "TaskProfile",
     "candidates",
     "enrich_uptime",
@@ -113,11 +117,51 @@ __all__ += [
 ]
 
 
-def _fetch_source(source: Source, cache: FileCache | None, refresh: bool) -> dict[str, SourceRecord]:
-    """Fetch one source through the cache; empty/failed fetch -> try stale snapshot."""
+def _now_iso() -> str:
+    return datetime.now(UTC).isoformat(timespec="seconds")
+
+
+def _fetched_iso(epoch: float | None) -> str | None:
+    return _now_iso() if epoch is None else datetime.fromtimestamp(epoch, UTC).isoformat(timespec="seconds")
+
+
+def _record_status(
+    status_out: dict[str, dict[str, Any]] | None,
+    name: str,
+    status: str,
+    *,
+    row_count: int = 0,
+    reason: str | None = None,
+    fetched_at: str | None = None,
+) -> None:
+    if status_out is not None:
+        status_out[name] = SourceStatus(status, fetched_at=fetched_at, row_count=row_count, reason=reason).to_dict()
+
+
+def _fetch_source(
+    source: Source,
+    cache: FileCache | None,
+    refresh: bool,
+    status_out: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, SourceRecord]:
+    """Fetch one source through the cache; empty/failed fetch -> try stale snapshot.
+
+    When ``status_out`` is given, records per-source health (ok / stale /
+    missing / unimplemented_access) under the source's name.
+    """
+    if isinstance(source, UnimplementedSource):
+        _record_status(status_out, source.name, "unimplemented_access", reason=source.reason)
+        return {}
     if cache is not None and not refresh:
         cached = cache.get(source.name, source.ttl_seconds)
         if cached is not None:
+            _record_status(
+                status_out,
+                source.name,
+                "ok",
+                row_count=len(cached),
+                fetched_at=_fetched_iso(cache.fetched_at(source.name)),
+            )
             return {k: SourceRecord.from_dict(v) for k, v in cached.items()}
     try:
         records = source.fetch()
@@ -127,12 +171,23 @@ def _fetch_source(source: Source, cache: FileCache | None, refresh: bool) -> dic
     if records:
         if cache is not None:
             cache.set(source.name, {k: r.to_dict() for k, r in records.items()})
+        _record_status(status_out, source.name, "ok", row_count=len(records), fetched_at=_now_iso())
         return records
+    reason = getattr(source, "missing_reason", None) or "empty_fetch"
     if cache is not None:
         stale = cache.get(source.name, float("inf"), allow_stale=True)
         if stale:
             logger.info("model_selection using stale cache: source=%s", source.name)
+            _record_status(
+                status_out,
+                source.name,
+                "stale",
+                row_count=len(stale),
+                reason=f"{reason}; served from stale cache",
+                fetched_at=_fetched_iso(cache.fetched_at(source.name)),
+            )
             return {k: SourceRecord.from_dict(v) for k, v in stale.items()}
+    _record_status(status_out, source.name, "missing", reason=reason)
     return records
 
 
@@ -142,12 +197,19 @@ def candidates(
     refresh: bool = False,
     cache: FileCache | None = None,
     sources: Mapping[str, Source] | None = None,
+    status_out: dict[str, dict[str, Any]] | None = None,
 ) -> list[ModelCandidate]:
     """Ranked candidate list for a task, frontier first, dominated after.
 
     ``sources`` overrides the registry (tests/plugins); defaults to
-    ``SOURCE_REGISTRY``. Names in the TaskProfile without an entry in the map
-    are skipped fail-open.
+    ``SOURCE_REGISTRY``. Names in the TaskProfile resolve against the map;
+    a name missing from the override map is skipped fail-open (registry
+    defaults resolve everything).
+
+    ``status_out`` (optional) collects per-source health as
+    ``{source_name: {status, fetched_at, row_count, reason}}`` — the same dict
+    can be reused across ``candidates()`` calls (the publisher does exactly
+    that for its ``source_status`` snapshot block).
 
     Returns ``[]`` when the OpenRouter backbone is missing or empty
     (``or_backbone_empty`` is logged): without catalog rows there is nothing
@@ -160,8 +222,9 @@ def candidates(
     or_source = registry.get("openrouter_models")
     if or_source is None:
         logger.warning("model_selection: missing openrouter_models backbone")
+        _record_status(status_out, "openrouter_models", "missing", reason="backbone_source_absent")
         return []
-    or_records = _fetch_source(or_source, use_cache, refresh)
+    or_records = _fetch_source(or_source, use_cache, refresh, status_out)
     if not or_records:
         logger.warning(
             "model_selection or_backbone_empty: task=%s — no OpenRouter-listed models to "
@@ -174,8 +237,8 @@ def candidates(
     for name in (*profile.specialized_sources, *profile.aggregate_sources):
         source = registry.get(name)
         if source is None:
-            continue  # fetcher not written / consumer plugin — fail-open
-        source_records[name] = _fetch_source(source, use_cache, refresh)
+            continue  # source missing from an override map — fail-open
+        source_records[name] = _fetch_source(source, use_cache, refresh, status_out)
 
     cands = join_sources(or_records, source_records, task=profile)
     version_guard(cands)

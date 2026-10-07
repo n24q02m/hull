@@ -52,3 +52,11 @@ class FileCache:
             tmp.replace(path)
         except OSError as exc:
             logger.warning("model_selection cache write failed: source=%s error=%s", source, exc)
+
+    def fetched_at(self, source: str) -> float | None:
+        """Epoch seconds of the cached snapshot's pull, None when absent/corrupt."""
+        path = self._path(source)
+        try:
+            return float(json.loads(path.read_text(encoding="utf-8"))["fetched_at"])
+        except (OSError, ValueError, KeyError, TypeError):
+            return None

@@ -60,7 +60,7 @@ class ModelCandidate:
     or_task_spend_share: float | None = None
     pareto_rank: int | None = None  # 0..k-1 on the frontier; None = dominated or unknown cost
     evidence: tuple[str, ...] = ()  # boards that contributed a score
-    weak_evidence: bool = False  # only OR usage/pricing, no board score
+    weak_evidence: bool = False  # fewer than two contributing boards (honest label)
     raw: dict[str, Any] = field(default_factory=dict)
 
 
@@ -209,6 +209,11 @@ def blend_quality(candidates: list[ModelCandidate], task: TaskProfile) -> None:
     w_spec = task.quality_weight when specialized covers >=80% of scored
     candidates, else 0.5. A model with only one layer of scores uses that
     layer (not a 0).
+
+    Evidence semantics (honest labels): fewer than TWO contributing boards is
+    weak evidence — a single-board candidate (e.g. only the embedded AA index)
+    can be a stale or idiosyncratic ranking. Consumers gate strong selection on
+    ``weak_evidence == False`` AND ``pareto_rank == 0``.
     """
     spec = set(task.specialized_sources)
     agg = set(task.aggregate_sources)
@@ -226,8 +231,10 @@ def blend_quality(candidates: list[ModelCandidate], task: TaskProfile) -> None:
             cand.quality = sum(agg_vals) / len(agg_vals)
         else:
             cand.quality = 0.0
-            cand.weak_evidence = True
         cand.evidence = tuple(sorted(cand.scores))
+        # weak = fewer than two contributing boards (zero-board candidates
+        # included); multi-board data is what makes a strong label achievable.
+        cand.weak_evidence = len(cand.evidence) < 2
         cis = [cand.score_cis[s] for s in cand.scores if s in cand.score_cis]
         cand.quality_ci = max(cis) if cis else None
 

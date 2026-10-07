@@ -86,10 +86,35 @@ def _alias_index(or_records: dict[str, SourceRecord]) -> dict[str, str]:
     return index
 
 
-def _match_key(rec: SourceRecord, alias_index: dict[str, str]) -> str | None:
+def _part_index(or_records: dict[str, SourceRecord]) -> dict[str, list[str]]:
+    """Model-part -> or_slugs index: last ``/`` segment of each slug, slugified.
+
+    Boards frequently publish vendor-less keys (``claude-opus-5-5`` vs the
+    catalog's ``anthropic/claude-opus-5.5``). The part maps back only when it
+    is unique across the catalog — ambiguous parts stay unmatched.
+    """
+    index: dict[str, list[str]] = {}
+    for slug in or_records:
+        part = slugify(slug.rsplit("/", 1)[-1])
+        slugs = index.setdefault(part, [])
+        if slug not in slugs:
+            slugs.append(slug)
+    return index
+
+
+def _match_key(
+    rec: SourceRecord,
+    alias_index: dict[str, str],
+    part_index: dict[str, list[str]] | None = None,
+) -> str | None:
     for cand in (rec.key, slugify(rec.key), slugify(rec.name) if rec.name else None):
         if cand and cand in alias_index:
             return alias_index[cand]
+    if part_index is not None:
+        for cand in (slugify(rec.key), slugify(rec.name) if rec.name else None):
+            hits = part_index.get(cand) if cand else None
+            if hits and len(hits) == 1:
+                return hits[0]
     return None
 
 
@@ -106,6 +131,7 @@ def join_sources(
     ``aggregate_sources``.
     """
     alias_index = _alias_index(or_records)
+    part_index = _part_index(or_records)
     candidates: dict[str, ModelCandidate] = {}
     for slug, rec in or_records.items():
         row = rec.raw
@@ -131,7 +157,7 @@ def join_sources(
         if source_name == "openrouter_models":
             continue
         for rec in records.values():
-            slug = _match_key(rec, alias_index)
+            slug = _match_key(rec, alias_index, part_index)
             if slug is None:
                 continue
             cand = candidates[slug]

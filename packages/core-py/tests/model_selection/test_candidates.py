@@ -206,12 +206,10 @@ def test_or_backbone_excludes_free_tier_models():
     assert [c.or_slug for c in cands] == ["vendor-a/paid"]  # free model dropped despite q=99
 
 
-def test_leaderboard_rank_first_cheapest_wins_top_tier():
-    """Within the top quality tier price decides; below the tier quality leads.
-
-    Board scores are relative (normalized per source), so the fixture keeps the
-    two rivals' relative standing within the 1.0 tier tolerance after blending:
-    spec favors pro, agg favors value, blended gap ~0.67 < 1.0."""
+def test_rank_aggregation_prefers_models_good_on_both_axes():
+    """Board points give the rank; price rank comes second; the winner is the
+    model closest on both (small sum, small distance) — price never outranks
+    board standing by itself."""
     or_rows = [
         _or_row("vendor-a/pro", prompt="0.00001", completion="0.00002"),  # 10x pricier
         _or_row("vendor-a/value", prompt="0.000001", completion="0.000002"),
@@ -233,16 +231,17 @@ def test_leaderboard_rank_first_cheapest_wins_top_tier():
         "agg_board": _FakeSource("agg_board", agg),
     }
     cands = candidates(_TASK, sources=sources)
-    # pro and value blend into the same top tier (within 1.0) -> cheaper value leads;
-    # anchor has bottom-tier quality -> ranked after despite being cheap.
-    assert cands[0].or_slug == "vendor-a/value"
+    # board points: pro=value (tie, slug order) > anchor; price: value=anchor
+    # (tie) < pro -> value sum 3 dist 1 wins; pro sum 4; anchor sum 5.
+    assert [c.or_slug for c in cands[:2]] == ["vendor-a/value", "vendor-a/pro"]
     assert cands[0].pareto_rank == 0
-    assert cands[1].or_slug == "vendor-a/pro"
+    assert cands[0].rank_distance == 1
     assert cands[2].or_slug == "vendor-a/anchor"
 
 
-def test_single_board_models_stay_unranked():
-    """One board is not a joined ranking: single-board models keep rank None."""
+def test_single_board_models_rank_but_stay_weak():
+    """A single board still contributes points, but the honest weak label keeps
+    consumers (rank==0 AND weak==False) from selecting it."""
     or_rows = [_or_row("m/a", context=64_000)]
     spec = {"m/a": SourceRecord(key="m/a", score=90.0)}
     sources = {
@@ -252,8 +251,8 @@ def test_single_board_models_stay_unranked():
     }
     cands = candidates(_TASK, sources=sources)
     assert [c.or_slug for c in cands] == ["m/a"]
-    assert cands[0].pareto_rank is None
-    assert cands[0].weak_evidence is True
+    assert cands[0].pareto_rank == 0  # ranked: board points + price position exist
+    assert cands[0].weak_evidence is True  # but honestly weak: one board only
 
 
 def test_join_sources_records_matched_count():
@@ -453,12 +452,18 @@ def test_candidates_end_to_end():
     cands = candidates(_TASK, sources=_fixture_sources())
     slugs = [c.or_slug for c in cands]
     assert "m/no-ctx" not in slugs  # prefilter
-    # leaderboard-rank-first: highest blended board quality leads the list
-    assert cands[0].or_slug == "m/best"
+    # rank-aggregation: board points -> board_rank; cost -> price_rank;
+    # final = smallest board_rank+price_rank, then distance, then board rank.
+    # Fixture: board_rank best1 knee2 cheap3 dom4; price_rank cheap1 knee2
+    # best3 dom4 -> sums knee4 best4 cheap4 dom8; distances knee0 best2
+    # cheap2 dom0 -> order knee, best, cheap-bad, dominated.
     ranks = {c.or_slug: c.pareto_rank for c in cands}
-    assert set(ranks) == {"m/best", "m/knee", "m/cheap-bad", "m/dominated"}
-    assert all(r is not None for r in ranks.values())  # every 2-board model is ranked
-    assert sorted(r for r in ranks.values() if r is not None) == [0, 1, 2, 3]
+    assert ranks == {"m/knee": 0, "m/best": 1, "m/cheap-bad": 2, "m/dominated": 3}
+    by_slug = {c.or_slug: c for c in cands}
+    assert by_slug["m/best"].board_rank == 1
+    assert by_slug["m/cheap-bad"].price_rank == 1
+    assert by_slug["m/knee"].rank_distance == 0
+    assert by_slug["m/dominated"].rank_distance == 0  # uniformly last, not a bargain
 
 
 def test_pick_knee_end_to_end():

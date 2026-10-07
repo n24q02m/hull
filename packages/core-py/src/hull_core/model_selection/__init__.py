@@ -84,10 +84,6 @@ from hull_core.model_selection.tasks import TASKS, Constraints, TaskProfile, get
 
 logger = logging.getLogger(__name__)
 
-# "Rank cao" tier: models within 1 blended-quality point of the leader share
-# the top tier; price decides inside it (matches the drift tolerance).
-_QUALITY_TIER_TOLERANCE = 1.0
-
 __all__ = [
     "SOURCE_REGISTRY",
     "TASKS",
@@ -276,32 +272,39 @@ def candidates(
         for i, cand in enumerate(cands):
             cand.pareto_rank = i
     else:
-        # Leaderboard-rank-first (2026-10-07 directive "rank cao mà giá rẻ
-        # nhất"): a model must be measured by >= 2 boards AND carry known
-        # blended cost to be a ranked joined result (single-board or unpriced
-        # models stay unranked/weak — "giá rẻ nhất" is undefinable without a
-        # price); among ranked models the top quality tier (within tolerance)
-        # leads, cheapest first inside the tier — price breaks ties, it never
-        # outranks board standing.
-        multi = [c for c in cands if len(c.scores) >= 2 and c.cost_1m_blended is not None]
-        single = [c for c in cands if len(c.scores) < 2 or c.cost_1m_blended is None]
+        # Rank-aggregation across boards then price (2026-10-07 directive):
+        # 1) each model accumulates points = sum of its normalized per-board
+        #    scores (0-100, name-normalized join) over ALL boards that
+        #    measured it -> board_rank (multi-board presence scores higher);
+        # 2) price_rank = cheapest-first among cost-known models;
+        # 3) final order = best on BOTH dimensions: smallest
+        #    board_rank + price_rank, then smallest |board_rank - price_rank|
+        #    distance, then board standing. Unpriced models keep no rank —
+        #    price position is undefined.
+        ranked = [c for c in cands if c.cost_1m_blended is not None and c.scores]
+        unranked = [c for c in cands if not (c.cost_1m_blended is not None and c.scores)]
 
-        def _cost(c: ModelCandidate) -> float:
-            assert c.cost_1m_blended is not None  # filtered into ``multi`` above
-            return c.cost_1m_blended
+        def _points(c: ModelCandidate) -> float:
+            return sum(c.scores.values())
 
-        single.sort(key=lambda c: -c.quality)
-        multi.sort(key=lambda c: (-c.quality, _cost(c)))
-        if multi:
-            top_q = multi[0].quality
-            tier = [c for c in multi if c.quality >= top_q - _QUALITY_TIER_TOLERANCE]
-            rest = [c for c in multi if c.quality < top_q - _QUALITY_TIER_TOLERANCE]
-            tier.sort(key=_cost)
-            rest.sort(key=lambda c: (-c.quality, _cost(c)))
-            multi = tier + rest
-        for i, cand in enumerate(multi):
+        ranked.sort(key=lambda c: (-_points(c), c.or_slug or ""))
+        for i, cand in enumerate(ranked, 1):
+            cand.board_rank = i
+        for i, cand in enumerate(sorted(ranked, key=lambda c: (c.cost_1m_blended, -_points(c))), 1):
+            cand.price_rank = i
+        for cand in ranked:
+            assert cand.board_rank is not None and cand.price_rank is not None
+            cand.rank_distance = abs(cand.board_rank - cand.price_rank)
+
+        def _agg_key(c: ModelCandidate) -> tuple[int, int, int]:
+            assert c.board_rank is not None and c.price_rank is not None and c.rank_distance is not None
+            return (c.board_rank + c.price_rank, c.rank_distance, c.board_rank)
+
+        ranked.sort(key=_agg_key)
+        for i, cand in enumerate(ranked):
             cand.pareto_rank = i
-        cands = multi + single
+        unranked.sort(key=lambda c: -c.quality)
+        cands = ranked + unranked
     return cands
 
 

@@ -434,9 +434,10 @@ def test_join_sources_skips_openrouter_key_and_embedded_aa():
     assert cand.scores["board"] == 80.0
     assert cand.score_cis["board"] == 2.0
     assert cand.board_versions["board"] == "v4"
-    # embedded AA fallback (task=None -> wanted empty -> apply all)
-    assert cand.scores["artificial_analysis"] == 50.0
-    assert cand.scores["aa_coding_index"] == 60.0
+    # catalog-embedded AA indexes are NEVER board evidence: quality must come
+    # from fetched boards only (boards-first qualification).
+    assert "artificial_analysis" not in cand.scores
+    assert "aa_coding_index" not in cand.scores
     assert "aa_agentic_index" not in cand.scores
     assert cand.scores.get("openrouter_models") != 999.0
 

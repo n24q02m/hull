@@ -139,6 +139,46 @@ def test_alias_join_canonical_and_hf():
     assert len(cands) == 2  # ghost creates no new candidate
 
 
+def test_boards_first_qualification_drops_unmeasured():
+    """Catalog rows with NO board score are not candidates — free is not evidence.
+
+    Boards-first directive: quality evidence comes from fetched boards only;
+    the OpenRouter catalog prices/routes the board-evidenced set, it never
+    qualifies a model on its own.
+    """
+    or_rows = [
+        _or_row("m/evidenced", context=64_000, prompt="0.000005", completion="0.00001"),
+        _or_row("m/free-unmeasured", context=64_000, prompt="0", completion="0"),
+    ]
+    spec = {"m/evidenced": SourceRecord(key="m/evidenced", score=90.0)}
+    sources = {
+        "openrouter_models": _FakeSource("openrouter_models", _or_source(or_rows)),
+        "spec_board": _FakeSource("spec_board", spec),
+        "agg_board": _FakeSource("agg_board", {}),
+    }
+    cands = candidates(_TASK, sources=sources)
+    slugs = [c.or_slug for c in cands]
+    assert "m/free-unmeasured" not in slugs  # zero board score -> not a candidate
+    assert slugs == ["m/evidenced"]
+
+
+def test_join_sources_records_matched_count():
+    """source_status gains matched_count: row_count=214 matched_count=0 exposes a broken join."""
+    or_records = _or_source([_or_row("m/a"), _or_row("m/b")])
+    board = {
+        "a": SourceRecord(key="m/a", score=80.0),
+        "ghost1": SourceRecord(key="x/ghost1", score=10.0),
+        "ghost2": SourceRecord(key="x/ghost2", score=20.0),
+    }
+    status: dict = {"board": {"status": "ok", "row_count": 3}}
+    join_sources(or_records, {"board": board}, status_out=status)
+    assert status["board"]["matched_count"] == 1
+    # unknown source (not fetched through candidates()) still gets an entry
+    status2: dict = {}
+    join_sources(or_records, {"empty_board": {}}, status_out=status2)
+    assert status2["empty_board"]["matched_count"] == 0
+
+
 def test_alias_join_vendorless_part_unique():
     """Boards publishing vendor-less keys join via the unique model-part fallback."""
     or_records = _or_source(
@@ -331,14 +371,16 @@ def test_pick_cheapest():
 
 
 def test_fail_open_empty_and_broken_sources():
-    """Empty source + raising source -> still returns candidates from the backbone."""
+    """Empty source + raising source -> no crash; no measurable model -> honest []."""
     sources = _fixture_sources()
     sources["spec_board"] = _FailOpenSource("spec_board", ConnectionError("board down"))
     sources["agg_board"] = _FailOpenSource("agg_board", {})
     cands = candidates(_TASK, sources=sources)
-    # No crash; every model remains a candidate (weak_evidence: no board score)
-    assert {c.or_slug for c in cands} == {"m/knee", "m/best", "m/cheap-bad", "m/dominated"}
-    assert all(c.weak_evidence for c in cands)
+    # No crash; but with zero board scores nothing is measurable, so the
+    # boards-first contract returns no candidates (free catalog rows are not
+    # evidence) instead of a quality=0.0 catalog dump.
+    assert cands == []
+    assert pick(_TASK, sources=sources) is None
 
 
 def test_candidates_no_backbone_returns_empty():
@@ -363,8 +405,9 @@ def test_candidates_unknown_source_name_skipped():
             {"m/a": SourceRecord(key="m/a", name="m/a", raw=_or_row("m/a"))},
         )
     }
-    cands = candidates(task, sources=sources)
-    assert [c.or_slug for c in cands] == ["m/a"]
+    # Ghost source is skipped fail-open; with no real board scores the only
+    # catalog row is unmeasured and must NOT surface as a candidate.
+    assert candidates(task, sources=sources) == []
 
 
 def test_candidates_or_records_empty_returns_empty():

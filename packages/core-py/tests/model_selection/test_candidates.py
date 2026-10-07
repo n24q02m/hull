@@ -187,6 +187,79 @@ def test_boards_backbone_ranks_mteb_without_or():
     assert cands[0].quality == pytest.approx(100.0)  # minmax-normalized 0-100
 
 
+def test_boards_backbone_unifies_variant_keys_across_boards():
+    """Same model under variant keys on different boards pools its points.
+
+    'thenlper/gte-large' (retrieval table) and 'gte-large' (classification
+    table) are one model: one candidate carrying BOTH boards -> strong
+    (weak_evidence False). Identity resolution is exact slugified key first,
+    then the vendor-less model part when unique across all fetched keys."""
+    task = TaskProfile(
+        name="embedding-boards",
+        specialized_sources=("mteb_retrieval", "mteb_classification"),
+        aggregate_sources=(),
+        backbone="boards",
+    )
+    sources = {
+        "mteb_retrieval": _FakeSource(
+            "mteb_retrieval",
+            {
+                "thenlper/gte-large": SourceRecord(key="thenlper/gte-large", name="gte-large", score=90.0),
+                "voyage-3-large": SourceRecord(key="voyage-3-large", name="voyage", score=95.0),
+                "junk-embed-a": SourceRecord(key="junk-embed-a", name="junk-a", score=50.0),
+            },
+        ),
+        "mteb_classification": _FakeSource(
+            "mteb_classification",
+            {
+                "gte-large": SourceRecord(key="gte-large", name="gte-large", score=85.0),
+                "voyage-3-large": SourceRecord(key="voyage-3-large", name="voyage", score=92.0),
+                "junk-embed-b": SourceRecord(key="junk-embed-b", name="junk-b", score=40.0),
+            },
+        ),
+    }
+    cands = candidates(task, sources=sources)
+    gte = [c for c in cands if "gte-large" in (c.litellm_id or "") + (c.name or "")]
+    assert len(gte) == 1, "variant keys must unify into ONE candidate, not fragment"
+    g = gte[0]
+    assert set(g.scores) == {"mteb_retrieval", "mteb_classification"}
+    assert g.weak_evidence is False  # two boards -> strong
+    # multi-board pool outranks single-board models: voyage (2 boards) leads,
+    # gte (2 boards, slightly lower standings) second; junk rows trail.
+    assert [c.pareto_rank for c in cands][:2] == [0, 1]
+    assert g.pareto_rank == 1 and cands[0].litellm_id == "voyage-3-large"
+
+
+def test_boards_backbone_scores_points_not_mean():
+    """Board standing sums across variants: an embedder measured on all three
+    MTEB boards with good scores outranks a single-board high scorer."""
+    task = TaskProfile(
+        name="embed-boards",
+        specialized_sources=("mteb_classification", "mteb_retrieval", "mteb_sts"),
+        aggregate_sources=(),
+        backbone="boards",
+    )
+
+    def rec(key: str, score: float) -> SourceRecord:
+        return SourceRecord(key=key, score=score)
+
+    sources = {
+        "mteb_classification": _FakeSource(
+            "mteb_classification",
+            {"m/coverage": rec("m/coverage", 80.0), "m/specialist": rec("m/specialist", 60.0)},
+        ),
+        "mteb_retrieval": _FakeSource(
+            "mteb_retrieval",
+            {"m/coverage": rec("m/coverage", 80.0), "m/specialist": rec("m/specialist", 100.0)},
+        ),
+        "mteb_sts": _FakeSource("mteb_sts", {"m/coverage": rec("m/coverage", 80.0)}),
+    }
+    cands = candidates(task, sources=sources)
+    ids = [c.litellm_id for c in cands]
+    assert ids == ["m/coverage", "m/specialist"]  # 240 points beat 160
+    assert cands[0].pareto_rank == 0
+
+
 def test_or_backbone_excludes_free_tier_models():
     """$0 promo slots are never selected — paid board-evidenced models only."""
     or_rows = [

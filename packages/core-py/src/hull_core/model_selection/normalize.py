@@ -171,27 +171,56 @@ def join_sources(
         # Boards-backbone profiles (embed/rerank): models the OR catalog does
         # not list stay measurable on their own — hf/board key becomes the
         # identity; records that DID match an OR row are already merged above.
-        board_cands: dict[str, ModelCandidate] = {}
+        # Cross-board identity unification (2026-10-07 directive "chuẩn hóa
+        # tên"): the same model published under variant keys on different
+        # boards must pool its points into ONE candidate — else every board
+        # fragment ranks alone and "cộng điểm tất cả bảng" silently degrades
+        # to single-board. Match order: exact slugified key, then the
+        # vendor-less model part when unique across all fetched board keys;
+        # ambiguous parts keep separate identities (no over-merge).
+        board_records: list[tuple[str, str, float, SourceRecord]] = []
         for source_name, records in source_records.items():
             if source_name == "openrouter_models":
                 continue
             for key, rec in records.items():
                 if rec.score is None or _match_key(rec, alias_index, part_index) is not None:
                     continue
-                k = slugify(rec.key)
-                cand = board_cands.get(k)
-                if cand is None:
-                    cand = ModelCandidate(
-                        or_slug=None,
-                        name=rec.name or str(key),
-                        hf_id=str(key) if "/" in str(key) else None,
-                        litellm_id=str(key),
-                        raw={"board_backbone": source_name, "board_key": str(key)},
-                    )
-                    board_cands[k] = cand
-                cand.scores[source_name] = rec.score
-                if rec.score_ci is not None:
-                    cand.score_cis[source_name] = rec.score_ci
+                board_records.append((source_name, str(key), rec.score, rec))
+
+        board_part_index: dict[str, list[str]] = {}
+        for _src, key, _score, _rec in board_records:
+            part = slugify(key.rsplit("/", 1)[-1])
+            hits = board_part_index.setdefault(part, [])
+            if key not in hits:
+                hits.append(key)
+
+        board_cands: dict[str, ModelCandidate] = {}
+
+        def _board_identity(key: str) -> str:
+            slug = slugify(key)
+            if slug in board_cands:
+                return slug
+            part = slugify(key.rsplit("/", 1)[-1])
+            others = [k for k in board_part_index.get(part, []) if k != key]
+            if len(others) == 1 and slugify(others[0]) in board_cands:
+                return slugify(others[0])
+            return slug
+
+        for source_name, key, score, rec in board_records:
+            k = _board_identity(key)
+            cand = board_cands.get(k)
+            if cand is None:
+                cand = ModelCandidate(
+                    or_slug=None,
+                    name=rec.name or key,
+                    hf_id=key if "/" in key else None,
+                    litellm_id=key,
+                    raw={"board_backbone": source_name, "board_key": key},
+                )
+                board_cands[k] = cand
+            cand.scores[source_name] = score
+            if rec.score_ci is not None:
+                cand.score_cis[source_name] = rec.score_ci
         candidates.update({f"board:{k}": v for k, v in board_cands.items()})
     return list(candidates.values())
 

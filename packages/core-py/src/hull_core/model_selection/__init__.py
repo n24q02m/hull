@@ -84,10 +84,6 @@ from hull_core.model_selection.tasks import TASKS, Constraints, TaskProfile, get
 
 logger = logging.getLogger(__name__)
 
-# "Rank cao" tier: models within 1 blended-quality point of the leader share
-# the top tier; price decides inside it (matches the drift tolerance).
-_QUALITY_TIER_TOLERANCE = 1.0
-
 __all__ = [
     "SOURCE_REGISTRY",
     "TASKS",
@@ -201,7 +197,7 @@ def candidates(
     sources: Mapping[str, Source] | None = None,
     status_out: dict[str, dict[str, Any]] | None = None,
 ) -> list[ModelCandidate]:
-    """Ranked candidate list for a task, leaderboard-rank first, unranked after.
+    """Ranked candidate list for a task, rank-aggregated (board + price), weak after.
 
     ``sources`` overrides the registry (tests/plugins); defaults to
     ``SOURCE_REGISTRY``. Names in the TaskProfile resolve against the map;
@@ -276,32 +272,46 @@ def candidates(
         for i, cand in enumerate(cands):
             cand.pareto_rank = i
     else:
-        # Leaderboard-rank-first (2026-10-07 directive "rank cao mà giá rẻ
-        # nhất"): a model must be measured by >= 2 boards AND carry known
-        # blended cost to be a ranked joined result (single-board or unpriced
-        # models stay unranked/weak — "giá rẻ nhất" is undefinable without a
-        # price); among ranked models the top quality tier (within tolerance)
-        # leads, cheapest first inside the tier — price breaks ties, it never
-        # outranks board standing.
-        multi = [c for c in cands if len(c.scores) >= 2 and c.cost_1m_blended is not None]
-        single = [c for c in cands if len(c.scores) < 2 or c.cost_1m_blended is None]
+        # Rank-aggregation picker (2026-10-07 directive): each model
+        # accumulates its standing on every board that measured it (scores
+        # are per-board normalized 0-100, name-normalized join) -> board_rank
+        # by total points; price_rank by blended cost. The pick optimizes
+        # BOTH dimensions: order by (board_rank + price_rank), then
+        # |board_rank - price_rank|, then board_rank. Models measured by
+        # <2 boards are not joined-ranking evidence (weak_evidence stays the
+        # honest label) and unpriced models cannot take a price rank — both
+        # trail with pareto_rank=None.
+        def _strong(c: ModelCandidate) -> bool:
+            return len(c.scores) >= 2 and c.cost_1m_blended is not None
+
+        strong = [c for c in cands if _strong(c)]
+        weak = [c for c in cands if not _strong(c)]
 
         def _cost(c: ModelCandidate) -> float:
-            assert c.cost_1m_blended is not None  # filtered into ``multi`` above
+            assert c.cost_1m_blended is not None  # filtered into ``strong`` above
             return c.cost_1m_blended
 
-        single.sort(key=lambda c: -c.quality)
-        multi.sort(key=lambda c: (-c.quality, _cost(c)))
-        if multi:
-            top_q = multi[0].quality
-            tier = [c for c in multi if c.quality >= top_q - _QUALITY_TIER_TOLERANCE]
-            rest = [c for c in multi if c.quality < top_q - _QUALITY_TIER_TOLERANCE]
-            tier.sort(key=_cost)
-            rest.sort(key=lambda c: (-c.quality, _cost(c)))
-            multi = tier + rest
-        for i, cand in enumerate(multi):
+        board_order = sorted(strong, key=lambda c: (-sum(c.scores.values()), c.or_slug or ""))
+        price_order = sorted(strong, key=lambda c: (_cost(c), -c.quality))
+        board_rank = {id(c): i + 1 for i, c in enumerate(board_order)}
+        price_rank = {id(c): i + 1 for i, c in enumerate(price_order)}
+        keyed = []
+        for cand in strong:
+            cand.rank_distance = abs(board_rank[id(cand)] - price_rank[id(cand)])
+            keyed.append(
+                (
+                    board_rank[id(cand)] + price_rank[id(cand)],
+                    cand.rank_distance,
+                    board_rank[id(cand)],
+                    cand,
+                )
+            )
+        keyed.sort(key=lambda t: (t[0], t[1], t[2]))
+        strong = [t[3] for t in keyed]
+        weak.sort(key=lambda c: -c.quality)
+        for i, cand in enumerate(strong):
             cand.pareto_rank = i
-        cands = multi + single
+        cands = strong + weak
     return cands
 
 

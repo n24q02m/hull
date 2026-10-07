@@ -51,6 +51,7 @@ class ModelCandidate:
     zdr_available: bool | None = None
     or_task_spend_share: float | None = None
     pareto_rank: int | None = None  # 0..k-1 on the frontier; None = dominated or unknown cost
+    rank_distance: int | None = None  # |board_rank - price_rank|; None when no price rank
     evidence: tuple[str, ...] = ()  # boards that contributed a score
     weak_evidence: bool = False  # fewer than two contributing boards (honest label)
     raw: dict[str, Any] = field(default_factory=dict)

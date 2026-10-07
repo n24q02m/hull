@@ -26,14 +26,6 @@ from hull_core.model_selection.tasks import Constraints, TaskProfile
 
 logger = logging.getLogger(__name__)
 
-# AA scores embedded in OR /api/v1/models rows -> aggregate source names.
-# Missing on a row = missing, NOT 0.
-_EMBEDDED_AA_SCORES = {
-    "intelligence_index": "artificial_analysis",
-    "coding_index": "aa_coding_index",
-    "agentic_index": "aa_agentic_index",
-}
-
 _COST_UNKNOWN = math.inf
 
 
@@ -123,12 +115,15 @@ def join_sources(
     source_records: dict[str, dict[str, SourceRecord]],
     *,
     task: TaskProfile | None = None,
+    status_out: dict[str, dict[str, Any]] | None = None,
 ) -> list[ModelCandidate]:
     """Join every source into the OR backbone. Unmatched records are dropped.
 
-    ``task`` is required to use the embedded AA fallback: scores are only
-    filled for sources listed in the task's ``specialized_sources`` /
-    ``aggregate_sources``.
+    Scores come ONLY from fetched board records (all boards join equally —
+    specialized and aggregate alike). The OpenRouter catalog is the pricing/
+    routing backbone, never a source of quality; models with no board score
+    are not measurable and are filtered downstream (boards-first
+    qualification).
     """
     alias_index = _alias_index(or_records)
     part_index = _part_index(or_records)
@@ -149,17 +144,15 @@ def join_sources(
             raw=row,
         )
 
-    wanted = set()
-    if task is not None:
-        wanted = set(task.specialized_sources) | set(task.aggregate_sources)
-
     for source_name, records in source_records.items():
         if source_name == "openrouter_models":
             continue
+        matched = 0
         for rec in records.values():
             slug = _match_key(rec, alias_index, part_index)
             if slug is None:
                 continue
+            matched += 1
             cand = candidates[slug]
             if rec.score is not None:
                 cand.scores[source_name] = rec.score
@@ -167,21 +160,10 @@ def join_sources(
                 cand.score_cis[source_name] = rec.score_ci
             if rec.board_version:
                 cand.board_versions[source_name] = rec.board_version
-
-    # Embedded AA fallback: OR rows already carry intelligence/coding/agentic
-    # indexes; MTEB scores land via the same path once a backbone lists them.
-    for cand in candidates.values():
-        aa = cand.raw.get("benchmarks", {}).get("artificial_analysis")
-        if not isinstance(aa, dict):
-            continue
-        for field_name, source_name in _EMBEDDED_AA_SCORES.items():
-            if wanted and source_name not in wanted:
-                continue
-            if source_name in cand.scores:
-                continue
-            val = aa.get(field_name)
-            if isinstance(val, (int, float)):
-                cand.scores[source_name] = float(val)
+        if status_out is not None:
+            # Self-monitoring: ``row_count=214 matched_count=0`` exposes a broken
+            # join instead of silently falling back to catalog-embedded scores.
+            status_out.setdefault(source_name, {})["matched_count"] = matched
     return list(candidates.values())
 
 
@@ -237,9 +219,9 @@ def blend_quality(candidates: list[ModelCandidate], task: TaskProfile) -> None:
     layer (not a 0).
 
     Evidence semantics (honest labels): fewer than TWO contributing boards is
-    weak evidence — a single-board candidate (e.g. only the embedded AA index)
-    can be a stale or idiosyncratic ranking. Consumers gate strong selection on
-    ``weak_evidence == False`` AND ``pareto_rank == 0``.
+    weak evidence — a single-board candidate can be a stale or idiosyncratic
+    ranking. Consumers gate strong selection on ``weak_evidence == False``
+    AND ``pareto_rank == 0``.
     """
     spec = set(task.specialized_sources)
     agg = set(task.aggregate_sources)

@@ -240,10 +240,14 @@ def candidates(
             continue  # source missing from an override map — fail-open
         source_records[name] = _fetch_source(source, use_cache, refresh, status_out)
 
-    cands = join_sources(or_records, source_records, task=profile)
+    cands = join_sources(or_records, source_records, task=profile, status_out=status_out)
     version_guard(cands)
     minmax_normalize(cands)
     blend_quality(cands, profile)
+    unmeasured = len(cands) - sum(1 for c in cands if c.scores)
+    if unmeasured:
+        logger.info("model_selection: dropped %d catalog rows with no board score", unmeasured)
+    cands = [c for c in cands if c.scores]
     for cand in cands:
         cand.cost_1m_blended = blended_cost_1m(cand, profile)
     cands = [c for c in cands if passes_constraints(c, profile.constraints)]

@@ -1,10 +1,11 @@
 """TaskProfile registry: map an application's task -> preferred sources + constraints.
 
 Source order (per the 22/09 directive): specialized per-task boards FIRST,
-aggregate boards SECOND, OpenRouter as the constraint/tiebreak layer. Source
-names without a fetcher in ``SOURCE_REGISTRY`` are skipped fail-open — the
-registry may point at fetchers a consumer supplies as plugin sources (e.g.
-``ugi``, ``eqbench_creative_v3``, ``aa_healthcare_index``).
+aggregate boards SECOND, OpenRouter as the constraint/tiebreak layer. Every
+source name declared here resolves in ``SOURCE_REGISTRY`` — live fetchers,
+InHouseAnchorSource sets, or an UnimplementedSource recording a probed gap
+(medarena). Consumers may still override individual sources via
+``candidates(..., sources={...})`` plugin maps.
 
 Ported from web_core.model_selection.tasks v2.10.6. The ``embedding`` and
 ``rerank`` profiles intentionally have empty ``aggregate_sources``: embedders
@@ -53,14 +54,14 @@ TASKS: dict[str, TaskProfile] = {
     "translation": TaskProfile(
         name="translation",
         specialized_sources=("wmt24pp", "flores_speakleash"),
-        aggregate_sources=("arena", "artificial_analysis"),
+        aggregate_sources=("benchlm", "arena", "artificial_analysis", "vals_index"),
         constraints=Constraints(min_context=8_192),
         token_mix=(0.7, 0.3, 0.0),  # ingestion input-heavy
     ),
     "story-gen": TaskProfile(
         name="story-gen",
         specialized_sources=("eqbench_creative_v3", "eqbench_longform", "eqbench4"),
-        aggregate_sources=("arena", "artificial_analysis"),
+        aggregate_sources=("benchlm", "arena", "artificial_analysis", "vals_index"),
         constraints=Constraints(min_context=32_768),
         token_mix=(0.4, 0.6, 0.0),
     ),
@@ -82,14 +83,22 @@ TASKS: dict[str, TaskProfile] = {
     "manga-text": TaskProfile(
         name="manga-text",
         specialized_sources=("manga109_v2026", "mangavqa"),
-        aggregate_sources=("arena", "ocrbench"),
+        aggregate_sources=("benchlm", "arena", "ocrbench"),
         constraints=Constraints(min_context=16_384, required_input_modality="image"),
         token_mix=(0.6, 0.4, 0.0),
     ),
     "healthcare-advice": TaskProfile(
         name="healthcare-advice",
         specialized_sources=("aa_healthcare_index", "healthbench"),
-        aggregate_sources=("artificial_analysis", "medhelm", "medarena", "vals_medscribe"),
+        aggregate_sources=(
+            "benchlm",
+            "artificial_analysis",
+            "medhelm",
+            "medarena",  # UnimplementedSource — recorded unimplemented_access in snapshots
+            "vals_medscribe",
+            "open_medical_llm",
+            "bridge",
+        ),
         constraints=Constraints(min_context=32_768, min_uptime_1d=99.0),
         token_mix=(0.2, 0.1, 0.7),  # chat ~ AA 7:2:1 cache:input:output
     ),
@@ -98,27 +107,27 @@ TASKS: dict[str, TaskProfile] = {
         # GAP: no dedicated AQI board -> proxied by healthcare; backlog =
         # in-house eval on synthetic AQI readings.
         specialized_sources=("aa_healthcare_index", "healthbench"),
-        aggregate_sources=("arena", "artificial_analysis"),
+        aggregate_sources=("benchlm", "arena", "artificial_analysis", "vals_index"),
         constraints=Constraints(min_context=16_384),
     ),
     "classification": TaskProfile(
         name="classification",
         specialized_sources=("mteb_classification", "aiora_triage_eval"),
-        aggregate_sources=("artificial_analysis", "arena"),
+        aggregate_sources=("benchlm", "artificial_analysis", "arena", "vals_index"),
         constraints=Constraints(require_structured_outputs=True),
         token_mix=(0.8, 0.2, 0.0),
     ),
     "agentic": TaskProfile(
         name="agentic",
-        specialized_sources=("tau2_bench_or", "bfcl"),
-        aggregate_sources=("artificial_analysis", "gaia"),
+        specialized_sources=("tau2_bench_or", "bfcl", "vals_cua_bench"),
+        aggregate_sources=("benchlm", "artificial_analysis", "gaia", "vals_index"),
         constraints=Constraints(min_context=32_768, require_tools=True, min_uptime_1d=99.0),
         token_mix=(0.5, 0.4, 0.1),
     ),
     "vision": TaskProfile(
         name="vision",
         specialized_sources=("ocrbench",),
-        aggregate_sources=("arena", "artificial_analysis"),
+        aggregate_sources=("benchlm", "arena", "artificial_analysis"),
         constraints=Constraints(required_input_modality="image"),
     ),
     # Spec 2026-09-28 (D-KP6, phase H): permissive/NSFW selection rides the UGI

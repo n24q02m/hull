@@ -1,0 +1,179 @@
+[
+ {
+  "title": "Accuracy",
+  "header": [
+   {
+    "value": "Model",
+    "markdown": false,
+    "metadata": {}
+   },
+   {
+    "value": "Mean win rate",
+    "description": "How many models this model outperforms on average (over columns).",
+    "markdown": false,
+    "lower_is_better": false,
+    "metadata": {}
+   },
+   {
+    "value": "MedCalc-Bench - MedCalc Accuracy",
+    "description": "MedCalc-Bench is a benchmark designed to evaluate models on their ability to compute clinically relevant values from patient notes. Each instance consists of a clinical note describing the patient's condition, a diagnostic question targeting a specific medical value, and a ground truth response. [(Khandekar et al., 2024)](https://arxiv.org/abs/2406.12036).\n\nMedCalc Accuracy: Comparison based on category. Exact match for categories risk, severity and diagnosis. Check if within range for the other categories.",
+    "markdown": false,
+    "lower_is_better": false,
+    "metadata": {
+     "metric": "MedCalc Accuracy",
+     "run_group": "MedCalc-Bench"
+    }
+   },
+   {
+    "value": "CLEAR - EM",
+    "description": "CLEAR is a benchmark designed to evaluate models on their ability to detect medical conditions from patient notes using categorical responses. Each instance consists of a clinical note and a target condition, requiring the model to classify the patient's history as either affirmative, negative, or uncertain [(Lopez et al., 2025)](https://www.nature.com/articles/s41746-024-01377-1).\n\nExact match: Fraction of instances that the predicted output matches a correct reference exactly.",
+    "markdown": false,
+    "lower_is_better": false,
+    "metadata": {
+     "metric": "EM",
+     "run_group": "CLEAR"
+    }
+   },
+   {
+    "value": "MTSamples - Jury Score",
+    "description": "MTSamples Replicate is a benchmark that provides transcribed medical reports from various specialties. It is used to evaluate a model's ability to generate clinically appropriate treatment plans based on unstructured patient documentation [(MTSamples, 2025)](https://mtsamples.com).\n\nMTSamples Replicate Jury Score: Measures the average score assigned by an LLM-based jury evaluating task performance.",
+    "markdown": false,
+    "lower_is_better": false,
+    "metadata": {
+     "metric": "Jury Score",
+     "run_group": "MTSamples"
+    }
+   },
+   {
+    "value": "Medec - MedecFlagAcc",
+    "description": "Medec is a benchmark composed of clinical narratives that include either correct documentation or medical errors. Each entry includes sentence-level identifiers and an associated correction task. The model must review the narrative and either identify the erroneous sentence and correct it, or confirm that the text is entirely accurate [(Abacha et al., 2025)](https://arxiv.org/abs/2412.19260).\n\nMedical Error Flag Accuracy: Measures how accurately the model identifies whether a clinical note contains an error (binary classification of correct/incorrect).",
+    "markdown": false,
+    "lower_is_better": false,
+    "metadata": {
+     "metric": "MedecFlagAcc",
+     "run_group": "Medec"
+    }
+   }
+  ],
+  "rows": [
+   [
+    {
+     "value": "Claude 3.5 Sonnet (20241022)",
+     "description": "",
+     "markdown": false
+    },
+    {
+     "value": 0.5416666666666666,
+     "markdown": false
+    },
+    {
+     "value": 0.218,
+     "description": "min=0.218, mean=0.218, max=0.218, sum=0.218 (1)",
+     "style": {},
+     "markdown": false,
+     "run_spec_names": [
+      "medcalc_bench:model=anthropic_claude-3-5-sonnet-20241022,model_deployment=stanfordhealthcare_claude-3-5-sonnet-20241022"
+     ]
+    },
+    {
+     "value": 0.6633709088997862,
+     "description": "min=0.333, mean=0.663, max=0.836, sum=8.624 (13)",
+     "style": {},
+     "markdown": false,
+     "run_spec_names": [
+      "clear:condition=alcohol_dependence,max_eval_instances=100,model=anthropic_claude-3-5-sonnet-20241022,model_deployment=stanfordhealthcare_claude-3-5-sonnet-20241022",
+      "clear:condition=attention_deficit_hyperactivity_disorder,max_eval_instances=100,model=anthropic_claude-3-5-sonnet-20241022,model_deployment=stanfordhealthcare_claude-3-5-sonnet-20241022",
+      "clear:condition=bipolar_disorder,max_eval_instances=100,model=anthropic_claude-3-5-sonnet-20241022,model_deployment=stanfordhealthcare_claude-3-5-sonnet-20241022",
+      "clear:condition=chronic_pain,max_eval_instances=100,model=anthropic_claude-3-5-sonnet-20241022,model_deployment=stanfordhealthcare_claude-3-5-sonnet-20241022",
+      "clear:condition=homelessness,max_eval_instances=100,model=anthropic_claude-3-5-sonnet-20241022,model_deployment=stanfordhealthcare_claude-3-5-sonnet-20241022",
+      "clear:condition=liver_disease,max_eval_instances=100,model=anthropic_claude-3-5-sonnet-20241022,model_deployment=stanfordhealthcare_claude-3-5-sonnet-20241022",
+      "clear:condition=major_depression,max_eval_instances=100,model=anthropic_claude-3-5-sonnet-20241022,model_deployment=stanfordhealthcare_claude-3-5-sonnet-20241022",
+      "clear:condition=personality_disorder,max_eval_instances=100,model=anthropic_claude-3-5-sonnet-20241022,model_deployment=stanfordhealthcare_claude-3-5-sonnet-20241022",
+      "clear:condition=post_traumatic_stress_disorder,max_eval_instances=100,model=anthropic_claude-3-5-sonnet-20241022,model_deployment=stanfordhealthcare_claude-3-5-sonnet-20241022",
+      "clear:condition=substance_use_disorder,max_eval_instances=100,model=anthropic_claude-3-5-sonnet-20241022,model_deployment=stanfordhealthcare_claude-3-5-sonnet-20241022",
+      "clear:condition=suicidal_behavior,max_eval_instances=100,model=anthropic_claude-3-5-sonnet-20241022,model_deployment=stanfordhealthcare_claude-3-5-sonnet-20241022",
+      "clear:condition=tobacco_dependence,max_eval_instances=100,model=anthropic_claude-3-5-sonnet-20241022,model_deployment=stanfordhealthcare_claude-3-5-sonnet-20241022",
+      "clear:condition=unemployment,max_eval_instances=100,model=anthropic_claude-3-5-sonnet-20241022,model_deployment=stanfordhealthcare_claude-3-5-sonnet-20241022"
+     ]
+    },
+    {
+     "value": 4.382773874577155,
+     "description": "min=4.383, mean=4.383, max=4.383, sum=4.383 (1)",
+     "style": {},
+     "markdown": false,
+     "run_spec_names": [
+      "mtsamples_replicate:model=anthropic_claude-3-5-sonnet-20241022,model_deployment=stanfordhealthcare_claude-3-5-sonnet-20241022"
+     ]
+    },
+    {
+     "value": 0.5209380234505863,
+     "description": "min=0.521, mean=0.521, max=0.521, sum=0.521 (1)",
+     "style": {},
+     "markdown": false,
+     "run_spec_names": [
+      "medec:model=anthropic_claude-3-5-sonnet-20241022,model_deployment=stanfordhealthcare_claude-3-5-sonnet-20241022"
+     ]
+    }
+   ],
+   [
+    {
+     "value": "Claude 3.7 Sonnet (20250219)",
+     "description": "",
+     "markdown": false
+    },
+    {
+     "value": 0.5292792792792793,
+     "markdown": false
+    },
+    {
+     "value": 0.21,
+     "description": "min=0.21, mean=0.21, max=0.21, sum=0.21 (1)",
+     "style": {},
+     "markdown": false,
+     "run_spec_names": [
+      "medcalc_bench:model=anthropic_claude-3-7-sonnet-20250219,model_deployment=stanfordhealthcare_claude-3-7-sonnet-20250219"
+     ]
+    },
+    {
+     "value": 0.6469657842337921,
+     "description": "min=0.333, mean=0.647, max=0.836, sum=8.411 (13)",
+     "style": {},
+     "markdown": false,
+     "run_spec_names": [
+      "clear:condition=alcohol_dependence,max_eval_instances=100,model=anthropic_claude-3-7-sonnet-20250219,model_deployment=stanfordhealthcare_claude-3-7-sonnet-20250219",
+      "clear:condition=attention_deficit_hyperactivity_disorder,max_eval_instances=100,model=anthropic_claude-3-7-sonnet-20250219,model_deployment=stanfordhealthcare_claude-3-7-sonnet-20250219",
+      "clear:condition=bipolar_disorder,max_eval_instances=100,model=anthropic_claude-3-7-sonnet-20250219,model_deployment=stanfordhealthcare_claude-3-7-sonnet-20250219",
+      "clear:condition=chronic_pain,max_eval_instances=100,model=anthropic_claude-3-7-sonnet-20250219,model_deployment=stanfordhealthcare_claude-3-7-sonnet-20250219",
+      "clear:condition=homelessness,max_eval_instances=100,model=anthropic_claude-3-7-sonnet-20250219,model_deployment=stanfordhealthcare_claude-3-7-sonnet-20250219",
+      "clear:condition=liver_disease,max_eval_instances=100,model=anthropic_claude-3-7-sonnet-20250219,model_deployment=stanfordhealthcare_claude-3-7-sonnet-20250219",
+      "clear:condition=major_depression,max_eval_instances=100,model=anthropic_claude-3-7-sonnet-20250219,model_deployment=stanfordhealthcare_claude-3-7-sonnet-20250219",
+      "clear:condition=personality_disorder,max_eval_instances=100,model=anthropic_claude-3-7-sonnet-20250219,model_deployment=stanfordhealthcare_claude-3-7-sonnet-20250219",
+      "clear:condition=post_traumatic_stress_disorder,max_eval_instances=100,model=anthropic_claude-3-7-sonnet-20250219,model_deployment=stanfordhealthcare_claude-3-7-sonnet-20250219",
+      "clear:condition=substance_use_disorder,max_eval_instances=100,model=anthropic_claude-3-7-sonnet-20250219,model_deployment=stanfordhealthcare_claude-3-7-sonnet-20250219",
+      "clear:condition=suicidal_behavior,max_eval_instances=100,model=anthropic_claude-3-7-sonnet-20250219,model_deployment=stanfordhealthcare_claude-3-7-sonnet-20250219",
+      "clear:condition=tobacco_dependence,max_eval_instances=100,model=anthropic_claude-3-7-sonnet-20250219,model_deployment=stanfordhealthcare_claude-3-7-sonnet-20250219",
+      "clear:condition=unemployment,max_eval_instances=100,model=anthropic_claude-3-7-sonnet-20250219,model_deployment=stanfordhealthcare_claude-3-7-sonnet-20250219"
+     ]
+    },
+    {
+     "value": 4.425969294821761,
+     "description": "min=4.426, mean=4.426, max=4.426, sum=4.426 (1)",
+     "style": {},
+     "markdown": false,
+     "run_spec_names": [
+      "mtsamples_replicate:model=anthropic_claude-3-7-sonnet-20250219,model_deployment=stanfordhealthcare_claude-3-7-sonnet-20250219"
+     ]
+    },
+    {
+     "value": 0.628140703517588,
+     "description": "min=0.628, mean=0.628, max=0.628, sum=0.628 (1)",
+     "style": {},
+     "markdown": false,
+     "run_spec_names": [
+      "medec:model=anthropic_claude-3-7-sonnet-20250219,model_deployment=stanfordhealthcare_claude-3-7-sonnet-20250219"
+     ]
+    }
+   ]
+  ]
+ }
+]

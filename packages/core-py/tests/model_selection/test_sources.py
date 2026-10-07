@@ -141,6 +141,17 @@ def test_ugi_csv_parse():
     assert recs["model-x"].score == 88.0
 
 
+def test_ugi_space_mirror_schema_parse():
+    """2026-10-07 mirror schema: BOM + 'author/model_name' + 'UGI <trophy>'."""
+    csv_text = "\ufeffauthor/model_name,UGI 🏆,W/10 👍\nopenai/gpt-6,72.4,88.0\n"
+    with patch(
+        "hull_core.model_selection.sources.httpx.get",
+        return_value=_resp(content=csv_text.encode("utf-8")),
+    ):
+        recs = UGISource().fetch()
+    assert recs["openai-gpt-6"].score == 72.4
+
+
 def test_parse_csv_unrecognized_columns_returns_empty():
     assert _parse_csv_records("foo,bar\n1,2\n", name_cols=("model",), score_cols=("score",)) == {}
 
@@ -158,15 +169,39 @@ def test_first_col_substring_fallback():
 # --- ArenaSource --------------------------------------------------------------
 
 
+def _arena_parquet_rows() -> list[dict]:
+    """Rows in the lmarena-ai/leaderboard-dataset schema (category-tagged)."""
+    return [
+        {
+            "model_name": "GPT-6",
+            "organization": "openai",
+            "rating": 1400.0,
+            "rating_lower": 1388.0,
+            "rating_upper": 1412.0,
+            "category": "overall",
+            "leaderboard_publish_date": "2026-10-02",
+        },
+        {
+            "model_name": "NoScore",
+            "rating": None,
+            "category": "overall",
+        },
+        {
+            "model_name": "",
+            "rating": 1300.0,
+            "category": "overall",
+        },
+        {
+            "model_name": "GPT-6",  # other category view -> skipped
+            "rating": 1234.0,
+            "category": "creative_writing",
+        },
+    ]
+
+
 def test_arena_parquet_parse_with_pandas():
     pd = pytest.importorskip("pandas")
-    df = pd.DataFrame(
-        [
-            {"model": "GPT-6", "arena_score": 1400.0, "ci": 12.0},
-            {"model": "NoScore", "arena_score": None},
-            {"model": "", "arena_score": 1300.0},
-        ]
-    )
+    df = pd.DataFrame(_arena_parquet_rows())
     buf = io.BytesIO()
     df.to_parquet(buf, index=False)
     with patch(
@@ -175,16 +210,19 @@ def test_arena_parquet_parse_with_pandas():
     ):
         recs = ArenaSource().fetch()
     assert recs["gpt-6"].score == 1400.0
-    assert recs["gpt-6"].score_ci == 12.0
+    assert recs["gpt-6"].score_ci == pytest.approx(12.0)  # (upper - lower) / 2
+    assert "noscore" not in recs
 
 
 def test_arena_parquet_parse_with_pyarrow():
     pa = pytest.importorskip("pyarrow")
     df = pa.table(
         {
-            "model": ["GPT-6", "NoScore"],
-            "arena_score": [1400.0, None],
-            "ci": [12.0, None],
+            "model_name": ["GPT-6", "NoScore"],
+            "rating": [1400.0, None],
+            "rating_lower": [1388.0, None],
+            "rating_upper": [1412.0, None],
+            "category": ["overall", "overall"],
         }
     )
     buf = io.BytesIO()
@@ -203,8 +241,10 @@ def test_arena_parquet_parse_with_pyarrow():
 def test_arena_parquet_no_parser_raises_runtime_error(monkeypatch):
     monkeypatch.setitem(sys.modules, "pandas", None)
     monkeypatch.setitem(sys.modules, "pyarrow", None)
+    from hull_core.model_selection.sources import _read_parquet_rows
+
     with pytest.raises(RuntimeError, match="pandas or pyarrow"):
-        ArenaSource._read_parquet(b"not parquet")
+        _read_parquet_rows(b"not parquet")
 
 
 def test_arena_parquet_bad_blob_fail_open():

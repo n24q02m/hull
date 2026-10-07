@@ -206,6 +206,56 @@ def test_or_backbone_excludes_free_tier_models():
     assert [c.or_slug for c in cands] == ["vendor-a/paid"]  # free model dropped despite q=99
 
 
+def test_leaderboard_rank_first_cheapest_wins_top_tier():
+    """Within the top quality tier price decides; below the tier quality leads.
+
+    Board scores are relative (normalized per source), so the fixture keeps the
+    two rivals' relative standing within the 1.0 tier tolerance after blending:
+    spec favors pro, agg favors value, blended gap ~0.67 < 1.0."""
+    or_rows = [
+        _or_row("vendor-a/pro", prompt="0.00001", completion="0.00002"),  # 10x pricier
+        _or_row("vendor-a/value", prompt="0.000001", completion="0.000002"),
+        _or_row("vendor-a/anchor", prompt="0.000001", completion="0.000002"),
+    ]
+    spec = {
+        "vendor-a/pro": SourceRecord(key="vendor-a/pro", score=60.0),
+        "vendor-a/value": SourceRecord(key="vendor-a/value", score=59.0),
+        "vendor-a/anchor": SourceRecord(key="vendor-a/anchor", score=0.0),
+    }
+    agg = {
+        "vendor-a/pro": SourceRecord(key="vendor-a/pro", score=59.0),
+        "vendor-a/value": SourceRecord(key="vendor-a/value", score=60.0),
+        "vendor-a/anchor": SourceRecord(key="vendor-a/anchor", score=0.0),
+    }
+    sources = {
+        "openrouter_models": _FakeSource("openrouter_models", _or_source(or_rows)),
+        "spec_board": _FakeSource("spec_board", spec),
+        "agg_board": _FakeSource("agg_board", agg),
+    }
+    cands = candidates(_TASK, sources=sources)
+    # pro and value blend into the same top tier (within 1.0) -> cheaper value leads;
+    # anchor has bottom-tier quality -> ranked after despite being cheap.
+    assert cands[0].or_slug == "vendor-a/value"
+    assert cands[0].pareto_rank == 0
+    assert cands[1].or_slug == "vendor-a/pro"
+    assert cands[2].or_slug == "vendor-a/anchor"
+
+
+def test_single_board_models_stay_unranked():
+    """One board is not a joined ranking: single-board models keep rank None."""
+    or_rows = [_or_row("m/a", context=64_000)]
+    spec = {"m/a": SourceRecord(key="m/a", score=90.0)}
+    sources = {
+        "openrouter_models": _FakeSource("openrouter_models", _or_source(or_rows)),
+        "spec_board": _FakeSource("spec_board", spec),
+        "agg_board": _FakeSource("agg_board", {}),
+    }
+    cands = candidates(_TASK, sources=sources)
+    assert [c.or_slug for c in cands] == ["m/a"]
+    assert cands[0].pareto_rank is None
+    assert cands[0].weak_evidence is True
+
+
 def test_join_sources_records_matched_count():
     """source_status gains matched_count: row_count=214 matched_count=0 exposes a broken join."""
     or_records = _or_source([_or_row("m/a"), _or_row("m/b")])
@@ -386,10 +436,16 @@ def _fixture_sources() -> dict[str, _FakeSource]:
         "m/dominated": SourceRecord(key="m/dominated", score=40.0),
         "m/no-ctx": SourceRecord(key="m/no-ctx", score=99.0),
     }
+    agg = {
+        "m/knee": SourceRecord(key="m/knee", score=90.0),
+        "m/best": SourceRecord(key="m/best", score=98.0),
+        "m/cheap-bad": SourceRecord(key="m/cheap-bad", score=40.0),
+        "m/dominated": SourceRecord(key="m/dominated", score=30.0),
+    }
     return {
         "openrouter_models": _FakeSource("openrouter_models", _or_source(or_rows)),
         "spec_board": _FakeSource("spec_board", spec),
-        "agg_board": _FakeSource("agg_board", {}),  # empty source — fail-open
+        "agg_board": _FakeSource("agg_board", agg),
     }
 
 
@@ -397,10 +453,12 @@ def test_candidates_end_to_end():
     cands = candidates(_TASK, sources=_fixture_sources())
     slugs = [c.or_slug for c in cands]
     assert "m/no-ctx" not in slugs  # prefilter
-    frontier_slugs = [c.or_slug for c in cands if c.pareto_rank is not None]
-    assert set(frontier_slugs) == {"m/cheap-bad", "m/knee", "m/best"}
-    # frontier members come before dominated ones in the ranked list
-    assert cands[-1].or_slug == "m/dominated"
+    # leaderboard-rank-first: highest blended board quality leads the list
+    assert cands[0].or_slug == "m/best"
+    ranks = {c.or_slug: c.pareto_rank for c in cands}
+    assert set(ranks) == {"m/best", "m/knee", "m/cheap-bad", "m/dominated"}
+    assert all(r is not None for r in ranks.values())  # every 2-board model is ranked
+    assert sorted(r for r in ranks.values() if r is not None) == [0, 1, 2, 3]
 
 
 def test_pick_knee_end_to_end():
@@ -510,11 +568,12 @@ def test_sources_override_with_or_listed_entries_promotes():
 
 
 def test_unpriced_or_model_gets_no_rank_and_cost_none():
-    """An OR-listed model without parseable pricing: cost=None, excluded from rank-0."""
+    """An OR-listed model without parseable pricing: cost=None, never ranked;
+    and a single-board model is unranked too (one board is not a joined ranking)."""
     task = TaskProfile(
         name="embed-ish",
         specialized_sources=("mteb_reranking",),
-        aggregate_sources=(),
+        aggregate_sources=("benchlm",),
     )
     unpriced = _or_row("baai/bge-reranker", hf="baai/bge-reranker")
     del unpriced["pricing"]  # listed but no pricing payload
@@ -523,13 +582,18 @@ def test_unpriced_or_model_gets_no_rank_and_cost_none():
         "baai/bge-reranker": SourceRecord(key="baai/bge-reranker", score=90.0),
         "baai/bge-reranker-lite": SourceRecord(key="baai/bge-reranker-lite", score=50.0),
     }
+    agg_board = {
+        "baai/bge-reranker": SourceRecord(key="baai/bge-reranker", score=88.0),
+        "baai/bge-reranker-lite": SourceRecord(key="baai/bge-reranker-lite", score=52.0),
+    }
     sources = {
         "openrouter_models": _FakeSource("openrouter_models", _or_source([unpriced, priced])),
         "mteb_reranking": _FakeSource("mteb_reranking", board),
+        "benchlm": _FakeSource("benchlm", agg_board),
     }
     cands = {c.or_slug: c for c in candidates(task, sources=sources)}
     assert cands["baai/bge-reranker"].cost_1m_blended is None
-    assert cands["baai/bge-reranker"].pareto_rank is None  # no cost -> no rank-0
+    assert cands["baai/bge-reranker"].pareto_rank is None  # no cost -> no rank, even with 2 boards
     assert cands["baai/bge-reranker-lite"].pareto_rank == 0  # only priced model holds rank-0
     best = pick(task, sources=sources)
     assert best is not None and best.or_slug == "baai/bge-reranker-lite"

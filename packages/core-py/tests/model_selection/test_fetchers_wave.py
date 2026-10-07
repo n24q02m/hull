@@ -382,22 +382,13 @@ def test_aa_capability_parses_docs_field_names(monkeypatch):
     assert "Null-Cap" not in recs  # null capability = missing, never 0
 
 
-def test_aa_agentic_or_embedded_fallback(monkeypatch):
+def test_aa_agentic_without_key_never_reads_or_embedded(monkeypatch):
+    """No AA_API_KEY -> honest missing gap; the OR-embedded copy is NOT fetched as evidence."""
     monkeypatch.delenv("AA_API_KEY", raising=False)
-    payload = {
-        "data": [
-            {
-                "id": "mimo-v2/mimo-v2.6-pro",
-                "name": "MiMo-V2.6-Pro",
-                "benchmarks": {"artificial_analysis": {"agentic_index": 68.3}},
-            },
-            {"id": "no/bench", "name": "No Bench", "benchmarks": {}},
-        ]
-    }
-    with patch("hull_core.model_selection.sources.httpx.get", return_value=_resp(payload)):
+    with patch("hull_core.model_selection.sources.httpx.get") as get:
         recs = AaAgenticIndexSource().fetch()
-    assert recs["mimo-v2/mimo-v2.6-pro"].score == 68.3
-    assert "no/bench" not in recs
+    assert recs == {}
+    get.assert_not_called()
 
 
 # --- In-house anchors ---------------------------------------------------------------

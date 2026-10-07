@@ -427,19 +427,12 @@ def test_aa_agentic_with_key_delegates_to_capability_fetch(monkeypatch):
     assert recs["agent-pro"].score == 70.0
 
 
-def test_aa_agentic_fallback_all_rows_unusable_records_reason(monkeypatch):
+def test_aa_agentic_without_key_is_honest_missing(monkeypatch):
+    """No AA_API_KEY -> recorded gap; the OR-embedded copy is NEVER board evidence."""
     monkeypatch.delenv("AA_API_KEY", raising=False)
-    payload = {
-        "data": [
-            "not-a-dict",  # -> skip
-            {"name": "NoId"},  # no id -> skip
-            {"id": "x/y", "benchmarks": {}},  # no embedded index -> skip
-        ]
-    }
     src = AaAgenticIndexSource()
-    with patch("hull_core.model_selection.sources.httpx.get", return_value=_open_medical_resp(payload)):
-        assert src.fetch() == {}
-    assert src.missing_reason == "aa_agentic_or_embedded_absent"
+    assert src.fetch() == {}
+    assert src.missing_reason == "aa_api_key_absent"
 
 
 # --- In-house anchors -----------------------------------------------------------

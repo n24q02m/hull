@@ -514,6 +514,14 @@ def _read_mteb_table(blob: bytes) -> Any:
     )
 
 
+_MULTILINGUAL_MARKERS = ("Multilingual", "MIRACL", "Crosslingual")
+
+
+def _is_multilingual_task(task_name: str) -> bool:
+    """True for MTEB tasks whose evaluation is multilingual/cross-lingual."""
+    return any(marker in task_name for marker in _MULTILINGUAL_MARKERS)
+
+
 def _aggregate_tables(tables: list[Any]) -> dict[str, dict[str, float]]:
     """Aggregate pyarrow Tables into ``{family: {model_name: mean score}}``.
 
@@ -521,6 +529,11 @@ def _aggregate_tables(tables: list[Any]) -> dict[str, dict[str, float]]:
     (model, task) first, then per family across tasks (mean of task means), so
     a task with many subset rows does not dominate its family. Task names that
     do not classify into one of the four families are ignored (fail-open).
+
+    Multilingual-only (2026-10-07 directive): this stack selects embed/rerank
+    models that must work across languages, so English-only MTEB tasks are
+    excluded — only multilingual tasks (MIRACL*/``*Multilingual*``/
+    ``*Crosslingual*``) count toward a family score.
     """
     import pyarrow.compute as pc
 
@@ -535,6 +548,8 @@ def _aggregate_tables(tables: list[Any]) -> dict[str, dict[str, float]]:
         for model, task_name, mean in zip(models, tasks, means, strict=True):
             family = task_family(task_name)
             if family is None or mean is None or not model:
+                continue
+            if not _is_multilingual_task(task_name):
                 continue
             fam_sums = sums.setdefault(family, {})
             fam_counts = counts.setdefault(family, {})
@@ -565,7 +580,12 @@ def _shared_family_scores(*, refresh: bool = False) -> dict[str, dict[str, float
 
 
 class _MtebFamilySource(_BaseSource):
-    """Base for the four MTEB family fetchers; subclasses pick their family."""
+    """Base for the four MTEB family fetchers; subclasses pick their family.
+
+    Family scores are MULTILINGUAL-ONLY (MIRACL*/``*Multilingual*``/
+    ``*Crosslingual*`` tasks) per the 2026-10-07 directive — embed/rerank
+    picks must work across languages.
+    """
 
     family = ""
     ttl_seconds = WEEK
@@ -1202,32 +1222,14 @@ class AaCapabilitySource(_BaseSource):
 
 
 class AaAgenticIndexSource(AaCapabilitySource):
-    """AA Agentic Index — Data API when ``AA_API_KEY`` is present, else the
-    OR-embedded ``benchmarks.artificial_analysis.agentic_index`` already on
-    ``/api/v1/models`` rows (research §2.9, LIVE), so the profile works with
-    zero paid-API dependency."""
+    """AA Agentic Index via the Data API (``AA_API_KEY``). Absent key ->
+    ``missing_reason=aa_api_key_absent`` (recorded gap). The OR-embedded
+    ``benchmarks.artificial_analysis.agentic_index`` copy is catalog metadata,
+    not a fetched board — it is never substituted for real AA evidence.
+    """
 
     def __init__(self, api_key: str | None = None) -> None:
         super().__init__("aa_agentic_index", "agentic", api_key)
-
-    def _fetch(self) -> dict[str, SourceRecord]:
-        if self._api_key or os.environ.get("AA_API_KEY"):
-            return super()._fetch()
-        self.missing_reason = None
-        data = _get_json(OR_MODELS_URL)
-        rows = data.get("data") if isinstance(data, dict) else data
-        records: dict[str, SourceRecord] = {}
-        for row in rows or []:
-            if not isinstance(row, dict) or not row.get("id"):
-                continue
-            aa = (row.get("benchmarks") or {}).get("artificial_analysis")
-            val = _float(aa.get("agentic_index")) if isinstance(aa, dict) else None
-            if val is None:
-                continue  # embedded scores present on some rows only; absent != 0
-            records[row["id"]] = SourceRecord(key=row["id"], name=row.get("name") or row["id"], score=val, raw=row)
-        if not records:
-            self.missing_reason = "aa_agentic_or_embedded_absent"
-        return records
 
 
 class InHouseAnchorSource(_BaseSource):

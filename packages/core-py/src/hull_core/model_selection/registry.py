@@ -400,18 +400,22 @@ def refresh(
 ) -> RefreshReport:
     """refresh -> eval-on-change -> promote, one task.
 
+    Boards-backbone candidates (``or_slug is None`` — embed/rerank) have no
+    OR routing/registry identity and are skipped here.
+
     ``cands`` comes from ``model_selection.candidates(task, ...)`` (already
     joined/normalized/pareto-ranked). ``eval_fn`` gets litellm ids for
     ``[incumbent, *new_challengers]`` and returns EvalRows in the same order;
     without it nothing is promoted (dry-run semantics). The incumbent is
     always re-evaluated so dominance compares equal-harness numbers.
     """
+    cands = [c for c in cands if c.or_slug is not None]
     report = RefreshReport(task=task, gate="no_challengers", candidates=len(cands))
     state_path = state_path or _state_path_for(registry.path)
     evaluated = load_eval_state(state_path)
 
     chall = challengers(registry, cands, frontier_only=frontier_only)
-    report.challengers = [c.or_slug for c in chall]
+    report.challengers = [c.or_slug for c in chall if c.or_slug is not None]
     if not chall:
         report.reason = "no challenger on the frontier"
         return report
@@ -431,9 +435,10 @@ def refresh(
     inc = registry.incumbent()
     grid_ids = [f"openrouter/{c.or_slug}" for c in grid]
     rows = eval_fn([inc["litellm_id"], *grid_ids])
-    report.evaluated = [c.or_slug for c in grid]
+    report.evaluated = [c.or_slug for c in grid if c.or_slug is not None]
     for c in grid:
-        evaluated[c.or_slug] = {"quality": c.quality, "cost_1m": c.cost_1m_blended}
+        if c.or_slug is not None:
+            evaluated[c.or_slug] = {"quality": c.quality, "cost_1m": c.cost_1m_blended}
     save_eval_state(state_path, evaluated)
 
     inc_row = rows[0] if rows else {}
@@ -444,8 +449,9 @@ def refresh(
     report.gate = decision.gate
     report.reason = decision.reason
     report.notes = decision.per_challenger
-    if decision.promote and decision.winner is not None:
-        entry = registry.promote(decision.winner_slug or decision.winner.or_slug, candidate=decision.winner)
+    winner_slug = decision.winner_slug or (decision.winner.or_slug if decision.winner is not None else None)
+    if decision.promote and decision.winner is not None and winner_slug:
+        entry = registry.promote(winner_slug, candidate=decision.winner)
         registry.save()
         report.promoted = entry["litellm_id"]
         logger.info("model_selection promoted %s -> runtime primary (task=%s)", report.promoted, task)

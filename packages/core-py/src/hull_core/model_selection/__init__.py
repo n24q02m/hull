@@ -267,8 +267,11 @@ def candidates(
         cands = [c for c in cands if c.cost_1m_blended != 0]
     cands = [c for c in cands if passes_constraints(c, profile.constraints)]
     if profile.backbone == "boards":
-        # No cost dimension (boards don't price) — rank purely by blended quality.
-        cands.sort(key=lambda c: -c.quality)
+        # Points, not mean (2026-10-07 directive "model nào được nhiều điểm
+        # nhất"): coverage across board variants counts — an embedder measured
+        # on all MTEB variants outranks a single-board specialist. With one
+        # board this degenerates to the single normalized score.
+        cands.sort(key=lambda c: -sum(c.scores.values()))
         for i, cand in enumerate(cands):
             cand.pareto_rank = i
     else:

@@ -4,7 +4,7 @@ Usage::
 
     from hull_core.model_selection import candidates, pick, TASKS
 
-    cands = candidates("healthcare-advice")   # ranked, pareto frontier first
+    cands = candidates("healthcare-advice")   # rank-aggregated: board points + price, strong first
     best = pick("healthcare-advice", strategy="knee")
 
     # runtime registry + refresh -> eval-on-change -> promote (hull addition)
@@ -12,32 +12,36 @@ Usage::
     reg = ModelRegistry.load("model_rankings.json")
     report = refresh("translation", reg, cands, eval_fn=my_eval_fn)
 
-Pipeline: fetch the OR backbone -> fetch each source (fail-open) -> join by
-alias -> version guard -> min-max normalize -> blend quality -> blended cost ->
-constraint prefilter -> pareto rank. The module does not run evals — consumers
-eval and promote from the ranked candidate list.
+Pipeline: fetch the backbone (OR catalog for ``backbone="or"`` profiles, the
+boards themselves for ``backbone="boards"`` profiles) -> fetch each source
+(fail-open) -> join by normalized name -> version guard -> min-max normalize
+per board -> blended cost -> constraint prefilter -> rank aggregation
+(2026-10-07 directive): each model accumulates its per-board standing over
+every board that measured it (0-100 points), ``board_rank`` by total points,
+``price_rank`` cheapest-first among cost-known models; the order optimizes
+both dimensions — smallest ``board_rank + price_rank``, then smallest
+``rank_distance = |board_rank - price_rank|``, then ``board_rank``. Models
+with weak evidence trail behind strong ones. The module does not run evals —
+consumers eval and promote from the ranked candidate list.
 
-OpenRouter auto-promotion constraint (2026-09-25 directive)
------------------------------------------------------------
+Selection constraints (2026-09-25 + 2026-10-07 directives)
+---------------------------------------------------------
 
-Only models listed on the OpenRouter catalog can be auto-promoted (rank-0) by
-this module:
-
-- Every candidate is joined into the OR ``/api/v1/models`` backbone; records
-  that do not match the catalog are dropped at join time and can never reach
-  rank-0.
-- Embedding/rerank tasks (``embedding``, ``rerank`` profiles) normally find a
-  thin/empty OR backbone, because embedders and rerankers mostly do not route
-  through OpenRouter. In that case ``candidates()`` returns ``[]`` and logs
-  ``or_backbone_empty`` — it does NOT promote non-OR models. Only a caller
-  that passes a ``sources`` override whose ``openrouter_models`` entry
-  actually lists (joinable) OR-catalog entries gets a non-empty candidate
-  list.
-- Cost signal: pricing comes from the OR catalog. Entries without OR pricing
-  get ``cost_1m_blended=None`` and are excluded from the pareto frontier —
-  no cost means the model cannot be a best-value pick. OR's ``-1`` sentinel
-  price (internal routes such as ``openrouter/auto``) counts as no cost
-  signal; genuinely free (0-priced) models keep cost ``0.0``.
+- OR-backbone profiles: every candidate is joined into the OR
+  ``/api/v1/models`` catalog; non-catalog rows are dropped at join time and
+  can never reach rank-0.
+- Free-tier models are never selected on OR-backbone profiles: $0 pricing is
+  a promo slot, not evidence-backed quality. OR's ``-1`` sentinel price
+  (internal routes such as ``openrouter/auto``) counts as no cost signal.
+- Unpriced models cannot take a price rank; they stay in the list but trail
+  with ``pareto_rank=None``. Models measured by fewer than 2 boards carry
+  ``weak_evidence=True`` and trail after strong ones — consumers should gate
+  on ``rank == 0 and not weak_evidence``.
+- Boards-backbone profiles (``embedding``, ``rerank``) rank the fetched
+  boards directly: embedders/rerankers mostly do not route through
+  OpenRouter, so OR there is optional; selection is by summed board points
+  across MTEB variants and carries no price dimension (no price source
+  exists for self-hosted embed/rerank serving).
 
 Ported from web_core.model_selection v2.10.6 (itself ported from
 knowledge_core.model_selection); hull_core conventions: stdlib logging, no structlog, and the

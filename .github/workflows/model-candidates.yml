@@ -26,6 +26,7 @@ on:
 
 permissions:
   contents: write
+  issues: write # central leaders sticky issue
 
 concurrency:
   # A manual dispatch racing the weekly cron would otherwise double-push the
@@ -56,6 +57,7 @@ jobs:
         run: uv run --no-sync python scripts/publish_candidates.py
 
       - name: Push snapshot branch
+        id: publish
         run: |
           BRANCH=data/model-candidates
           git config user.name "hull-publish-bot"
@@ -75,4 +77,57 @@ jobs:
           # which always reflects this week's scan; human review happens on
           # the branch diff, not on main.
           git push --force origin "$BRANCH"
+          echo "published=true" >> "${GITHUB_OUTPUT}"
           echo "Published to $BRANCH. Raw URL: https://raw.githubusercontent.com/n24q02m/hull/$BRANCH/data/model-candidates.json"
+
+      - name: Upsert central leaders issue
+        if: steps.publish.outputs.published == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STICKY_TITLE: "[model-candidates] weekly leaders (all profiles)"
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+
+          data = json.load(open("data/model-candidates.json"))
+          rows = []
+          for name in sorted(data.get("tasks", {})):
+              task = data["tasks"][name]
+              if task.get("or_backbone_empty"):
+                  rows.append((name, "(backbone empty — scan skipped)"))
+                  continue
+              strong = [
+                  c for c in (task.get("candidates") or [])
+                  if c.get("pareto_rank") == 0 and c.get("weak_evidence") is False
+              ]
+              if strong:
+                  lead = strong[0]
+                  cost = lead.get("cost_1m_blended")
+                  cost_s = f", {cost} $/1M" if cost is not None else ""
+                  rows.append((name, f"`{lead['or_slug']}` ({lead.get('quality', 0):.1f} q{cost_s})"))
+              else:
+                  weak_rows = len(task.get("candidates") or [])
+                  rows.append((name, f"(none strong — {weak_rows} weak rows trail unranked)"))
+          lines = "\n".join(f"| {n} | {v} |" for n, v in rows)
+          body = (
+              "## [model-candidates] weekly leaders (all profiles)\n\n"
+              f"Snapshot `data/model-candidates` @ `{data.get('generated_at', 'unknown')}` "
+              "(schema_version 1). Single central note per the 2026-10-08 directive —\n"
+              "consumer configs read this when usage/config lands; nothing is applied\n"
+              "by CI and no credentials are involved.\n\n"
+              "| task profile | hull leader (pareto 0, strong) |\n| --- | --- |\n"
+              f"{lines}\n\n"
+              f"<!--model-candidates:generated={data.get('generated_at', 'unknown')}-->\n"
+          )
+          with open("issue-body.md", "w", encoding="utf-8") as f:
+              f.write(body)
+          PY
+          num="$(gh issue list --repo n24q02m/hull --state open --limit 200 --json number,title \
+            | python3 -c 'import json,os,sys;t=os.environ["STICKY_TITLE"];items=[i for i in json.load(sys.stdin) if i["title"]==t];print(items[0]["number"] if items else "")')"
+          if [ -z "${num}" ]; then
+            gh issue create --repo n24q02m/hull --title "${STICKY_TITLE}" --body-file issue-body.md
+          else
+            gh issue edit "${num}" --repo n24q02m/hull --body-file issue-body.md >/dev/null
+            echo "Updated central issue #${num}"
+          fi

@@ -98,7 +98,10 @@ def test_arena_filters_non_overall_and_malformed_rows():
             "rating_upper": 45.0,
         },
     ]
-    with patch("hull_core.model_selection.sources._read_parquet_rows", return_value=rows):
+    with (
+        patch("hull_core.model_selection.sources._get_bytes", return_value=b""),
+        patch("hull_core.model_selection.sources._read_parquet_rows", return_value=rows),
+    ):
         recs = ArenaSource().fetch()
     assert set(recs) == {"good-m"}
     assert recs["good-m"].score == 42.5
@@ -112,7 +115,10 @@ def test_gaia_skips_nameless_rows_and_keeps_best_run():
         {"model": "Model Y", "score": 0.3, "date": "2025-01-01"},
         {"model": "Model Y", "score": 0.2, "date": "2025-02-01"},  # worse run ignored
     ]
-    with patch("hull_core.model_selection.sources._read_parquet_rows", return_value=rows):
+    with (
+        patch("hull_core.model_selection.sources._get_bytes", return_value=b""),
+        patch("hull_core.model_selection.sources._read_parquet_rows", return_value=rows),
+    ):
         recs = GaiaSource().fetch()
     assert set(recs) == {"model-y"}
     assert recs["model-y"].score == 0.3

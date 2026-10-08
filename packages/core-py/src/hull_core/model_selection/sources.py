@@ -46,7 +46,10 @@ OR_MODELS_EMBED_URL = OR_MODELS_URL + "?output_modalities=embeddings"
 OR_MODELS_RERANK_URL = OR_MODELS_URL + "?output_modalities=rerank"
 OR_ENDPOINTS_URL = "https://openrouter.ai/api/v1/models/{slug}/endpoints"
 OR_BENCH_URL = "https://openrouter.ai/benchmarks/{bench}"
-AA_MODELS_URL = "https://artificialanalysis.ai/api/v2/language/models"
+# Free-tier AA list endpoint: a Free-plan key gets 403 "Language models list
+# requires a Pro subscription" on /api/v2/language/models but 200 on /free
+# (verified 2026-10-08). Same row shape; capability indexes ride along.
+AA_MODELS_URL = "https://artificialanalysis.ai/api/v2/language/models/free"
 LIVEBENCH_CSV_URL = "https://raw.githubusercontent.com/live-bench/LiveBench/main/livebench/data/stats.csv"
 # 2026-10-07: the DontPlanToEnd/UGI-Leaderboard DATASET went gated (401
 # anonymous); the author's space ships the same leaderboard as CSV with a
@@ -66,6 +69,10 @@ LLMSTATS_BENCH_URL = "https://llm-stats.com/benchmarks/{bench}"
 BFCL_CSV_URL = "https://gorilla.cs.berkeley.edu/data_overall.csv"
 EQBENCH4_DATA_URL = "https://eqbench.com/eqbench4/eqbench4_data.js"
 FLORES_CSV_URL = "https://huggingface.co/spaces/speakleash/leaderboard-flores/resolve/main/results.csv"
+# MangaVQA/MangaOCR project site (manga109 org GitHub Pages; the README's
+# atsumiyai.github.io link 404s — manga109.github.io is the live surface,
+# verified 2026-10-08).
+MANGA_BENCH_URL = "https://manga109.github.io/MangaVQA_LMM/"
 BRIDGE_LEADERBOARD_URL = (
     "https://huggingface.co/spaces/YLab-Open/BRIDGE-Medical-Leaderboard/"
     "resolve/main/leaderboards/{mode}_leaderboard.json"
@@ -366,11 +373,18 @@ class OpenRouterModelsSource(_BaseSource):
 
 
 class ArtificialAnalysisSource(_BaseSource):
-    """AA Data API: GET /api/v2/language/models, header ``x-api-key``.
+    """AA Data API free tier: GET /api/v2/language/models/free, header
+    ``x-api-key``.
 
-    Key is OPTIONAL (only raises rate limits): read from ``AA_API_KEY`` at
-    fetch time; without a key -> {} (fail-open, nothing to scrape instead).
-    ``board_version`` = major version of the AA index for the version guard.
+    Key is REQUIRED (keyless requests get ``401 {"error": "API key is
+    required"}``; a Free-plan key is 403 on the non-free sibling endpoint —
+    verified 2026-10-08). Read from ``AA_API_KEY`` at fetch time; without a
+    key -> {} with ``missing_reason=aa_api_key_required`` (fail-open skip,
+    recorded missing — never silent, never scraped). Free rows carry the
+    intelligence index at ``evaluations.artificial_analysis_intelligence_index``
+    and its cost at top level, but NO ``*_index_version`` — ``board_version``
+    stays None and the version guard never sees these rows (falsy versions
+    are dropped at join).
     """
 
     name = "artificial_analysis"
@@ -383,7 +397,7 @@ class ArtificialAnalysisSource(_BaseSource):
     def _fetch(self) -> dict[str, SourceRecord]:
         api_key = self._api_key or os.environ.get("AA_API_KEY")
         if not api_key:
-            self.missing_reason = "aa_api_key_absent"
+            self.missing_reason = "aa_api_key_required"
             logger.info("model_selection: AA_API_KEY absent, skip artificial_analysis")
             return {}
         data = _get_json(AA_MODELS_URL, headers={"x-api-key": api_key})
@@ -1057,6 +1071,68 @@ class FloresSpeakleashSource(_BaseSource):
         return _parse_flores_csv(text)
 
 
+def _parse_manga_bench_table(html: str, score_col: int) -> dict[str, SourceRecord]:
+    """MangaVQA project-site results table -> one board's scores.
+
+    The static page carries a single results table per section:
+    ``Method | MangaOCR Hmean (%) | MangaVQA LLM (/10.0)``. ``score_col``
+    picks the benchmark column (1 = MangaOCR Hmean, 2 = MangaVQA score);
+    rows without a parseable float there are skipped. The dataset-count
+    table (``Count Type | Total | ...``) is excluded by its header so its
+    row counts can never leak in as scores. Method names are vendor-less
+    display names (``GPT-4o``, ``MangaLMM (Ours)``) — the join layer's
+    normalized matching handles the OR slug mapping.
+    """
+    records: dict[str, SourceRecord] = {}
+    for table_m in re.finditer(r"<table.*?</table>", html, re.S):
+        first_tr = re.search(r"<tr[^>]*>(.*?)</tr>", table_m.group(0), re.S)
+        if not first_tr:
+            continue
+        head = [
+            _strip_tags(c).strip().lower() for c in re.findall(r"<t[hd][^>]*>(.*?)</t[hd]>", first_tr.group(1), re.S)
+        ]
+        if not head or head[0] != "method":
+            continue
+        for tr in re.findall(r"<tr[^>]*>(.*?)</tr>", table_m.group(0), re.S):
+            cells = [_strip_tags(c) for c in re.findall(r"<t[hd][^>]*>(.*?)</t[hd]>", tr, re.S)]
+            if len(cells) <= score_col or not cells[0].strip():
+                continue
+            name = re.sub(r"\s*\(Ours\)\s*$", "", cells[0]).strip()
+            score = _parse_pct(cells[score_col])
+            if score is None or not name or name.lower() in ("method",):
+                continue
+            records[slugify(name)] = SourceRecord(
+                key=slugify(name),
+                name=name,
+                score=score,
+                board_version="2026",
+                raw={"cells": cells},
+            )
+    return records
+
+
+class MangaBenchSource(_BaseSource):
+    """Manga109-org project-site board (research §2.5): the MangaVQA/MangaOCR
+    results table on the static GitHub Pages site, one fetcher per benchmark
+    column — ``manga109_v2026`` (MangaOCR Hmean % on Manga109-derived text
+    tasks) and ``mangavqa`` (MangaVQA LLM score, 0-10 scale as published).
+    Scan-only: no dataset download, no login, no paid calls."""
+
+    ttl_seconds = WEEK
+
+    def __init__(self, name: str, score_col: int) -> None:
+        super().__init__()
+        self.name = name
+        self.score_col = score_col
+
+    def _fetch(self) -> dict[str, SourceRecord]:
+        html = _get_bytes(MANGA_BENCH_URL).decode("utf-8", errors="replace")
+        records = _parse_manga_bench_table(html, self.score_col)
+        if not records:
+            self.missing_reason = "manga_bench_table_empty"
+        return records
+
+
 def _parse_bridge_blob(data: dict[str, Any]) -> dict[str, float]:
     """BRIDGE leaderboard JSON: column dicts keyed by model index; score =
     ``Average Performance`` (0-100)."""
@@ -1192,13 +1268,16 @@ class GaiaSource(_BaseSource):
 
 
 class AaCapabilitySource(_BaseSource):
-    """AA Capability Index (e.g. Healthcare & Medical) via the Data API.
+    """AA Capability Index (e.g. Healthcare & Medical) via the Data API free
+    tier (same ``/free`` list endpoint as ``artificial_analysis``).
 
     Key comes from ``AA_API_KEY`` at fetch time; absent key -> ``{}`` with
-    ``missing_reason=aa_api_key_absent`` (recorded missing, never silent).
-    Field names per the AA data-api docs (verified 2026-10-07):
-    ``artificial_analysis_<capability>_index`` (+ ``_version`` where published;
-    the Intelligence Index version is the documented fallback marker).
+    ``missing_reason=aa_api_key_required`` (recorded missing, never silent).
+    Field names per the AA data-api docs (verified 2026-10-07/08):
+    ``artificial_analysis_<capability>_index`` — present on free-tier rows
+    for the models that have the capability measured (2026-10-08: 52 agentic
+    / 23 healthcare of 200 rows); ``_version`` fields are absent on free
+    rows, so ``board_version`` stays None and the version guard ignores them.
     """
 
     ttl_seconds = DAY
@@ -1212,7 +1291,7 @@ class AaCapabilitySource(_BaseSource):
     def _fetch(self) -> dict[str, SourceRecord]:
         api_key = self._api_key or os.environ.get("AA_API_KEY")
         if not api_key:
-            self.missing_reason = "aa_api_key_absent"
+            self.missing_reason = "aa_api_key_required"
             return {}
         data = _get_json(AA_MODELS_URL, headers={"x-api-key": api_key})
         rows = data.get("data") if isinstance(data, dict) else data
@@ -1242,7 +1321,7 @@ class AaCapabilitySource(_BaseSource):
 
 class AaAgenticIndexSource(AaCapabilitySource):
     """AA Agentic Index via the Data API (``AA_API_KEY``). Absent key ->
-    ``missing_reason=aa_api_key_absent`` (recorded gap). The OR-embedded
+    ``missing_reason=aa_api_key_required`` (recorded gap). The OR-embedded
     ``benchmarks.artificial_analysis.agentic_index`` copy is catalog metadata,
     not a fetched board — it is never substituted for real AA evidence.
     """
@@ -1252,9 +1331,8 @@ class AaAgenticIndexSource(AaCapabilitySource):
 
 
 class InHouseAnchorSource(_BaseSource):
-    """In-house eval anchor sets (wmt24pp, manga109_v2026, mangavqa,
-    aiora_triage_eval) — self-run anchors per the wave6 research, NOT scraped
-    boards. Reads ``<root>/<name>.json``::
+    """In-house eval anchor set (aiora_triage_eval) — self-run anchor per the
+    wave6 research, NOT a scraped board. Reads ``<root>/<name>.json``::
 
         {"updated_at": "...", "records": [{"key": "...", "name": "...",
          "score": 0-100, "score_ci": optional, "board_version": optional}]}
@@ -1397,9 +1475,12 @@ SOURCE_REGISTRY: dict[str, Source] = {
     "eqbench4": EqBench4Source(),
     # translation (research §2.1)
     "flores_speakleash": FloresSpeakleashSource(),
+    # translation/manga specialized boards (public, scan-only; 2026-10-08):
+    # WMT24++ via the llm-stats mirror, Manga109-derived OCR + MangaVQA via
+    # the manga109 org project site.
+    "wmt24pp": LLMStatsSource("wmt24pp", "wmt24++"),
+    "manga109_v2026": MangaBenchSource("manga109_v2026", score_col=1),  # MangaOCR Hmean %
+    "mangavqa": MangaBenchSource("mangavqa", score_col=2),  # MangaVQA LLM score (/10)
     # in-house anchor sets (research §2.5/§2.8: self-run, not scraped boards)
-    "wmt24pp": InHouseAnchorSource("wmt24pp"),
-    "manga109_v2026": InHouseAnchorSource("manga109_v2026"),
-    "mangavqa": InHouseAnchorSource("mangavqa"),
     "aiora_triage_eval": InHouseAnchorSource("aiora_triage_eval"),
 }

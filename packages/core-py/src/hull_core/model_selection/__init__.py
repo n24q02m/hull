@@ -4,7 +4,7 @@ Usage::
 
     from hull_core.model_selection import candidates, pick, TASKS
 
-    cands = candidates("healthcare-advice")   # rank-aggregated: board points + price, strong first
+    cands = candidates("healthcare-advice")   # rank-aggregated: board mean + price, strong first
     best = pick("healthcare-advice", strategy="knee")
 
     # runtime registry + refresh -> eval-on-change -> promote (hull addition)
@@ -15,13 +15,15 @@ Usage::
 Pipeline: fetch the OR backbone (text + embeddings + rerank catalog segments)
 -> fetch each source (fail-open) -> join by normalized name -> version guard
 -> min-max normalize per board -> blended cost -> constraint prefilter ->
-rank aggregation (2026-10-07 directive): each model accumulates its
-per-board standing over every board that measured it (0-100 points),
-``board_rank`` by total points, ``price_rank`` cheapest-first among
-cost-known models; the order optimizes both dimensions — smallest
-``board_rank + price_rank``, then smallest ``rank_distance =
-|board_rank - price_rank|``, then ``board_rank``. Models with weak evidence
-trail behind strong ones. The module does not run evals — consumers eval and
+rank aggregation (coverage-neutral, 2026-10-08 fix): ``board_rank`` by MEAN
+per-board score (0-100) so fewer measured boards is not a coverage penalty,
+``price_rank`` cheapest-first among cost-known models; the order optimizes
+both dimensions — smallest ``board_rank + price_rank``, then smallest
+``rank_distance = |board_rank - price_rank|``, then ``board_rank``. A strong
+model strictly dominated on BOTH axes (mean quality and price) by another
+strong model is excluded from rank assignment (``pareto_rank=None``) — a
+dominated model can never take rank 0. Models with weak evidence trail
+behind strong ones. The module does not run evals — consumers eval and
 promote from the ranked candidate list.
 
 Selection constraints (2026-09-25 + 2026-10-07/08 directives)
@@ -200,7 +202,8 @@ def candidates(
     sources: Mapping[str, Source] | None = None,
     status_out: dict[str, dict[str, Any]] | None = None,
 ) -> list[ModelCandidate]:
-    """Ranked candidate list for a task, rank-aggregated (board + price), weak after.
+    """Ranked candidate list for a task, rank-aggregated (board mean + price),
+    dominance-filtered, weak after.
 
     ``sources`` overrides the registry (tests/plugins); defaults to
     ``SOURCE_REGISTRY``. Names in the TaskProfile resolve against the map;
@@ -271,14 +274,21 @@ def candidates(
     cands = [c for c in cands if c not in free]
     cands = [c for c in cands if passes_constraints(c, profile.constraints)]
 
-    # Rank-aggregation picker (2026-10-07 directive): each model accumulates
-    # its standing on every board that measured it (scores are per-board
-    # normalized 0-100, name-normalized join) -> board_rank by total points;
-    # price_rank by blended cost. The pick optimizes BOTH dimensions: order
-    # by (board_rank + price_rank), then |board_rank - price_rank|, then
-    # board_rank. Models measured by <2 boards are not joined-ranking
-    # evidence (weak_evidence stays the honest label) and unpriced models
-    # cannot take a price rank — both trail with pareto_rank=None.
+    # Rank-aggregation picker (2026-10-07 directive), coverage-neutral
+    # (2026-10-08 fix): board_rank orders by MEAN per-board normalized score
+    # (0-100, name-normalized join) so a model measured on fewer boards is
+    # not penalized for coverage; price_rank by blended cost. The pick
+    # optimizes BOTH dimensions: order by (board_rank + price_rank), then
+    # |board_rank - price_rank|, then board_rank. Dominance prefilter inside
+    # the strong pool FIRST: a model strictly beaten on both axes (mean
+    # quality and price) by another strong model is excluded from rank
+    # assignment — it can never take rank 0 (proven failure of the old
+    # sum-based points: translation rank-0 went to a dominated model with 3
+    # board rows over its dominating 2-board rival). Dominated models trail
+    # with pareto_rank=None. Models measured by <2 boards are not
+    # joined-ranking evidence (weak_evidence stays the honest label) and
+    # unpriced models cannot take a price rank — both trail with
+    # pareto_rank=None.
     def _strong(c: ModelCandidate) -> bool:
         return len(c.scores) >= 2 and c.cost_1m_blended is not None
 
@@ -289,12 +299,30 @@ def candidates(
         assert c.cost_1m_blended is not None  # filtered into ``strong`` above
         return c.cost_1m_blended
 
-    board_order = sorted(strong, key=lambda c: (-sum(c.scores.values()), c.or_slug or ""))
-    price_order = sorted(strong, key=lambda c: (_cost(c), -c.quality))
+    def _mean_score(c: ModelCandidate) -> float:
+        return sum(c.scores.values()) / len(c.scores)
+
+    means = {id(c): _mean_score(c) for c in strong}
+    costs = {id(c): _cost(c) for c in strong}
+    dominated: set[int] = set()
+    for c in strong:
+        m, cost = means[id(c)], costs[id(c)]
+        for other in strong:
+            if other is c:
+                continue
+            om, ocost = means[id(other)], costs[id(other)]
+            if om >= m and ocost <= cost and (om > m or ocost < cost):
+                dominated.add(id(c))
+                break
+    ranked_pool = [c for c in strong if id(c) not in dominated]
+    trail = [c for c in strong if id(c) in dominated]
+
+    board_order = sorted(ranked_pool, key=lambda c: (-means[id(c)], c.or_slug or ""))
+    price_order = sorted(ranked_pool, key=lambda c: (costs[id(c)], -c.quality))
     board_rank = {id(c): i + 1 for i, c in enumerate(board_order)}
     price_rank = {id(c): i + 1 for i, c in enumerate(price_order)}
     keyed = []
-    for cand in strong:
+    for cand in ranked_pool:
         cand.rank_distance = abs(board_rank[id(cand)] - price_rank[id(cand)])
         keyed.append(
             (
@@ -305,11 +333,12 @@ def candidates(
             )
         )
     keyed.sort(key=lambda t: (t[0], t[1], t[2]))
-    strong = [t[3] for t in keyed]
-    weak.sort(key=lambda c: -c.quality)
-    for i, cand in enumerate(strong):
+    ranked = [t[3] for t in keyed]
+    for i, cand in enumerate(ranked):
         cand.pareto_rank = i
-    cands = strong + weak
+    trail.sort(key=lambda c: (-means[id(c)], c.or_slug or ""))
+    weak.sort(key=lambda c: -c.quality)
+    cands = ranked + trail + weak
     return cands
 
 

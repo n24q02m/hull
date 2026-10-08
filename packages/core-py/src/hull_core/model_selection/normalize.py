@@ -94,10 +94,182 @@ def _part_index(or_records: dict[str, SourceRecord]) -> dict[str, list[str]]:
     return index
 
 
+# --- Escalating name normalization (2026-10-08 join fix) ----------------------
+#
+# Board-side join audit (live OR catalog + 13 boards, 2026-10-08) split the
+# unmatched rows into (a) legitimately non-OR models — UGI community
+# finetunes, open_medical_llm biomedical finetunes, GAIA agent scaffolds,
+# retired claude-3.x/gemini-1.x rows — and (b) OR-listed models lost to
+# spelling: dated snapshots (``claude-opus-4-5-20251101``), route markers
+# (``-preview``/``-thinking``/``-latest``), vendor-prefixed keys
+# (``alibaba_qwen3.8-27b``, ``xai-grok-4.3``), version-dot placement
+# (``qwen2-5-7b-instruct`` vs ``qwen-2.5-7b-instruct``) and token order
+# (``claude-4-1-opus`` vs ``claude-opus-4.1``). The ladder below rescues
+# class (b) only, always uniqueness-gated against the catalog: an ambiguous
+# variant stays unmatched instead of guessing.
+
+_ROUTE_MARKERS = frozenset({"non-thinking", "thinking", "preview", "exp", "beta", "latest", "instruct", "it", "chat"})
+_QUANT_TAILS = frozenset({"gguf", "f16", "fp8", "awq", "gptq", "exl2"})
+_DATE_TAIL = re.compile(r"-(?:\d{8}|\d{4}-\d{2}-\d{2})$")
+_SHORT_DATE_TAIL = re.compile(r"-\d{4}$")
+_VERSION_ZERO_TAIL = re.compile(r"-v(\d+)-0$")
+# Vendor org tokens boards prepend with ``-`` or ``_`` where OR uses ``/``.
+_VENDOR_PREFIXES: tuple[str, ...] = (
+    "meta-llama",
+    "deepseek-ai",
+    "mistralai",
+    "moonshotai",
+    "anthropic",
+    "microsoft",
+    "alibaba",
+    "cohere",
+    "deepseek",
+    "google",
+    "minimax",
+    "mistral",
+    "moonshot",
+    "nvidia",
+    "openai",
+    "perplexity",
+    "amazon",
+    "qwen",
+    "x-ai",
+    "xai",
+    "z-ai",
+    "zai",
+)
+# Tokens a catalog slug may have beyond a board key and still be the same
+# model route: dates, preview classes, and the instruction-tuned suffixes
+# (``-it``/``-instruct``) — boards publish bare names (``gemma-3-12b``,
+# ``qwen2-vl-72b``) while OR lists only the served instruct route. Model
+# variants beyond that (``-thinking``, size suffixes) stay distinct.
+_PREFIX_MARKERS = re.compile(r"^(?:\d{8}|\d{4}-\d{2}-\d{2}|\d{4}|preview|exp|beta|latest|it|instruct)$")
+_MAX_STRIPS = 4
+
+
+def _condensed(key: str) -> str:
+    """Alnum-only form so ``qwen2-5`` == ``qwen-2.5`` == ``qwen25``."""
+    return re.sub(r"[^a-z0-9]", "", key.lower())
+
+
+def _strip_one_tail(key: str) -> str | None:
+    """One tail-token normalization round: version-zero collapse, date, then
+    route-marker/quant token. ``None`` when nothing applies."""
+    if _VERSION_ZERO_TAIL.search(key):
+        return _VERSION_ZERO_TAIL.sub(r"-v\1", key)
+    if _DATE_TAIL.search(key):
+        return _DATE_TAIL.sub("", key)
+    if _SHORT_DATE_TAIL.search(key):
+        return _SHORT_DATE_TAIL.sub("", key)
+    head, sep, last = key.rpartition("-")
+    if sep and (last in _ROUTE_MARKERS or last in _QUANT_TAILS):
+        return head
+    return None
+
+
+def _strip_vendor(key: str) -> str | None:
+    """Drop one leading vendor-org token (longest match first)."""
+    for vendor in _VENDOR_PREFIXES:
+        if key.startswith(vendor + "-"):
+            return key[len(vendor) + 1 :]
+    return None
+
+
+def _variant_lattice(key: str) -> list[tuple[str, int]]:
+    """``(variant, strip_count)`` pairs reachable by tail strips and vendor
+    strips, fewest-strips first (original excluded). Bounded depth keeps the
+    lattice from drifting into unrelated model names."""
+    out: dict[str, int] = {}
+    frontier: list[tuple[int, str]] = [(0, key)]
+    while frontier:
+        cost, cur = frontier.pop()
+        for step in (_strip_one_tail(cur), _strip_vendor(cur)):
+            if not step:
+                continue
+            nxt = cost + 1
+            if nxt > _MAX_STRIPS:
+                continue
+            if step not in out or out[step] > nxt:
+                out[step] = nxt
+                frontier.append((nxt, step))
+    return sorted(out.items(), key=lambda t: (t[1], t[0]))
+
+
+class _JoinIndexes:
+    """OR-side indexes for the escalation ladder, precomputed once per join.
+
+    Route variants (``:batch``, ``:free`` suffixes) are excluded here: they
+    share the base model's quality and the exact-match alias index already
+    reaches them directly, while their twin parts would only add ambiguity.
+    """
+
+    def __init__(self, or_records: dict[str, SourceRecord]) -> None:
+        self.alias: dict[str, str] = _alias_index(or_records)
+        self.part: dict[str, list[str]] = _part_index(or_records)
+        self.cond_part: dict[str, list[str]] = {}
+        self.cond_full: dict[str, list[str]] = {}
+        self.sorted_part: dict[str, list[str]] = {}
+        self.prefix_part: dict[str, list[str]] = {}
+        for slug in or_records:
+            base = slug.split(":", 1)[0]
+            part = slugify(base.rsplit("/", 1)[-1])
+            tokens = part.split("-")
+            self.cond_part.setdefault(_condensed(part), []).append(slug)
+            self.cond_full.setdefault(_condensed(base), []).append(slug)
+            if len(tokens) >= 3:
+                self.sorted_part.setdefault(" ".join(sorted(tokens)), []).append(slug)
+            for i in range(1, len(tokens)):
+                if _PREFIX_MARKERS.match(tokens[-i]):
+                    hits = self.prefix_part.setdefault("-".join(tokens[:-i]), [])
+                    if slug not in hits:
+                        hits.append(slug)
+
+    @staticmethod
+    def _unique(hits: list[str] | None) -> str | None:
+        return hits[0] if hits and len(hits) == 1 else None
+
+    def _by_part(self, key: str) -> str | None:
+        """Exact part/alias hit for a (possibly transformed) board variant."""
+        for cand in (key.rsplit("/", 1)[-1], key):
+            hit = self._unique(self.part.get(cand))
+            if hit:
+                return hit
+        return self.alias.get(key)
+
+    def rescue(self, key: str, name: str) -> str | None:
+        """Escalating uniqueness-gated match for one board row: tail/date
+        strips -> vendor strip -> condensed -> sorted tokens -> prefix+route
+        marker. Fewest transformations wins; an ambiguous level is skipped
+        (deeper levels may still disambiguate) and full ambiguity -> None."""
+        base = slugify(key)
+        lattices = [[(base, 0), *_variant_lattice(base)]]
+        display = slugify(name) if name else ""
+        if display and display != base:
+            lattices.append([(display, 0), *_variant_lattice(display)])
+        for lattice in lattices:
+            for variant, _cost in lattice:
+                hit = self._by_part(variant) or self._unique(self.cond_part.get(_condensed(variant.rsplit("/", 1)[-1])))
+                if hit:
+                    return hit
+                tokens = variant.split("-")
+                if len(tokens) >= 3:
+                    hit = self._unique(self.sorted_part.get(" ".join(sorted(tokens))))
+                    if hit:
+                        return hit
+                hit = self._unique(self.cond_full.get(_condensed(variant)))
+                if hit:
+                    return hit
+                hit = self._unique(self.prefix_part.get(variant))
+                if hit:
+                    return hit
+        return None
+
+
 def _match_key(
     rec: SourceRecord,
     alias_index: dict[str, str],
     part_index: dict[str, list[str]] | None = None,
+    join_indexes: "_JoinIndexes | None" = None,
 ) -> str | None:
     for cand in (rec.key, slugify(rec.key), slugify(rec.name) if rec.name else None):
         if cand and cand in alias_index:
@@ -107,6 +279,8 @@ def _match_key(
             hits = part_index.get(cand) if cand else None
             if hits and len(hits) == 1:
                 return hits[0]
+    if join_indexes is not None:
+        return join_indexes.rescue(rec.key, rec.name)
     return None
 
 
@@ -128,6 +302,7 @@ def join_sources(
     """
     alias_index = _alias_index(or_records)
     part_index = _part_index(or_records)
+    join_idx = _JoinIndexes(or_records)
     candidates: dict[str, ModelCandidate] = {}
     for slug, rec in or_records.items():
         row = rec.raw
@@ -150,7 +325,7 @@ def join_sources(
             continue
         matched = 0
         for rec in records.values():
-            slug = _match_key(rec, alias_index, part_index)
+            slug = _match_key(rec, alias_index, part_index, join_idx)
             if slug is None:
                 continue
             matched += 1
@@ -164,7 +339,15 @@ def join_sources(
         if status_out is not None:
             # Self-monitoring: ``row_count=214 matched_count=0`` exposes a broken
             # join instead of silently falling back to catalog-embedded scores.
-            status_out.setdefault(source_name, {})["matched_count"] = matched
+            entry = status_out.setdefault(source_name, {})
+            entry["matched_count"] = matched
+            # Zero-join starvation (2026-10-08): a board that fetched rows but
+            # joined NONE of them into the OR backbone reports ``degraded`` —
+            # ``ok`` would hide that the board contributes nothing to
+            # OR-routable selection.
+            if task is not None and matched == 0 and records:
+                entry["status"] = "degraded"
+                entry["reason"] = "zero_join"
 
     return list(candidates.values())
 

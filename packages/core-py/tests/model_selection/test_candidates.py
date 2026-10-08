@@ -324,11 +324,12 @@ def test_zero_price_without_free_suffix_is_unpriced_not_free():
 
 
 def test_rank_aggregation_cheap_in_points_wins():
-    """Board points -> board_rank; price -> price_rank; min sum wins rank-0.
+    """Mean per-board score -> board_rank; price -> price_rank; min sum wins.
 
-    pro/value tie on board points (119/119) but value is 10x cheaper, so its
-    price_rank pulls the sum down: value rank-0. anchor accumulates no points
-    and trails on both ranks despite mid price."""
+    pro/value tie on mean (59.5/59.5) but pro is 10x pricier, so pro is
+    DOMINATED by value on both axes and is excluded from rank assignment
+    (pareto_rank=None) — it trails behind despite tying the quality mean.
+    value takes rank 0; anchor's zero mean is dominated too."""
     or_rows = [
         _or_row("vendor-a/pro", prompt="0.00001", completion="0.00002"),  # 10x pricier
         _or_row("vendor-a/value", prompt="0.000001", completion="0.000002"),
@@ -350,24 +351,25 @@ def test_rank_aggregation_cheap_in_points_wins():
         "agg_board": _FakeSource("agg_board", agg),
     }
     cands = candidates(_TASK, sources=sources)
-    # board: pro/value tie 119 pts (pro first by slug tie-break), anchor 0
-    # price: value 1.5, anchor 1.5 (worse quality), pro 15 -> 1,2,3
-    # sums: value 3, pro 4, anchor 5 -> value, pro, anchor
+    # value: only non-dominated strong model -> rank 0; pro/anchor dominated
+    # (strictly beaten on quality-mean and price) -> pareto_rank None, trail
+    # by mean desc (pro 59.5 above anchor 0).
     assert [c.or_slug for c in cands] == ["vendor-a/value", "vendor-a/pro", "vendor-a/anchor"]
-    assert [c.rank_distance for c in cands] == [1, 2, 1]
-    assert cands[0].pareto_rank == 0
+    assert [c.rank_distance for c in cands] == [0, None, None]
+    assert [c.pareto_rank for c in cands] == [0, None, None]
 
 
 def test_rank_aggregation_sweet_spot_beats_leader():
     """Best-on-boards + expensive loses to the near-top model that is cheap.
 
-    leader: board #1 (200 pts) but price #3 -> sum 4;
-    sweet:  board #2 (185 pts) and price #1 -> sum 3 wins rank-0;
-    tail:   worst on both -> last."""
+    leader: best mean (100) but the most expensive -> rank-distance 2;
+    sweet:  near-top mean (92.5) at mid price -> distance 0 wins rank-0;
+    tail:   worst mean but cheapest (non-dominated: no model beats it on
+    BOTH axes) -> ranks, trails by board_rank tiebreak."""
     or_rows = [
         _or_row("vendor-a/leader", prompt="0.0001", completion="0.0002"),
         _or_row("vendor-a/sweet", prompt="0.000001", completion="0.000002"),
-        _or_row("vendor-a/tail", prompt="0.00001", completion="0.00002"),
+        _or_row("vendor-a/tail", prompt="0.0000002", completion="0.0000004"),
     ]
     spec = {
         "vendor-a/leader": SourceRecord(key="vendor-a/leader", score=90.0),
@@ -386,8 +388,8 @@ def test_rank_aggregation_sweet_spot_beats_leader():
     }
     cands = candidates(_TASK, sources=sources)
     assert [c.or_slug for c in cands] == ["vendor-a/sweet", "vendor-a/leader", "vendor-a/tail"]
-    assert [c.rank_distance for c in cands] == [1, 2, 1]
-    assert cands[0].pareto_rank == 0
+    assert [c.rank_distance for c in cands] == [0, 2, 2]
+    assert [c.pareto_rank for c in cands] == [0, 1, 2]
 
 
 def test_single_board_models_stay_unranked():
@@ -420,6 +422,76 @@ def test_join_sources_records_matched_count():
     status2: dict = {}
     join_sources(or_records, {"empty_board": {}}, status_out=status2)
     assert status2["empty_board"]["matched_count"] == 0
+
+
+def test_zero_join_board_marked_degraded_on_or_backbone():
+    """A board that fetched rows but joined NONE into the OR backbone
+    reports degraded/zero_join instead of a lying ok (2026-10-08)."""
+    or_records = _or_source([_or_row("m/a")])
+    board = {
+        "finetune-1": SourceRecord(key="org-a/finetune-1", name="finetune-1", score=70.0),
+        "finetune-2": SourceRecord(key="org-b/finetune-2", name="finetune-2", score=60.0),
+    }
+    task = TaskProfile(name="t", specialized_sources=("board",))
+    status: dict = {"board": {"status": "ok", "row_count": 2}}
+    join_sources(or_records, {"board": board}, task=task, status_out=status)
+    assert status["board"]["status"] == "degraded"
+    assert status["board"]["reason"] == "zero_join"
+    assert status["board"]["matched_count"] == 0
+    # empty fetch (no rows at all) is the fetcher's missing status, not zero_join
+    status3: dict = {"board": {"status": "missing"}}
+    join_sources(or_records, {"board": {}}, task=task, status_out=status3)
+    assert status3["board"].get("reason") is None
+
+
+def test_join_escalation_ladder_rescues_or_listed_models():
+    """Audited 2026-10-08 shapes: dated snapshots, route markers, vendor
+    prefixes, version-dot placement, token order, condensed keys and the
+    prefix+route-marker case all join; ambiguity stays unmatched."""
+    or_rows = [
+        _or_row("anthropic/claude-opus-4.5"),
+        _or_row("openai/gpt-5"),
+        _or_row("qwen/qwen3.8-27b"),
+        _or_row("x-ai/grok-4.3"),
+        _or_row("mistralai/mistral-nemo"),
+        _or_row("qwen/qwen-2.5-7b-instruct"),
+        _or_row("google/gemini-3-flash-preview"),
+        _or_row("google/gemma-3-12b-it"),
+        _or_row("openai/gpt-4o"),
+        # ambiguity pair: TWO catalog routes beyond the board key gemini-3-flash
+        _or_row("google/gemini-3-flash-preview-exp"),
+    ]
+    or_records = _or_source(or_rows)
+    # (label -> (board key, score)) — keys built via variables so the
+    # gitleaks generic-api-key rule does not false-positive on the literals.
+    board_rows: dict[str, tuple[str, float]] = {
+        "dated": ("claude-opus-4-5-20251101", 1.0),
+        "iso_dated": ("gpt-5-2025-08-07", 2.0),
+        "vendor_prefixed": ("alibaba_qwen3.8-27b", 3.0),
+        "vendor_alt": ("xai-grok-4-3", 4.0),
+        "renamed": ("mistral-nemo-instruct-2407", 5.0),
+        "version_dots": ("qwen2-5-7b-instruct", 6.0),
+        "prefix_it": ("gemma-3-12b", 8.0),
+        "exact_preview": ("gemini-3-flash-preview", 9.0),
+        "ambiguous": ("gemini-3-flash", 7.0),
+        "alien": ("totally-absent-model", 10.0),
+    }
+    board = {label: SourceRecord(key=key, score=score) for label, (key, score) in board_rows.items()}
+    cands = join_sources(or_records, {"board": board})
+    by_slug = {c.or_slug: c.scores.get("board") for c in cands}
+    assert by_slug["anthropic/claude-opus-4.5"] == 1.0
+    assert by_slug["openai/gpt-5"] == 2.0
+    assert by_slug["qwen/qwen3.8-27b"] == 3.0
+    assert by_slug["x-ai/grok-4.3"] == 4.0
+    assert by_slug["mistralai/mistral-nemo"] == 5.0
+    assert by_slug["qwen/qwen-2.5-7b-instruct"] == 6.0
+    assert by_slug["google/gemma-3-12b-it"] == 8.0
+    assert by_slug["google/gemini-3-flash-preview"] == 9.0  # exact part join
+    # ambiguous: gemini-3-flash is a token-prefix of BOTH preview routes ->
+    # uniqueness gate keeps it unmatched rather than guessing
+    assert by_slug["google/gemini-3-flash-preview-exp"] is None
+    assert by_slug["openai/gpt-4o"] is None  # no board row targeted it
+    assert len(cands) == len(or_rows)  # join creates no new OR-backbone candidates
 
 
 def test_alias_join_vendorless_part_unique():
@@ -602,20 +674,88 @@ def test_candidates_end_to_end():
     cands = candidates(_TASK, sources=_fixture_sources())
     slugs = [c.or_slug for c in cands]
     assert "m/no-ctx" not in slugs  # prefilter
-    # rank-aggregation: order by board_rank + price_rank, then |distance|.
-    # points: best 200, knee ~180, cheap ~31, dom 0 -> board 1,2,3,4
-    # price: cheap .15, knee .75, best 7.5, dom 15 -> price 1,2,3,4
-    # sums 4/4/4/8, distances 0/2/2/0 -> knee, best, cheap, dominated
+    # rank-aggregation (mean, dominance-filtered): m/dominated has the worst
+    # mean AND the worst price -> strictly dominated by all three, excluded
+    # from rank assignment.
+    # ranked pool: board best/knee/cheap -> 1,2,3; price cheap/knee/best -> 1,2,3
+    # sums 4/4/4, distances 0/2/2 -> knee, best, cheap; dominated trails None.
     assert [c.or_slug for c in cands] == ["m/knee", "m/best", "m/cheap-bad", "m/dominated"]
-    assert [c.rank_distance for c in cands] == [0, 2, 2, 0]
+    assert [c.rank_distance for c in cands] == [0, 2, 2, None]
     ranks = [c.pareto_rank for c in cands]
-    assert ranks == [0, 1, 2, 3]
+    assert ranks == [0, 1, 2, None]
 
 
 def test_pick_knee_end_to_end():
     best = pick(_TASK, strategy="knee", sources=_fixture_sources())
     assert best is not None
     assert best.or_slug == "m/knee"
+
+
+def test_dominated_model_never_takes_rank_zero():
+    """Regression for the published 2026-10-08 snapshot: translation rank-0
+    was xiaomi/mimo-v2.6-flash (3 boards, quality 64.6, $0.182) while
+    google/gemma-3-12b-it (2 boards, quality 81.6, $0.08) strictly dominated
+    it on BOTH axes yet lost under sum-of-board-points ranking. Under mean +
+    dominance prefilter the dominating model must take rank 0 — extra board
+    coverage is not a quality argument."""
+    or_rows = [
+        _or_row("mimo", prompt="0.0000006", completion="0.0000012"),  # ~0.182 blended (0.7/0.3)
+        _or_row("gemma", prompt="0.0000008", completion="0.0000002"),  # ~0.08 blended
+    ]
+    spec = {  # arena: both measured
+        "mimo": SourceRecord(key="mimo", score=40.0),
+        "gemma": SourceRecord(key="gemma", score=90.0),
+    }
+    agg = {  # benchlm + vals measure mimo only; flores measures gemma only
+        "mimo": SourceRecord(key="mimo", score=60.0),
+    }
+    flores = {"gemma": SourceRecord(key="gemma", score=70.0)}
+    sources = {
+        "openrouter_models": _FakeSource("openrouter_models", _or_source(or_rows)),
+        "spec_board": _FakeSource("spec_board", spec),
+        "agg_board": _FakeSource("agg_board", agg),
+        "flores": _FakeSource("flores", flores),
+    }
+    task = TaskProfile(
+        name="translation-ish",
+        specialized_sources=("spec_board", "flores"),
+        aggregate_sources=("agg_board",),
+        token_mix=(0.7, 0.3, 0.0),
+    )
+    cands = candidates(task, sources=sources)
+    assert [c.or_slug for c in cands] == ["gemma", "mimo"]
+    assert cands[0].pareto_rank == 0 and not cands[0].weak_evidence
+    # mimo is strictly dominated (worse mean, pricier) -> no rank, no distance
+    assert cands[1].pareto_rank is None
+    assert cands[1].rank_distance is None
+    assert cands[1].weak_evidence is False  # 3 boards: strong but dominated
+
+
+def test_unpriced_strong_model_never_blocks_ranking():
+    """Unknown-cost strong models cannot take a price rank; they trail (and
+    cannot dominate priced models — dominance needs both axes)."""
+    or_rows = [
+        _or_row("priced", prompt="0.000001", completion="0.000002"),
+        _or_row("mystery"),  # unpriced: no pricing payload
+    ]
+    del or_rows[1]["pricing"]
+    spec = {
+        "priced": SourceRecord(key="priced", score=80.0),
+        "mystery": SourceRecord(key="mystery", score=95.0),
+    }
+    agg = {
+        "priced": SourceRecord(key="priced", score=80.0),
+        "mystery": SourceRecord(key="mystery", score=95.0),
+    }
+    sources = {
+        "openrouter_models": _FakeSource("openrouter_models", _or_source(or_rows)),
+        "spec_board": _FakeSource("spec_board", spec),
+        "agg_board": _FakeSource("agg_board", agg),
+    }
+    cands = candidates(_TASK, sources=sources)
+    assert [c.or_slug for c in cands] == ["priced", "mystery"]
+    assert cands[0].pareto_rank == 0
+    assert cands[1].pareto_rank is None and cands[1].weak_evidence is False
 
 
 def test_pick_cheapest():

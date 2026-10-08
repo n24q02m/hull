@@ -1,9 +1,8 @@
 """Join sources into the OpenRouter backbone + normalize/blend scores + prefilter.
 
-Backbone = OR ``/api/v1/models``: a model that does not route through
-OpenRouter never becomes a candidate (self-hosted embedders/rerankers need a
-different backbone — see ``tasks.py`` embedding/rerank profiles and the
-package docstring for the auto-promotion policy). Join key priority:
+Backbone = OR ``/api/v1/models`` (text + embeddings + rerank segments): a
+model that is not in the OR catalog never becomes a candidate (2026-10-08
+directive: embed/rerank picks must be OR-servable too). Join key priority:
 canonical_slug -> id -> hugging_face_id -> slug of display name.
 
 Cost semantics: ``ModelCandidate.cost_1m_blended`` is ``None`` when no OR
@@ -33,7 +32,7 @@ _COST_UNKNOWN = math.inf
 class ModelCandidate:
     """An OR-routable model after join + normalize + pareto."""
 
-    or_slug: str | None  # None = boards-backbone candidate (embed/rerank): identity is hf/board key
+    or_slug: str  # OR catalog id — every candidate is OR-servable (2026-10-08 directive)
     name: str = ""
     hf_id: str | None = None
     litellm_id: str | None = None
@@ -117,7 +116,6 @@ def join_sources(
     *,
     task: TaskProfile | None = None,
     status_out: dict[str, dict[str, Any]] | None = None,
-    include_unmatched_backbone: bool = False,
 ) -> list[ModelCandidate]:
     """Join every source into the OR backbone. Unmatched records are dropped.
 
@@ -125,7 +123,8 @@ def join_sources(
     specialized and aggregate alike). The OpenRouter catalog is the pricing/
     routing backbone, never a source of quality; models with no board score
     are not measurable and are filtered downstream (boards-first
-    qualification).
+    qualification). Picks must be OR-servable (2026-10-08 directive), so
+    board rows that match no OR catalog entry create no candidate.
     """
     alias_index = _alias_index(or_records)
     part_index = _part_index(or_records)
@@ -167,61 +166,6 @@ def join_sources(
             # join instead of silently falling back to catalog-embedded scores.
             status_out.setdefault(source_name, {})["matched_count"] = matched
 
-    if include_unmatched_backbone:
-        # Boards-backbone profiles (embed/rerank): models the OR catalog does
-        # not list stay measurable on their own — hf/board key becomes the
-        # identity; records that DID match an OR row are already merged above.
-        # Cross-board identity unification (2026-10-07 directive "chuẩn hóa
-        # tên"): the same model published under variant keys on different
-        # boards must pool its points into ONE candidate — else every board
-        # fragment ranks alone and "cộng điểm tất cả bảng" silently degrades
-        # to single-board. Match order: exact slugified key, then the
-        # vendor-less model part when unique across all fetched board keys;
-        # ambiguous parts keep separate identities (no over-merge).
-        board_records: list[tuple[str, str, float, SourceRecord]] = []
-        for source_name, records in source_records.items():
-            if source_name == "openrouter_models":
-                continue
-            for key, rec in records.items():
-                if rec.score is None or _match_key(rec, alias_index, part_index) is not None:
-                    continue
-                board_records.append((source_name, str(key), rec.score, rec))
-
-        board_part_index: dict[str, list[str]] = {}
-        for _src, key, _score, _rec in board_records:
-            part = slugify(key.rsplit("/", 1)[-1])
-            hits = board_part_index.setdefault(part, [])
-            if key not in hits:
-                hits.append(key)
-
-        board_cands: dict[str, ModelCandidate] = {}
-
-        def _board_identity(key: str) -> str:
-            slug = slugify(key)
-            if slug in board_cands:
-                return slug
-            part = slugify(key.rsplit("/", 1)[-1])
-            others = [k for k in board_part_index.get(part, []) if k != key]
-            if len(others) == 1 and slugify(others[0]) in board_cands:
-                return slugify(others[0])
-            return slug
-
-        for source_name, key, score, rec in board_records:
-            k = _board_identity(key)
-            cand = board_cands.get(k)
-            if cand is None:
-                cand = ModelCandidate(
-                    or_slug=None,
-                    name=rec.name or key,
-                    hf_id=key if "/" in key else None,
-                    litellm_id=key,
-                    raw={"board_backbone": source_name, "board_key": key},
-                )
-                board_cands[k] = cand
-            cand.scores[source_name] = score
-            if rec.score_ci is not None:
-                cand.score_cis[source_name] = rec.score_ci
-        candidates.update({f"board:{k}": v for k, v in board_cands.items()})
     return list(candidates.values())
 
 

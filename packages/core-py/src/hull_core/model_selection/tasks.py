@@ -8,10 +8,10 @@ InHouseAnchorSource sets, or an UnimplementedSource recording a probed gap
 ``candidates(..., sources={...})`` plugin maps.
 
 Ported from web_core.model_selection.tasks v2.10.6. The ``embedding`` and
-``rerank`` profiles intentionally have empty ``aggregate_sources``: embedders
-and rerankers mostly do not route through OpenRouter, so the backbone is
-expected to be thin/empty there (see ``hull_core.model_selection`` docs for the
-auto-promotion policy).
+``rerank`` profiles intentionally have empty ``aggregate_sources``: the MTEB
+boards are the quality axis, while the OpenRouter backbone (now including
+its embeddings/rerank catalog segments) is the candidate + price axis —
+embed/rerank picks must be OR-servable (2026-10-08 directive).
 """
 
 from __future__ import annotations
@@ -41,11 +41,6 @@ class TaskProfile:
     aggregate_sources: tuple[str, ...] = ()  # merge/fallback layer
     constraints: Constraints = field(default_factory=Constraints)
     quality_weight: float = 0.7  # w_spec when specialized covers >=80% of candidates; else 0.5
-    # Candidate backbone: "or" = OpenRouter catalog (general chat models —
-    # OR prices/routes, boards qualify); "boards" = the boards themselves are
-    # the backbone (embed/rerank models measured by MTEB that OR does not
-    # list; litellm_id carries the board key, consumers map their providers).
-    backbone: str = "or"
     # Token mix (input, output, cache_read) measured on the app — do NOT hardcode
     # a generic one: KP ingestion is input-heavy, Aiora chat is ~ AA 7:2:1
     # (cache:input:output).
@@ -73,19 +68,24 @@ TASKS: dict[str, TaskProfile] = {
     "embedding": TaskProfile(
         name="embedding",
         specialized_sources=("mteb_classification", "mteb_retrieval", "mteb_sts"),
-        # Embedders are measured by the MTEB boards and mostly are NOT listed
-        # on OpenRouter -> the boards themselves are the candidate backbone
-        # (litellm_id = HF/board key; consumers map their own providers).
+        # Embedding picks MUST be OpenRouter-servable (2026-10-08 directive).
+        # OR's catalog now lists an embeddings segment with real per-token
+        # pricing; MTEB boards qualify, OR lists + prices. Embeddings are
+        # 100%-input workloads -> pure input token mix.
         aggregate_sources=(),
         constraints=Constraints(),
-        backbone="boards",
+        token_mix=(1.0, 0.0, 0.0),
     ),
     "rerank": TaskProfile(
         name="rerank",
         specialized_sources=("mteb_reranking",),
+        # Same 2026-10-08 directive: rerank picks must be OR-servable. OR
+        # lists a rerank segment but its catalog pricing fields are $0
+        # placeholders (OR bills per request, not per token) — those rows
+        # count as unpriced, never as free.
         aggregate_sources=(),
         constraints=Constraints(),
-        backbone="boards",
+        token_mix=(1.0, 0.0, 0.0),
     ),
     "manga-text": TaskProfile(
         name="manga-text",

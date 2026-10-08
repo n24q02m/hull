@@ -162,45 +162,51 @@ def test_boards_first_qualification_drops_unmeasured():
     assert slugs == ["m/evidenced"]
 
 
-def test_boards_backbone_ranks_mteb_without_or():
-    """Embed/rerank profiles: the boards are the backbone — OR absence is not fatal."""
+def test_embed_rerank_profiles_require_or_backbone():
+    """Embed/rerank picks must be OR-servable (2026-10-08 directive): a missing
+    or empty OR catalog fails closed — boards alone never qualify a pick."""
     task = TaskProfile(
-        name="rerank-boards",
+        name="rerank",
         specialized_sources=("mteb_reranking",),
         aggregate_sources=(),
-        backbone="boards",
+        token_mix=(1.0, 0.0, 0.0),
     )
+    mteb = _FakeSource(
+        "mteb_reranking",
+        {
+            "BAAI/bge-reranker-v2.5": SourceRecord(key="BAAI/bge-reranker-v2.5", name="bge-reranker", score=0.61),
+            "jina/reranker-v4": SourceRecord(key="jina/reranker-v4", name="jina-reranker", score=0.68),
+        },
+    )
+    # no openrouter_models source at all -> missing backbone
+    assert candidates(task, sources={"mteb_reranking": mteb}) == []
+    # empty catalog -> or_backbone_empty, same fail-closed result
     sources = {
-        # no openrouter_models source at all
-        "mteb_reranking": _FakeSource(
-            "mteb_reranking",
-            {
-                "BAAI/bge-reranker-v2.5": SourceRecord(key="BAAI/bge-reranker-v2.5", name="bge-reranker", score=0.61),
-                "jina/reranker-v4": SourceRecord(key="jina/reranker-v4", name="jina-reranker", score=0.68),
-            },
-        ),
+        "openrouter_models": _FakeSource("openrouter_models", {}),
+        "mteb_reranking": mteb,
     }
-    cands = candidates(task, sources=sources)
-    assert [c.or_slug for c in cands] == [None, None]
-    assert [c.litellm_id for c in cands] == ["jina/reranker-v4", "BAAI/bge-reranker-v2.5"]  # quality desc
-    assert [c.pareto_rank for c in cands] == [0, 1]
-    assert cands[0].quality == pytest.approx(100.0)  # minmax-normalized 0-100
+    assert candidates(task, sources=sources) == []
 
 
-def test_boards_backbone_unifies_variant_keys_across_boards():
-    """Same model under variant keys on different boards pools its points.
+def test_embed_profile_joins_or_catalog_and_boards():
+    """Embed profile (2026-10-08 directive): picks must be OR-servable.
 
-    'thenlper/gte-large' (retrieval table) and 'gte-large' (classification
-    table) are one model: one candidate carrying BOTH boards -> strong
-    (weak_evidence False). Identity resolution is exact slugified key first,
-    then the vendor-less model part when unique across all fetched keys."""
+    OR's embeddings segment is the candidate + price axis; MTEB boards
+    qualify. 'gte-large' published vendor-less on the classification board
+    unifies into the OR 'thenlper/gte-large' candidate via the unique
+    model-part match; board rows matching no OR entry create no candidate."""
     task = TaskProfile(
-        name="embedding-boards",
+        name="embedding",
         specialized_sources=("mteb_retrieval", "mteb_classification"),
         aggregate_sources=(),
-        backbone="boards",
+        token_mix=(1.0, 0.0, 0.0),
     )
+    or_rows = [
+        _or_row("thenlper/gte-large", prompt="0.00000001", completion="0"),
+        _or_row("voyageai/voyage-3-large", prompt="0.0000002", completion="0"),
+    ]
     sources = {
+        "openrouter_models": _FakeSource("openrouter_models", _or_source(or_rows)),
         "mteb_retrieval": _FakeSource(
             "mteb_retrieval",
             {
@@ -219,31 +225,43 @@ def test_boards_backbone_unifies_variant_keys_across_boards():
         ),
     }
     cands = candidates(task, sources=sources)
-    gte = [c for c in cands if "gte-large" in (c.litellm_id or "") + (c.name or "")]
-    assert len(gte) == 1, "variant keys must unify into ONE candidate, not fragment"
-    g = gte[0]
-    assert set(g.scores) == {"mteb_retrieval", "mteb_classification"}
-    assert g.weak_evidence is False  # two boards -> strong
-    # multi-board pool outranks single-board models: voyage (2 boards) leads,
-    # gte (2 boards, slightly lower standings) second; junk rows trail.
-    assert [c.pareto_rank for c in cands][:2] == [0, 1]
-    assert g.pareto_rank == 1 and cands[0].litellm_id == "voyage-3-large"
+    # Both models strong (2 boards + priced). Boards dominate here (per-board
+    # min-max spreads points 200 vs 0 over a 2-model pool), so the cheaper
+    # gte only ties on board_rank+price_rank and loses the board_rank
+    # tie-break — honest rank-aggregation outcome, deterministic.
+    assert [c.or_slug for c in cands] == ["voyageai/voyage-3-large", "thenlper/gte-large"]
+    gte = cands[1]
+    assert set(gte.scores) == {"mteb_retrieval", "mteb_classification"}
+    assert gte.weak_evidence is False  # two boards -> strong
+    assert gte.pareto_rank == 1
+    assert gte.cost_1m_blended == pytest.approx(0.01)  # 100%-input token mix
 
 
-def test_boards_backbone_scores_points_not_mean():
-    """Board standing sums across variants: an embedder measured on all three
-    MTEB boards with good scores outranks a single-board high scorer."""
+def test_points_sum_across_boards_beats_single_board_high():
+    """Board standing sums across variants (2026-10-07 directive 'model nào
+    được nhiều điểm nhất'): an embedder measured on all three MTEB boards
+    outranks a single-board high scorer; equal prices keep the pure board
+    order (rank-aggregation tie-breaks fall through to board_rank)."""
     task = TaskProfile(
-        name="embed-boards",
+        name="embedding",
         specialized_sources=("mteb_classification", "mteb_retrieval", "mteb_sts"),
         aggregate_sources=(),
-        backbone="boards",
+        token_mix=(1.0, 0.0, 0.0),
     )
 
     def rec(key: str, score: float) -> SourceRecord:
         return SourceRecord(key=key, score=score)
 
     sources = {
+        "openrouter_models": _FakeSource(
+            "openrouter_models",
+            _or_source(
+                [
+                    _or_row("m/coverage", prompt="0.0000001", completion="0"),
+                    _or_row("m/specialist", prompt="0.0000001", completion="0"),
+                ]
+            ),
+        ),
         "mteb_classification": _FakeSource(
             "mteb_classification",
             {"m/coverage": rec("m/coverage", 80.0), "m/specialist": rec("m/specialist", 60.0)},
@@ -255,19 +273,19 @@ def test_boards_backbone_scores_points_not_mean():
         "mteb_sts": _FakeSource("mteb_sts", {"m/coverage": rec("m/coverage", 80.0)}),
     }
     cands = candidates(task, sources=sources)
-    ids = [c.litellm_id for c in cands]
-    assert ids == ["m/coverage", "m/specialist"]  # 240 points beat 160
+    ids = [c.or_slug for c in cands]
+    assert ids == ["m/coverage", "m/specialist"]  # 200 points beat 100
     assert cands[0].pareto_rank == 0
 
 
 def test_or_backbone_excludes_free_tier_models():
-    """$0 promo slots are never selected — paid board-evidenced models only."""
+    "':free' promo variants are never selected — paid board-evidenced models only."
     or_rows = [
-        _or_row("vendor-a/free-promo", prompt="0", completion="0"),  # free -> excluded
+        _or_row("vendor-a/free-promo:free", prompt="0", completion="0"),  # free -> excluded
         _or_row("vendor-a/paid", prompt="0.000005", completion="0.00001"),
     ]
     spec = {
-        "vendor-a/free-promo": SourceRecord(key="vendor-a/free-promo", score=99.0),
+        "vendor-a/free-promo:free": SourceRecord(key="vendor-a/free-promo:free", score=99.0),
         "vendor-a/paid": SourceRecord(key="vendor-a/paid", score=70.0),
     }
     sources = {
@@ -277,6 +295,32 @@ def test_or_backbone_excludes_free_tier_models():
     }
     cands = candidates(_TASK, sources=sources)
     assert [c.or_slug for c in cands] == ["vendor-a/paid"]  # free model dropped despite q=99
+
+
+def test_zero_price_without_free_suffix_is_unpriced_not_free():
+    """$0 catalog pricing WITHOUT the ':free' suffix (OR rerank segment — OR
+    bills per request, not per token) is 'no price signal', not free: the row
+    stays listed but cannot take a price rank, so it trails unranked."""
+    or_rows = [
+        _or_row("vendor-a/reranker", prompt="0", completion="0"),
+        _or_row("vendor-a/paid", prompt="0.000005", completion="0.00001"),
+    ]
+    spec = {
+        "vendor-a/reranker": SourceRecord(key="vendor-a/reranker", score=99.0),
+        "vendor-a/paid": SourceRecord(key="vendor-a/paid", score=70.0),
+    }
+    agg = {"vendor-a/paid": SourceRecord(key="vendor-a/paid", score=70.0)}
+    sources = {
+        "openrouter_models": _FakeSource("openrouter_models", _or_source(or_rows)),
+        "spec_board": _FakeSource("spec_board", spec),
+        "agg_board": _FakeSource("agg_board", agg),
+    }
+    cands = candidates(_TASK, sources=sources)
+    assert [c.or_slug for c in cands] == ["vendor-a/paid", "vendor-a/reranker"]
+    reranker = cands[1]
+    assert reranker.cost_1m_blended is None
+    assert reranker.pareto_rank is None  # unpriced -> no price rank -> no frontier
+    assert reranker.weak_evidence is True  # single board, no price evidence
 
 
 def test_rank_aggregation_cheap_in_points_wins():

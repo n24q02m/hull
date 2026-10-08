@@ -30,6 +30,7 @@ from hull_core.model_selection.sources import (
     GaiaSource,
     InHouseAnchorSource,
     LLMStatsSource,
+    MangaBenchSource,
     OpenMedicalLLMSource,
     SourceRecord,
     Tau2BenchORSource,
@@ -40,6 +41,7 @@ from hull_core.model_selection.sources import (
     _parse_benchlm_md,
     _parse_flores_csv,
     _parse_llmstats_table,
+    _parse_manga_bench_table,
     _parse_medhelm_group,
     _parse_or_bench_table,
     _parse_vals_table,
@@ -356,7 +358,7 @@ def test_aa_capability_no_key_records_missing(monkeypatch):
     monkeypatch.delenv("AA_API_KEY", raising=False)
     src = AaCapabilitySource("aa_healthcare_index", "healthcare_and_medical")
     assert src.fetch() == {}
-    assert src.missing_reason == "aa_api_key_absent"
+    assert src.missing_reason == "aa_api_key_required"
 
 
 def test_aa_capability_parses_docs_field_names(monkeypatch):
@@ -391,11 +393,11 @@ def test_aa_agentic_without_key_never_reads_or_embedded(monkeypatch):
     get.assert_not_called()
 
 
-# --- In-house anchors ---------------------------------------------------------------
+# --- In-house anchors ----------------------------------------------------------------
 
 
 def test_anchor_present_file_parses(tmp_path):
-    anchor = tmp_path / "wmt24pp.json"
+    anchor = tmp_path / "aiora_triage_eval.json"
     anchor.write_text(
         json.dumps(
             {
@@ -408,22 +410,84 @@ def test_anchor_present_file_parses(tmp_path):
         ),
         encoding="utf-8",
     )
-    recs = InHouseAnchorSource("wmt24pp", root=tmp_path).fetch()
+    recs = InHouseAnchorSource("aiora_triage_eval", root=tmp_path).fetch()
     assert set(recs) == {"google/gemini-4-argon"}
     assert recs["google/gemini-4-argon"].score == 72.5
 
 
 def test_anchor_absent_file_records_not_published(tmp_path):
-    src = InHouseAnchorSource("mangavqa", root=tmp_path)
+    src = InHouseAnchorSource("aiora_triage_eval", root=tmp_path)
     assert src.fetch() == {}
     assert src.missing_reason == "in_house_anchor_not_published"
 
 
 def test_anchor_invalid_schema_records_reason(tmp_path):
-    (tmp_path / "manga109_v2026.json").write_text("{not json", encoding="utf-8")
-    src = InHouseAnchorSource("manga109_v2026", root=tmp_path)
+    (tmp_path / "aiora_triage_eval.json").write_text("{not json", encoding="utf-8")
+    src = InHouseAnchorSource("aiora_triage_eval", root=tmp_path)
     assert src.fetch() == {}
     assert src.missing_reason and src.missing_reason.startswith("anchor_")
+
+
+def test_former_anchor_boards_are_now_public_fetchers():
+    """wmt24pp / manga109_v2026 / mangavqa graduated from unpublished anchors
+    to real public-board fetchers (2026-10-08); only aiora_triage_eval stays
+    an in-house anchor."""
+    assert isinstance(SOURCE_REGISTRY["aiora_triage_eval"], InHouseAnchorSource)
+    assert isinstance(SOURCE_REGISTRY["wmt24pp"], LLMStatsSource)
+    assert SOURCE_REGISTRY["wmt24pp"].board == "wmt24++"
+    for name in ("manga109_v2026", "mangavqa"):
+        assert isinstance(SOURCE_REGISTRY[name], MangaBenchSource)
+
+
+# --- WMT24++ (llm-stats mirror) ------------------------------------------------------
+
+
+def test_wmt24pp_fixture_parse_and_fetch():
+    recs = _parse_llmstats_table(_fixture("llmstats_wmt24pp.html").decode("utf-8"))
+    assert len(recs) >= 20
+    first = next(iter(recs.values()))
+    assert first.name and first.score is not None and 0 < first.score <= 1
+    with patch(
+        "hull_core.model_selection.sources.httpx.get",
+        return_value=_resp(content=_fixture("llmstats_wmt24pp.html")),
+    ):
+        fetched = LLMStatsSource("wmt24pp", "wmt24++").fetch()
+    assert set(fetched) == set(recs)
+    assert fetched["qwen3.7-max"].score == pytest.approx(0.858)
+
+
+# --- Manga109-derived boards (project site) ------------------------------------------
+
+
+def test_manga_bench_ocr_column():
+    recs = _parse_manga_bench_table(_fixture("manga_bench.html").decode("utf-8"), score_col=1)
+    # section rows (``Proprietary Models``) and the count table must not leak in
+    assert "proprietary-models" not in recs and "qa-pairs" not in recs
+    assert recs["mangalmm"].score == pytest.approx(71.5)
+    assert recs["gpt-4o"].score == 0.0  # honest zeros stay (published data)
+    assert len(recs) == 11
+
+
+def test_manga_bench_vqa_column_and_fetch():
+    recs = _parse_manga_bench_table(_fixture("manga_bench.html").decode("utf-8"), score_col=2)
+    assert recs["gemini-2-5-flash"].score == pytest.approx(7.26)
+    assert recs["mangalmm"].score == pytest.approx(6.68)  # "(Ours)" stripped from the name
+    with patch(
+        "hull_core.model_selection.sources.httpx.get",
+        return_value=_resp(content=_fixture("manga_bench.html")),
+    ):
+        fetched = MangaBenchSource("mangavqa", score_col=2).fetch()
+    assert set(fetched) == set(recs)
+    assert all(r.board_version == "2026" for r in fetched.values())
+
+
+def test_manga_bench_table_missing_records_reason():
+    html = b"<html><table><tr><th>Count Type</th><th>Total</th></tr><tr><td>QA pairs</td><td>40,363</td></tr></table></html>"
+    assert _parse_manga_bench_table(html.decode(), score_col=1) == {}
+    with patch("hull_core.model_selection.sources.httpx.get", return_value=_resp(content=html)):
+        src = MangaBenchSource("mangavqa", score_col=2)
+        assert src.fetch() == {}
+        assert src.missing_reason == "manga_bench_table_empty"
 
 
 # --- Unimplemented + status plumbing -------------------------------------------------
@@ -451,14 +515,14 @@ class _StubSource:
 
 def test_fetch_source_statuses_ok_missing_stale(tmp_path):
     ok = _StubSource("ok_src", {"m/a": SourceRecord(key="m/a", score=1.0)})
-    missing = _StubSource("missing_src", {}, missing_reason="aa_api_key_absent")
+    missing = _StubSource("missing_src", {}, missing_reason="aa_api_key_required")
     status: dict = {}
     assert ms._fetch_source(ok, None, False, status)["m/a"].score == 1.0
     assert status["ok_src"]["status"] == "ok"
     assert status["ok_src"]["row_count"] == 1
     assert ms._fetch_source(missing, None, False, status) == {}
     assert status["missing_src"]["status"] == "missing"
-    assert status["missing_src"]["reason"] == "aa_api_key_absent"
+    assert status["missing_src"]["reason"] == "aa_api_key_required"
 
     # stale fallback: cached snapshot served after an empty fetch
     import time as _time

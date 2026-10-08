@@ -438,7 +438,7 @@ def test_aa_agentic_without_key_is_honest_missing(monkeypatch):
     monkeypatch.delenv("AA_API_KEY", raising=False)
     src = AaAgenticIndexSource()
     assert src.fetch() == {}
-    assert src.missing_reason == "aa_api_key_absent"
+    assert src.missing_reason == "aa_api_key_required"
 
 
 # --- In-house anchors -----------------------------------------------------------

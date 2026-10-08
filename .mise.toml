@@ -4,7 +4,7 @@
 # Setup: mise run setup
 
 [tools]
-python = "3.13"
+python = "3.14.8"
 node = "24"
 uv = "latest"
 

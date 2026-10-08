@@ -1,7 +1,9 @@
 name: Model Candidates Publish
 
 # Weekly snapshot of the leaderboard-driven candidate lists (public boards +
-# OpenRouter catalog, scan-only: no evals, no secrets, no paid calls). The
+# OpenRouter catalog, scan-only: no evals, no paid calls). AA_API_KEY (free
+# tier, skret /hull/prod/AA_API_KEY) unlocks the AA /free model-list source;
+# no other secrets. The
 # committed data/model-candidates.json is the neutral, cross-repo contract:
 # consumer stacks (crg/wet/mnemo model-sync workflows) pull this file's raw
 # URL and propose per-task model config pins through label-gated PRs and
@@ -49,6 +51,8 @@ jobs:
         run: uv sync --locked --extra mteb
 
       - name: Build snapshot
+        env:
+          AA_API_KEY: ${{ secrets.AA_API_KEY }}
         run: uv run --no-sync python scripts/publish_candidates.py
 
       - name: Push snapshot branch

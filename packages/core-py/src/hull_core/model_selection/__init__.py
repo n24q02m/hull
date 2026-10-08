@@ -12,36 +12,35 @@ Usage::
     reg = ModelRegistry.load("model_rankings.json")
     report = refresh("translation", reg, cands, eval_fn=my_eval_fn)
 
-Pipeline: fetch the backbone (OR catalog for ``backbone="or"`` profiles, the
-boards themselves for ``backbone="boards"`` profiles) -> fetch each source
-(fail-open) -> join by normalized name -> version guard -> min-max normalize
-per board -> blended cost -> constraint prefilter -> rank aggregation
-(2026-10-07 directive): each model accumulates its per-board standing over
-every board that measured it (0-100 points), ``board_rank`` by total points,
-``price_rank`` cheapest-first among cost-known models; the order optimizes
-both dimensions — smallest ``board_rank + price_rank``, then smallest
-``rank_distance = |board_rank - price_rank|``, then ``board_rank``. Models
-with weak evidence trail behind strong ones. The module does not run evals —
-consumers eval and promote from the ranked candidate list.
+Pipeline: fetch the OR backbone (text + embeddings + rerank catalog segments)
+-> fetch each source (fail-open) -> join by normalized name -> version guard
+-> min-max normalize per board -> blended cost -> constraint prefilter ->
+rank aggregation (2026-10-07 directive): each model accumulates its
+per-board standing over every board that measured it (0-100 points),
+``board_rank`` by total points, ``price_rank`` cheapest-first among
+cost-known models; the order optimizes both dimensions — smallest
+``board_rank + price_rank``, then smallest ``rank_distance =
+|board_rank - price_rank|``, then ``board_rank``. Models with weak evidence
+trail behind strong ones. The module does not run evals — consumers eval and
+promote from the ranked candidate list.
 
-Selection constraints (2026-09-25 + 2026-10-07 directives)
----------------------------------------------------------
+Selection constraints (2026-09-25 + 2026-10-07/08 directives)
+-------------------------------------------------------------
 
-- OR-backbone profiles: every candidate is joined into the OR
-  ``/api/v1/models`` catalog; non-catalog rows are dropped at join time and
-  can never reach rank-0.
-- Free-tier models are never selected on OR-backbone profiles: $0 pricing is
-  a promo slot, not evidence-backed quality. OR's ``-1`` sentinel price
-  (internal routes such as ``openrouter/auto``) counts as no cost signal.
+- Every candidate is joined into the OR ``/api/v1/models`` catalog
+  (including its embeddings/rerank output-modality segments); non-catalog
+  rows are dropped at join time and can never reach rank-0.
+- Embed/rerank picks MUST be OR-servable (2026-10-08 directive): the MTEB
+  boards are the quality axis, OR's embeddings/rerank segments are the
+  candidate + price axis.
+- Free-tier models are never selected: OR's ':free' promo variants are
+  excluded outright. A $0 catalog price WITHOUT the suffix (the rerank
+  segment — OR bills per request) is "no price signal", not free: those
+  models stay listed but unpriced.
 - Unpriced models cannot take a price rank; they stay in the list but trail
   with ``pareto_rank=None``. Models measured by fewer than 2 boards carry
   ``weak_evidence=True`` and trail after strong ones — consumers should gate
   on ``rank == 0 and not weak_evidence``.
-- Boards-backbone profiles (``embedding``, ``rerank``) rank the fetched
-  boards directly: embedders/rerankers mostly do not route through
-  OpenRouter, so OR there is optional; selection is by summed board points
-  across MTEB variants and carries no price dimension (no price source
-  exists for self-hosted embed/rerank serving).
 
 Ported from web_core.model_selection v2.10.6 (itself ported from
 knowledge_core.model_selection); hull_core conventions: stdlib logging, no structlog, and the
@@ -214,23 +213,22 @@ def candidates(
     that for its ``source_status`` snapshot block).
 
     Returns ``[]`` when the OpenRouter backbone is missing or empty
-    (``or_backbone_empty`` is logged) for ``backbone="or"`` profiles: without
-    catalog rows there is nothing the module is allowed to auto-promote.
-    ``backbone="boards"`` profiles (embed/rerank) rank the fetched boards
-    directly — OR is optional there. Free-tier ($0) models are never selected
-    on ``backbone="or"`` profiles.
+    (``or_backbone_empty`` is logged): without catalog rows there is nothing
+    the module is allowed to auto-promote. Free-tier (':free') models are
+    never selected; $0 catalog prices without the suffix (OR rerank
+    segments) count as unpriced, not free.
     """
     profile = get_task(task)
     registry = sources if sources is not None else SOURCE_REGISTRY
     use_cache = cache if sources is None else None  # fixtures/plugins do not write cache
 
     or_source = registry.get("openrouter_models")
-    if or_source is None and profile.backbone == "or":
+    if or_source is None:
         logger.warning("model_selection: missing openrouter_models backbone")
         _record_status(status_out, "openrouter_models", "missing", reason="backbone_source_absent")
         return []
-    or_records = _fetch_source(or_source, use_cache, refresh, status_out) if or_source is not None else {}
-    if not or_records and profile.backbone == "or":
+    or_records = _fetch_source(or_source, use_cache, refresh, status_out)
+    if not or_records:
         logger.warning(
             "model_selection or_backbone_empty: task=%s — no OpenRouter-listed models to "
             "auto-promote; pass a sources override with joinable OR-catalog entries to proceed",
@@ -245,13 +243,7 @@ def candidates(
             continue  # source missing from an override map — fail-open
         source_records[name] = _fetch_source(source, use_cache, refresh, status_out)
 
-    cands = join_sources(
-        or_records,
-        source_records,
-        task=profile,
-        status_out=status_out,
-        include_unmatched_backbone=profile.backbone == "boards",
-    )
+    cands = join_sources(or_records, source_records, task=profile, status_out=status_out)
     version_guard(cands)
     minmax_normalize(cands)
     blend_quality(cands, profile)
@@ -261,64 +253,63 @@ def candidates(
     cands = [c for c in cands if c.scores]
     for cand in cands:
         cand.cost_1m_blended = blended_cost_1m(cand, profile)
-    if profile.backbone == "or":
-        # Selection never uses free-tier models (2026-10-07 directive): $0
-        # pricing is a promo slot, not evidence-backed quality. Unknown-cost
-        # rows stay but cannot rank (pareto_rank None).
-        free = sum(1 for c in cands if c.cost_1m_blended == 0)
-        if free:
-            logger.info("model_selection: excluded %d free-tier models", free)
-        cands = [c for c in cands if c.cost_1m_blended != 0]
+    # Free-tier exclusion (2026-10-07 directive): OR's ':free' promo variants
+    # are never selected. A $0 catalog price WITHOUT the suffix (e.g. the
+    # rerank segment — OR bills per request, not per token) is "no price
+    # signal", not free: cost drops to None so the model stays listed but
+    # cannot take a price rank (2026-10-08 directive).
+    free = [c for c in cands if c.cost_1m_blended == 0 and str(c.or_slug or "").endswith(":free")]
+    unpriced_zero = 0
+    for cand in cands:
+        if cand.cost_1m_blended == 0 and cand not in free:
+            cand.cost_1m_blended = None
+            unpriced_zero += 1
+    if free:
+        logger.info("model_selection: excluded %d free-tier models", len(free))
+    if unpriced_zero:
+        logger.info("model_selection: %d $0-catalog rows treated as unpriced", unpriced_zero)
+    cands = [c for c in cands if c not in free]
     cands = [c for c in cands if passes_constraints(c, profile.constraints)]
-    if profile.backbone == "boards":
-        # Points, not mean (2026-10-07 directive "model nào được nhiều điểm
-        # nhất"): coverage across board variants counts — an embedder measured
-        # on all MTEB variants outranks a single-board specialist. With one
-        # board this degenerates to the single normalized score.
-        cands.sort(key=lambda c: -sum(c.scores.values()))
-        for i, cand in enumerate(cands):
-            cand.pareto_rank = i
-    else:
-        # Rank-aggregation picker (2026-10-07 directive): each model
-        # accumulates its standing on every board that measured it (scores
-        # are per-board normalized 0-100, name-normalized join) -> board_rank
-        # by total points; price_rank by blended cost. The pick optimizes
-        # BOTH dimensions: order by (board_rank + price_rank), then
-        # |board_rank - price_rank|, then board_rank. Models measured by
-        # <2 boards are not joined-ranking evidence (weak_evidence stays the
-        # honest label) and unpriced models cannot take a price rank — both
-        # trail with pareto_rank=None.
-        def _strong(c: ModelCandidate) -> bool:
-            return len(c.scores) >= 2 and c.cost_1m_blended is not None
 
-        strong = [c for c in cands if _strong(c)]
-        weak = [c for c in cands if not _strong(c)]
+    # Rank-aggregation picker (2026-10-07 directive): each model accumulates
+    # its standing on every board that measured it (scores are per-board
+    # normalized 0-100, name-normalized join) -> board_rank by total points;
+    # price_rank by blended cost. The pick optimizes BOTH dimensions: order
+    # by (board_rank + price_rank), then |board_rank - price_rank|, then
+    # board_rank. Models measured by <2 boards are not joined-ranking
+    # evidence (weak_evidence stays the honest label) and unpriced models
+    # cannot take a price rank — both trail with pareto_rank=None.
+    def _strong(c: ModelCandidate) -> bool:
+        return len(c.scores) >= 2 and c.cost_1m_blended is not None
 
-        def _cost(c: ModelCandidate) -> float:
-            assert c.cost_1m_blended is not None  # filtered into ``strong`` above
-            return c.cost_1m_blended
+    strong = [c for c in cands if _strong(c)]
+    weak = [c for c in cands if not _strong(c)]
 
-        board_order = sorted(strong, key=lambda c: (-sum(c.scores.values()), c.or_slug or ""))
-        price_order = sorted(strong, key=lambda c: (_cost(c), -c.quality))
-        board_rank = {id(c): i + 1 for i, c in enumerate(board_order)}
-        price_rank = {id(c): i + 1 for i, c in enumerate(price_order)}
-        keyed = []
-        for cand in strong:
-            cand.rank_distance = abs(board_rank[id(cand)] - price_rank[id(cand)])
-            keyed.append(
-                (
-                    board_rank[id(cand)] + price_rank[id(cand)],
-                    cand.rank_distance,
-                    board_rank[id(cand)],
-                    cand,
-                )
+    def _cost(c: ModelCandidate) -> float:
+        assert c.cost_1m_blended is not None  # filtered into ``strong`` above
+        return c.cost_1m_blended
+
+    board_order = sorted(strong, key=lambda c: (-sum(c.scores.values()), c.or_slug or ""))
+    price_order = sorted(strong, key=lambda c: (_cost(c), -c.quality))
+    board_rank = {id(c): i + 1 for i, c in enumerate(board_order)}
+    price_rank = {id(c): i + 1 for i, c in enumerate(price_order)}
+    keyed = []
+    for cand in strong:
+        cand.rank_distance = abs(board_rank[id(cand)] - price_rank[id(cand)])
+        keyed.append(
+            (
+                board_rank[id(cand)] + price_rank[id(cand)],
+                cand.rank_distance,
+                board_rank[id(cand)],
+                cand,
             )
-        keyed.sort(key=lambda t: (t[0], t[1], t[2]))
-        strong = [t[3] for t in keyed]
-        weak.sort(key=lambda c: -c.quality)
-        for i, cand in enumerate(strong):
-            cand.pareto_rank = i
-        cands = strong + weak
+        )
+    keyed.sort(key=lambda t: (t[0], t[1], t[2]))
+    strong = [t[3] for t in keyed]
+    weak.sort(key=lambda c: -c.quality)
+    for i, cand in enumerate(strong):
+        cand.pareto_rank = i
+    cands = strong + weak
     return cands
 
 
@@ -342,8 +333,6 @@ def enrich_uptime(cands: list[ModelCandidate], *, limit: int = 20) -> list[Model
     this data.
     """
     for cand in cands[:limit]:
-        if cand.or_slug is None:
-            continue  # boards-backbone candidate: no OR endpoints to enrich
         stats = fetch_endpoint_stats(cand.or_slug)
         if not stats:
             continue

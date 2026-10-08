@@ -66,6 +66,37 @@ def test_openrouter_models_source_parses_rows():
     assert recs["m/a"].raw["pricing"]["prompt"] == "1"
 
 
+def test_openrouter_models_source_merges_modality_segments():
+    """Base catalog + embeddings + rerank segments merge by id (2026-10-08
+    directive): embed/rerank candidates must appear without losing text rows."""
+
+    def _by_url(url: str, **_kw):
+        if "output_modalities=embeddings" in url:
+            return _resp({"data": [{"id": "thenlper/gte-large", "name": "gte-large"}]})
+        if "output_modalities=rerank" in url:
+            return _resp({"data": [{"id": "cohere/rerank-4.5", "name": "rerank"}]})
+        return _resp({"data": [{"id": "m/a", "name": "Model A"}]})
+
+    with patch("hull_core.model_selection.sources.httpx.get", side_effect=_by_url):
+        recs = OpenRouterModelsSource().fetch()
+    assert set(recs) == {"m/a", "thenlper/gte-large", "cohere/rerank-4.5"}
+
+
+def test_openrouter_models_source_segment_failure_degrades_not_dies():
+    """A failing category segment drops only that segment; text rows survive."""
+
+    def _by_url(url: str, **_kw):
+        if "output_modalities=embeddings" in url:
+            raise ConnectionError("embed segment down")
+        if "output_modalities=rerank" in url:
+            return _resp({"data": [{"id": "cohere/rerank-4.5"}]})
+        return _resp({"data": [{"id": "m/a"}]})
+
+    with patch("hull_core.model_selection.sources.httpx.get", side_effect=_by_url):
+        recs = OpenRouterModelsSource().fetch()
+    assert set(recs) == {"m/a", "cohere/rerank-4.5"}
+
+
 def test_openrouter_models_source_list_payload():
     with patch(
         "hull_core.model_selection.sources.httpx.get",

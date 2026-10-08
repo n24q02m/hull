@@ -38,6 +38,12 @@ from hull_core.model_selection.mteb_tasks import task_family
 logger = logging.getLogger(__name__)
 
 OR_MODELS_URL = "https://openrouter.ai/api/v1/models"
+# Embedding/rerank candidates (2026-10-08 directive: embed/rerank picks MUST
+# be OR-servable). The base /api/v1/models response lists only text chat
+# models; the two output-modality categories are separate segments of the
+# same endpoint and must be fetched explicitly.
+OR_MODELS_EMBED_URL = OR_MODELS_URL + "?output_modalities=embeddings"
+OR_MODELS_RERANK_URL = OR_MODELS_URL + "?output_modalities=rerank"
 OR_ENDPOINTS_URL = "https://openrouter.ai/api/v1/models/{slug}/endpoints"
 OR_BENCH_URL = "https://openrouter.ai/benchmarks/{bench}"
 AA_MODELS_URL = "https://artificialanalysis.ai/api/v2/language/models"
@@ -322,7 +328,13 @@ class UnimplementedSource(_BaseSource):
 
 
 class OpenRouterModelsSource(_BaseSource):
-    """Mandatory backbone: GET /api/v1/models (no auth).
+    """Mandatory backbone: GET /api/v1/models (+ embeddings/rerank segments).
+
+    The base response lists only text chat models; embedding and rerank
+    candidates live in dedicated `?output_modalities=` segments of the same
+    endpoint (2026-10-08 directive — embed/rerank picks must be OR-servable).
+    All three segments are fetched and merged by id; a failing category
+    segment degrades to the remaining rows (never kills the text backbone).
 
     Each record keeps the raw JSON row in ``raw`` — pricing (USD/token,
     including tiered ``overrides`` by ``min_prompt_tokens``),
@@ -335,10 +347,17 @@ class OpenRouterModelsSource(_BaseSource):
     ttl_seconds = DAY
 
     def _fetch(self) -> dict[str, SourceRecord]:
-        data = _get_json(OR_MODELS_URL)
-        rows = data.get("data") if isinstance(data, dict) else data
+        rows: list[dict] = []
+        for url in (OR_MODELS_URL, OR_MODELS_EMBED_URL, OR_MODELS_RERANK_URL):
+            try:
+                data = _get_json(url)
+            except Exception as exc:
+                logger.warning("model_selection: OR catalog segment failed url=%s error=%s", url, exc)
+                continue
+            segment = data.get("data") if isinstance(data, dict) else data
+            rows.extend(row for row in segment or [] if isinstance(row, dict))
         records: dict[str, SourceRecord] = {}
-        for row in rows or []:
+        for row in rows:
             slug = row.get("id")
             if not slug:
                 continue

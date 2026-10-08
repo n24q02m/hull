@@ -400,22 +400,19 @@ def refresh(
 ) -> RefreshReport:
     """refresh -> eval-on-change -> promote, one task.
 
-    Boards-backbone candidates (``or_slug is None`` — embed/rerank) have no
-    OR routing/registry identity and are skipped here.
-
     ``cands`` comes from ``model_selection.candidates(task, ...)`` (already
     joined/normalized/pareto-ranked). ``eval_fn`` gets litellm ids for
     ``[incumbent, *new_challengers]`` and returns EvalRows in the same order;
     without it nothing is promoted (dry-run semantics). The incumbent is
     always re-evaluated so dominance compares equal-harness numbers.
     """
-    cands = [c for c in cands if c.or_slug is not None]
+    cands = list(cands)
     report = RefreshReport(task=task, gate="no_challengers", candidates=len(cands))
     state_path = state_path or _state_path_for(registry.path)
     evaluated = load_eval_state(state_path)
 
     chall = challengers(registry, cands, frontier_only=frontier_only)
-    report.challengers = [c.or_slug for c in chall if c.or_slug is not None]
+    report.challengers = [c.or_slug for c in chall]
     if not chall:
         report.reason = "no challenger on the frontier"
         return report
@@ -435,10 +432,9 @@ def refresh(
     inc = registry.incumbent()
     grid_ids = [f"openrouter/{c.or_slug}" for c in grid]
     rows = eval_fn([inc["litellm_id"], *grid_ids])
-    report.evaluated = [c.or_slug for c in grid if c.or_slug is not None]
+    report.evaluated = [c.or_slug for c in grid]
     for c in grid:
-        if c.or_slug is not None:
-            evaluated[c.or_slug] = {"quality": c.quality, "cost_1m": c.cost_1m_blended}
+        evaluated[c.or_slug] = {"quality": c.quality, "cost_1m": c.cost_1m_blended}
     save_eval_state(state_path, evaluated)
 
     inc_row = rows[0] if rows else {}

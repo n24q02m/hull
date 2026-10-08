@@ -8,9 +8,11 @@ Scope guarantees:
 - Public leaderboards + the OpenRouter catalog only. No evals, no secrets,
   no paid calls (AA_API_KEY optional; absent key -> the AA sources are
   recorded ``missing`` in ``source_status``, never silent, never faked).
-- Embedding/rerank profiles report ``or_backbone_empty: true`` when the
-  OpenRouter backbone is thin (embedders/rerankers mostly do not route
-  through OpenRouter); consumers keep those cells locally managed.
+- Embedding/rerank picks are OR-servable (2026-10-08 directive): the scan
+  merges OR's embeddings/rerank catalog segments with the MTEB boards.
+  Rerank rows stay weak-evidence (single public board; OR bills reranks per
+  request, so no per-token price axis); consumers keep that cell locally
+  managed.
 
 Consumer stacks (crg/wet/mnemo model-sync workflows) pull this file's raw
 URL and propose per-task model config pins through label-gated PRs / sticky

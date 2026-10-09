@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+from urllib.parse import urlsplit
 
 import pytest
 
@@ -177,7 +178,7 @@ def test_agentset_embed_commit_api_failure_keeps_rows():
     data = _json_fixture("agentset_benchmarks.json")
 
     def _by_url(url, **_kw):
-        if "api.github.com" in url:
+        if urlsplit(str(url)).hostname == "api.github.com":
             raise ConnectionError("rate limited")
         return _resp(data)
 

@@ -91,6 +91,34 @@ BOARD_ALIASES: dict[str, dict[str, str]] = {
     # needed today. Rows for models absent from the OR catalog (gemini-4-argon,
     # solar-pro-4, qwen3-8-max, ...) report unmapped.
     "arena_agent": {},
+    # jevals decision board (profile decision, 2026-10-09). Parser keys are
+    # slugified `model_id`s. The vendor/org rows (google/gemini-3.8-flash,
+    # z-ai/glm-5.3, deepseek/deepseek-v4.1-flash, qwen/qwen3.8-flash,
+    # mistralai/mistral-medium-3-5, inception/mercury-2.5) join DIRECTLY
+    # through the uniqueness-gated ladder (their keys slugify to the exact OR
+    # ids) — no entries needed. Explicitly mapped: typesafe-ai/jev (the
+    # board's own native model) -> the concrete OR route typesafe/jev-1.13
+    # (canonical 20260917; the "~typesafe/jev-latest" redirect row resolves
+    # through the catalog alias_target rule in normalize._alias_index, not
+    # this table). jevals "Mercury 2.5" joins via the exact id
+    # inception/mercury-2.5; the DIFFERENT inception/mercury-decide model is
+    # NOT mapped to it (research §4.1: same-model never verified — if a
+    # future board row is genuinely mercury-decide, verify first, else
+    # report unmatched).
+    "jevals": {
+        "typesafe-ai-jev": "typesafe/jev-1.13",
+    },
+    # JevBench (2026-10-09): keys are slugified `display` strings (long — the
+    # board embeds route hints in display names). ONLY api_flag==true hosted
+    # routes are mapped; the joinability restriction lives here, not in the
+    # parser, so self-hosted systems (Gemma/Qwen merges, ~130 rows) report
+    # unmatched_names and are never guessed onto OR routes. The two mapped
+    # rows verified against the live OR catalog 2026-10-09 (mercury-decide
+    # has a :free variant — the base route is the mapping target).
+    "jevbench": {
+        "jev-1-13-0-typesafe-ai": "typesafe/jev-1.13",
+        "mercury-decide-inception-system-one-decisions-api-served-free-on-openrouter-as-inception-mercury-decide-free": "inception/mercury-decide",
+    },
 }
 
 # Unmatched-name reports are capped so a fully renamed board cannot bloat the

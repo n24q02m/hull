@@ -30,7 +30,6 @@ from hull_core.model_selection.sources import (
     BridgeSource,
     EqBench4Source,
     EqBenchCsvSource,
-    FloresSpeakleashSource,
     GaiaSource,
     InHouseAnchorSource,
     MedhelmSource,
@@ -39,7 +38,6 @@ from hull_core.model_selection.sources import (
     _parse_benchlm_md,
     _parse_bfcl_csv,
     _parse_bridge_blob,
-    _parse_flores_csv,
     _parse_llmstats_table,
     _parse_medhelm_group,
     _parse_or_bench_table,
@@ -302,34 +300,6 @@ def test_eqbench4_skips_non_dict_and_unscored_rows():
     assert recs["good-m"].score == 88.5
     assert recs["good-m"].score_ci == pytest.approx(3.5)
     assert recs["good-m"].board_version == "2026-10-07"
-
-
-# --- FLORES ---------------------------------------------------------------------
-
-
-def test_parse_flores_csv_shape_guards():
-    assert _parse_flores_csv("Task,Metric,M\n") == {}  # fewer than 3 rows
-    assert _parse_flores_csv("Task,Metric,M\nx,y,z\nshort,row\n") == {}  # short data row only
-
-
-def test_parse_flores_csv_skips_short_rows_and_scoreless_models():
-    text = (
-        "Task,Metric,ModelA,EmptyM\n"
-        ",\n"  # short row -> skip
-        "ogx_flores200-trans-eng,chrF,50.5,\n"  # EmptyM never scored
-        "ogx_flores200-trans-ces,chrF,60.0,\n"
-    )
-    recs = _parse_flores_csv(text)
-    assert set(recs) == {"modela"}
-    assert recs["modela"].score == pytest.approx(55.25)
-    assert recs["modela"].raw == {"n_tasks": 2}
-
-
-def test_flores_source_fetch_uses_fixture_bytes():
-    text = (FIXTURES / "flores_results.csv").read_text(encoding="utf-8")
-    with patch("hull_core.model_selection.sources._get_bytes", return_value=text.encode()):
-        recs = FloresSpeakleashSource().fetch()
-    assert recs  # real fixture still parses end to end
 
 
 # --- BRIDGE ---------------------------------------------------------------------

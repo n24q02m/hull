@@ -180,6 +180,29 @@ TASKS: dict[str, TaskProfile] = {
         quality_weight=0.8,  # UGI is the signal that matters for this profile
         token_mix=(0.5, 0.5, 0.0),  # generation-shaped, like story-gen
     ),
+    "decision": TaskProfile(
+        name="decision",
+        # Profile `decision` (2026-10-09): cheap gate/judge ("System One")
+        # models that return a typed choice/score/yes-no. Pool = (a) OR's
+        # structured-decisions catalog segment (gated to this profile in
+        # candidates()) union (b) OR-servable models measured by a decision
+        # board — evidence-driven, never hand-picked. ``jevbench`` is the
+        # independent second decision board: a native-decision model with
+        # rows on BOTH jevals and jevbench reaches strong evidence (>=2
+        # boards; e.g. Mercury Decide, Jev 1.13). ``judgemark_v4`` is a
+        # creative-writing JUDGING domain proxy: it may only CORROBORATE a
+        # model also measured elsewhere; the >=2-independent-boards strong
+        # rule already keeps a judgemark-only model weak_evidence, unable to
+        # take rank 0 single-handedly. Honest state: models measured by NO
+        # decision board stay weak_evidence until measured (watchlist:
+        # JudgeArena, CodeJudgeBench). Weight law unchanged: specialized
+        # quality_weight 0.7; OR usage stays a tie-break only.
+        specialized_sources=("jevals", "jevbench", "judgemark_v4"),
+        aggregate_sources=(),
+        usage_sources=("or_usage",),
+        constraints=Constraints(),
+        token_mix=(0.9, 0.1, 0.0),  # short prompt, tiny typed output
+    ),
 }
 
 

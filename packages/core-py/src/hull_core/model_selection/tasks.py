@@ -8,10 +8,12 @@ InHouseAnchorSource sets, or an UnimplementedSource recording a probed gap
 ``candidates(..., sources={...})`` plugin maps.
 
 Ported from web_core.model_selection.tasks v2.10.6. The ``embedding`` and
-``rerank`` profiles intentionally have empty ``aggregate_sources``: the MTEB
-boards are the quality axis, while the OpenRouter backbone (now including
-its embeddings/rerank catalog segments) is the candidate + price axis —
-embed/rerank picks must be OR-servable (2026-10-08 directive).
+``rerank`` profiles intentionally have empty ``aggregate_sources``: the
+specialized boards (MTEB + boards-v2 closed-inclusive AgentSet/hindsight) are
+the quality axis, while the OpenRouter backbone (now including its
+embeddings/rerank catalog segments) is the candidate + price axis — embed/
+rerank picks must be OR-servable (2026-10-08 directive). OR usage
+(``usage_sources``) is a quadrant tie-break only, never a quality axis.
 """
 
 from __future__ import annotations
@@ -39,6 +41,11 @@ class TaskProfile:
     name: str
     specialized_sources: tuple[str, ...] = ()  # tried first, higher weight
     aggregate_sources: tuple[str, ...] = ()  # merge/fallback layer
+    # OR real-world usage feeds (boards-v2 2026-10-09): folded into
+    # ``ModelCandidate.or_task_spend_share`` — quadrant tie-break ONLY, never
+    # a board/quality axis; absence neutral. Defaults to ``or_usage`` for
+    # every profile (chat, embed and rerank alike).
+    usage_sources: tuple[str, ...] = ("or_usage",)
     constraints: Constraints = field(default_factory=Constraints)
     quality_weight: float = 0.7  # w_spec when specialized covers >=80% of candidates; else 0.5
     # Token mix (input, output, cache_read) measured on the app — do NOT hardcode
@@ -53,7 +60,10 @@ class TaskProfile:
 TASKS: dict[str, TaskProfile] = {
     "translation": TaskProfile(
         name="translation",
-        specialized_sources=("wmt24pp", "flores_speakleash"),
+        # boards-v2 (2026-10-09): wmt24pp stays but is labeled self-reported
+        # (llm-stats mirror, 0/24 verified); wmt25_gmtr is the annual
+        # closed-inclusive anchor. flores_speakleash removed (stale 9 months).
+        specialized_sources=("wmt24pp", "wmt25_gmtr"),
         aggregate_sources=("benchlm", "arena", "artificial_analysis", "vals_index"),
         constraints=Constraints(min_context=8_192),
         token_mix=(0.7, 0.3, 0.0),  # ingestion input-heavy
@@ -67,22 +77,34 @@ TASKS: dict[str, TaskProfile] = {
     ),
     "embedding": TaskProfile(
         name="embedding",
-        specialized_sources=("mteb_classification", "mteb_retrieval", "mteb_sts"),
-        # Embedding picks MUST be OpenRouter-servable (2026-10-08 directive).
-        # OR's catalog now lists an embeddings segment with real per-token
-        # pricing; MTEB boards qualify, OR lists + prices. Embeddings are
-        # 100%-input workloads -> pure input token mix.
+        # boards-v2 (2026-10-09): the MTEB boards (open-biased) are paired
+        # with AgentSet Elo (closed-inclusive, stale ~2026-03) so a pick needs
+        # >=2 independent boards; hindsight embeddings rides along as an
+        # optional third signal (7 models only). Embedding picks MUST be
+        # OpenRouter-servable (2026-10-08 directive): OR's embeddings segment
+        # lists + prices, the boards qualify.
+        specialized_sources=(
+            "mteb_classification",
+            "mteb_retrieval",
+            "mteb_sts",
+            "agentset_elo",
+            "hindsight_embeddings",
+        ),
         aggregate_sources=(),
         constraints=Constraints(),
         token_mix=(1.0, 0.0, 0.0),
     ),
     "rerank": TaskProfile(
         name="rerank",
-        specialized_sources=("mteb_reranking",),
+        # boards-v2 (2026-10-09): AgentSet rerankers (closed-inclusive, stale
+        # ~2026-02) + hindsight MRR (directional, n=165) join MTEB reranking,
+        # so a strong rerank pick (e.g. cohere-rerank-4-pro) is now reachable;
+        # models measured only by weak boards still trail as weak_evidence.
         # Same 2026-10-08 directive: rerank picks must be OR-servable. OR
         # lists a rerank segment but its catalog pricing fields are $0
         # placeholders (OR bills per request, not per token) — those rows
         # count as unpriced, never as free.
+        specialized_sources=("mteb_reranking", "agentset_rerank", "hindsight_reranker"),
         aggregate_sources=(),
         constraints=Constraints(),
         token_mix=(1.0, 0.0, 0.0),
@@ -119,14 +141,22 @@ TASKS: dict[str, TaskProfile] = {
     ),
     "classification": TaskProfile(
         name="classification",
-        specialized_sources=("mteb_classification", "aiora_triage_eval"),
+        # boards-v2 (2026-10-09): mteb_classification removed — it only joins
+        # embedding models (8 rows, 0 chat candidates) and classification has
+        # no living specialized board; vals_legal_bench is an explicitly-
+        # labeled PROXY. aiora_triage_eval remains the in-house anchor until
+        # its owner (mnemo) publishes it.
+        specialized_sources=("aiora_triage_eval", "vals_legal_bench"),
         aggregate_sources=("benchlm", "artificial_analysis", "arena", "vals_index"),
         constraints=Constraints(require_structured_outputs=True),
         token_mix=(0.8, 0.2, 0.0),
     ),
     "agentic": TaskProfile(
         name="agentic",
-        specialized_sources=("tau2_bench_or", "bfcl", "vals_cua_bench"),
+        # boards-v2 (2026-10-09): arena_agent joins the specialized tier —
+        # LMArena's agent arena (published 2026-10-02, weekly, closed-
+        # inclusive) is the strongest fresh agentic evidence after tau2.
+        specialized_sources=("tau2_bench_or", "bfcl", "vals_cua_bench", "arena_agent"),
         aggregate_sources=("benchlm", "artificial_analysis", "gaia", "vals_index"),
         constraints=Constraints(min_context=32_768, require_tools=True, min_uptime_1d=99.0),
         token_mix=(0.5, 0.4, 0.1),

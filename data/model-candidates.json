@@ -1,21 +1,19 @@
 {
-  "generated_at": "2026-10-08T13:12:54+00:00",
+  "generated_at": "2026-10-09T02:49:21+00:00",
   "generator": "hull_core.model_selection.candidates() \u2014 public boards + OpenRouter catalog, scan-only (no eval, no paid calls, no human-managed fields)",
   "schema_version": 1,
   "source_status": {
     "aa_agentic_index": {
-      "fetched_at": "2026-10-07T03:22:19+00:00",
-      "matched_count": 132,
-      "reason": "aa_api_key_absent; served from stale cache",
-      "row_count": 132,
-      "status": "stale"
+      "fetched_at": "2026-10-09T02:49:50+00:00",
+      "matched_count": 30,
+      "row_count": 53,
+      "status": "ok"
     },
     "aa_healthcare_index": {
-      "fetched_at": null,
-      "matched_count": 0,
-      "reason": "aa_api_key_absent",
-      "row_count": 0,
-      "status": "missing"
+      "fetched_at": "2026-10-09T02:49:25+00:00",
+      "matched_count": 18,
+      "row_count": 23,
+      "status": "ok"
     },
     "aiora_triage_eval": {
       "fetched_at": null,
@@ -25,85 +23,82 @@
       "status": "missing"
     },
     "arena": {
-      "fetched_at": "2026-10-08T07:28:31+00:00",
-      "matched_count": 94,
+      "fetched_at": "2026-10-09T02:49:26+00:00",
+      "matched_count": 137,
       "row_count": 413,
       "status": "ok"
     },
     "artificial_analysis": {
-      "fetched_at": null,
-      "matched_count": 0,
-      "reason": "aa_api_key_absent",
-      "row_count": 0,
-      "status": "missing"
+      "fetched_at": "2026-10-09T02:49:23+00:00",
+      "matched_count": 73,
+      "row_count": 200,
+      "status": "ok"
     },
     "benchlm": {
-      "fetched_at": "2026-10-08T07:28:29+00:00",
-      "matched_count": 123,
+      "fetched_at": "2026-10-09T02:49:23+00:00",
+      "matched_count": 132,
       "row_count": 216,
       "status": "ok"
     },
     "bfcl": {
-      "fetched_at": "2026-10-08T07:26:36+00:00",
-      "matched_count": 17,
+      "fetched_at": "2026-10-09T02:49:23+00:00",
+      "matched_count": 33,
       "row_count": 83,
       "status": "ok"
     },
     "bridge": {
-      "fetched_at": "2026-10-08T07:28:09+00:00",
-      "matched_count": 22,
+      "fetched_at": "2026-10-09T02:49:49+00:00",
+      "matched_count": 32,
       "row_count": 112,
       "status": "ok"
     },
     "eqbench4": {
-      "fetched_at": "2026-10-08T07:28:17+00:00",
-      "matched_count": 27,
+      "fetched_at": "2026-10-09T02:49:51+00:00",
+      "matched_count": 28,
       "row_count": 28,
       "status": "ok"
     },
     "eqbench_creative_v3": {
-      "fetched_at": "2026-10-08T07:28:16+00:00",
-      "matched_count": 88,
+      "fetched_at": "2026-10-09T02:49:50+00:00",
+      "matched_count": 97,
       "row_count": 140,
       "status": "ok"
     },
     "eqbench_longform": {
-      "fetched_at": "2026-10-08T07:28:16+00:00",
-      "matched_count": 93,
+      "fetched_at": "2026-10-09T02:49:51+00:00",
+      "matched_count": 101,
       "row_count": 140,
       "status": "ok"
     },
     "flores_speakleash": {
-      "fetched_at": "2026-10-08T07:28:20+00:00",
-      "matched_count": 4,
+      "fetched_at": "2026-10-09T02:49:51+00:00",
+      "matched_count": 6,
       "row_count": 20,
       "status": "ok"
     },
     "gaia": {
-      "fetched_at": "2026-10-08T07:26:39+00:00",
-      "matched_count": 5,
-      "row_count": 3763,
+      "fetched_at": "2026-10-09T02:49:24+00:00",
+      "matched_count": 11,
+      "row_count": 3772,
       "status": "ok"
     },
     "healthbench": {
-      "fetched_at": "2026-10-08T07:27:00+00:00",
-      "matched_count": 10,
+      "fetched_at": "2026-10-09T02:49:25+00:00",
+      "matched_count": 12,
       "row_count": 14,
       "status": "ok"
     },
     "manga109_v2026": {
-      "fetched_at": null,
-      "matched_count": 0,
-      "reason": "in_house_anchor_not_published",
-      "row_count": 0,
-      "status": "missing"
+      "fetched_at": "2026-10-09T02:49:49+00:00",
+      "matched_count": 4,
+      "row_count": 11,
+      "status": "ok"
     },
     "mangavqa": {
-      "fetched_at": null,
-      "matched_count": 0,
-      "reason": "in_house_anchor_not_published",
-      "row_count": 0,
-      "status": "missing"
+      "fetched_at": "2026-10-09T02:49:49+00:00",
+      "matched_count": 4,
+      "row_count": 11,
+      "status": "ok"
     },
     "medarena": {
       "fetched_at": null,
@@ -113,88 +108,88 @@
       "status": "unimplemented_access"
     },
     "medhelm": {
-      "fetched_at": "2026-10-08T07:27:03+00:00",
-      "matched_count": 3,
+      "fetched_at": "2026-10-09T02:49:31+00:00",
+      "matched_count": 8,
       "row_count": 13,
       "status": "ok"
     },
     "mteb_classification": {
-      "fetched_at": "2026-10-08T07:26:57+00:00",
-      "matched_count": 7,
+      "fetched_at": "2026-10-09T02:49:31+00:00",
+      "matched_count": 8,
       "row_count": 68,
       "status": "ok"
     },
     "mteb_reranking": {
-      "fetched_at": "2026-10-08T07:28:14+00:00",
-      "matched_count": 16,
+      "fetched_at": "2026-10-09T02:49:50+00:00",
+      "matched_count": 17,
       "row_count": 237,
       "status": "ok"
     },
     "mteb_retrieval": {
-      "fetched_at": "2026-10-08T07:26:57+00:00",
-      "matched_count": 17,
+      "fetched_at": "2026-10-09T02:49:31+00:00",
+      "matched_count": 18,
       "row_count": 238,
       "status": "ok"
     },
     "mteb_sts": {
-      "fetched_at": "2026-10-08T07:26:57+00:00",
-      "matched_count": 17,
+      "fetched_at": "2026-10-09T02:49:31+00:00",
+      "matched_count": 18,
       "row_count": 287,
       "status": "ok"
     },
     "ocrbench": {
-      "fetched_at": "2026-10-08T07:28:29+00:00",
-      "matched_count": 13,
+      "fetched_at": "2026-10-09T02:49:50+00:00",
+      "matched_count": 14,
       "row_count": 24,
       "status": "ok"
     },
     "open_medical_llm": {
-      "fetched_at": "2026-10-08T07:28:07+00:00",
+      "fetched_at": "2026-10-09T02:49:49+00:00",
       "matched_count": 0,
+      "reason": "zero_join",
       "row_count": 186,
-      "status": "ok"
+      "status": "degraded"
     },
     "openrouter_models": {
-      "fetched_at": "2026-10-08T07:28:23+00:00",
-      "row_count": 513,
+      "fetched_at": "2026-10-09T02:49:21+00:00",
+      "row_count": 515,
       "status": "ok"
     },
     "tau2_bench_or": {
-      "fetched_at": "2026-10-08T07:26:36+00:00",
-      "matched_count": 116,
-      "row_count": 144,
+      "fetched_at": "2026-10-09T02:49:22+00:00",
+      "matched_count": 119,
+      "row_count": 145,
       "status": "ok"
     },
     "ugi": {
-      "fetched_at": "2026-10-08T07:28:13+00:00",
-      "matched_count": 66,
+      "fetched_at": "2026-10-09T02:49:50+00:00",
+      "matched_count": 76,
       "row_count": 1326,
       "status": "ok"
     },
     "vals_cua_bench": {
-      "fetched_at": "2026-10-08T07:26:37+00:00",
+      "fetched_at": "2026-10-09T02:49:23+00:00",
       "matched_count": 6,
       "row_count": 8,
       "status": "ok"
     },
     "vals_index": {
-      "fetched_at": "2026-10-08T07:28:23+00:00",
-      "matched_count": 40,
+      "fetched_at": "2026-10-09T02:49:25+00:00",
+      "matched_count": 42,
       "row_count": 45,
       "status": "ok"
     },
     "vals_medscribe": {
-      "fetched_at": "2026-10-08T07:27:04+00:00",
-      "matched_count": 72,
-      "row_count": 107,
+      "fetched_at": "2026-10-09T02:49:32+00:00",
+      "matched_count": 90,
+      "row_count": 108,
       "status": "ok"
     },
     "wmt24pp": {
-      "fetched_at": null,
-      "matched_count": 0,
-      "reason": "in_house_anchor_not_published",
-      "row_count": 0,
-      "status": "missing"
+      "fetched_at": "2026-10-09T02:49:51+00:00",
+      "matched_count": 16,
+      "row_count": 24,
+      "status": "ok"
     }
   },
   "tasks": {
@@ -205,6 +200,7 @@
           "context": 1050000,
           "cost_1m_blended": 0.18228000000000003,
           "evidence": [
+            "artificial_analysis",
             "benchlm",
             "tau2_bench_or",
             "vals_index"
@@ -219,11 +215,12 @@
           "name": "Xiaomi: MiMo-V2.6-Flash",
           "or_slug": "xiaomi/mimo-v2.6-flash",
           "pareto_rank": 0,
-          "quality": 75.74477130939167,
+          "quality": 77.72906665091683,
           "quality_ci": null,
-          "rank_distance": 11,
+          "rank_distance": 0,
           "scores": {
-            "benchlm": 67.50891334676793,
+            "artificial_analysis": 63.38289962825279,
+            "benchlm": 68.3908936038408,
             "tau2_bench_or": 99.13043478260867,
             "vals_index": 37.2093023255814
           },
@@ -234,51 +231,6 @@
             "logprobs",
             "max_tokens",
             "min_p",
-            "presence_penalty",
-            "reasoning",
-            "repetition_penalty",
-            "response_format",
-            "seed",
-            "stop",
-            "structured_outputs",
-            "temperature",
-            "tool_choice",
-            "tools",
-            "top_k",
-            "top_logprobs",
-            "top_p"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "xiaomi/mimo-v2.5-pro-20260422",
-          "context": 1050000,
-          "cost_1m_blended": 0.56586,
-          "evidence": [
-            "benchlm",
-            "tau2_bench_or",
-            "vals_index"
-          ],
-          "litellm_id": "openrouter/xiaomi/mimo-v2.5-pro",
-          "modalities": [
-            "text"
-          ],
-          "name": "Xiaomi: MiMo-V2.5-Pro",
-          "or_slug": "xiaomi/mimo-v2.5-pro",
-          "pareto_rank": 1,
-          "quality": 79.39030780219369,
-          "quality_ci": 3.1,
-          "rank_distance": 21,
-          "scores": {
-            "benchlm": 47.45000775073632,
-            "tau2_bench_or": 90.8695652173913,
-            "vals_index": 88.37209302325581
-          },
-          "supported_parameters": [
-            "frequency_penalty",
-            "include_reasoning",
-            "logprobs",
-            "max_tokens",
             "presence_penalty",
             "reasoning",
             "repetition_penalty",
@@ -312,12 +264,12 @@
           ],
           "name": "OpenAI: GPT-6 Luna",
           "or_slug": "openai/gpt-6-luna",
-          "pareto_rank": 2,
-          "quality": 71.77391392121584,
+          "pareto_rank": 1,
+          "quality": 71.78139337576279,
           "quality_ci": null,
-          "rank_distance": 4,
+          "rank_distance": 2,
           "scores": {
-            "benchlm": 67.80344132692603,
+            "benchlm": 67.83335914511383,
             "tau2_bench_or": 81.73913043478261,
             "vals_index": 55.81395348837209
           },
@@ -337,30 +289,76 @@
           "weak_evidence": false
         },
         {
-          "canonical_slug": "minimax/minimax-m3-20260531",
-          "context": 1048576,
-          "cost_1m_blended": 0.6359999999999999,
+          "canonical_slug": "qwen/qwen3-32b-04-28",
+          "context": 131072,
+          "cost_1m_blended": 0.16,
           "evidence": [
-            "benchlm",
-            "tau2_bench_or",
-            "vals_index"
+            "bfcl",
+            "tau2_bench_or"
           ],
-          "litellm_id": "openrouter/minimax/minimax-m3",
+          "litellm_id": "openrouter/qwen/qwen3-32b",
+          "modalities": [
+            "text"
+          ],
+          "name": "Qwen: Qwen3 32B",
+          "or_slug": "qwen/qwen3-32b",
+          "pareto_rank": 2,
+          "quality": 64.01110390078593,
+          "quality_ci": 2.8,
+          "rank_distance": 2,
+          "scores": {
+            "bfcl": 74.54394693200663,
+            "tau2_bench_or": 53.47826086956522
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "logprobs",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_a",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "z-ai/glm-5.3-flash-20260826",
+          "context": 1048576,
+          "cost_1m_blended": 0.278,
+          "evidence": [
+            "artificial_analysis",
+            "benchlm",
+            "tau2_bench_or"
+          ],
+          "litellm_id": "openrouter/z-ai/glm-5.3-flash",
           "modalities": [
             "text",
             "image",
             "video"
           ],
-          "name": "MiniMax: MiniMax M3",
-          "or_slug": "minimax/minimax-m3",
+          "name": "Z.ai: GLM 5.3 Flash",
+          "or_slug": "z-ai/glm-5.3-flash",
           "pareto_rank": 3,
-          "quality": 79.91530198065142,
-          "quality_ci": 2.6,
-          "rank_distance": 29,
+          "quality": 78.30618248589215,
+          "quality_ci": 2.2,
+          "rank_distance": 4,
           "scores": {
-            "benchlm": 50.42629049759727,
-            "tau2_bench_or": 91.59420289855072,
-            "vals_index": 86.04651162790698
+            "artificial_analysis": 70.63197026022304,
+            "benchlm": 55.05652779928759,
+            "tau2_bench_or": 93.76811594202897
           },
           "supported_parameters": [
             "frequency_penalty",
@@ -369,8 +367,10 @@
             "logprobs",
             "max_tokens",
             "min_p",
+            "parallel_tool_calls",
             "presence_penalty",
             "reasoning",
+            "reasoning_effort",
             "repetition_penalty",
             "response_format",
             "seed",
@@ -386,179 +386,38 @@
           "weak_evidence": false
         },
         {
-          "canonical_slug": "anthropic/claude-haiku-5.5-20261007",
-          "context": 1000000,
-          "cost_1m_blended": 0.251,
+          "canonical_slug": "inception/mercury-2.5-20260908",
+          "context": 260000,
+          "cost_1m_blended": 0.0804,
           "evidence": [
             "benchlm",
-            "tau2_bench_or",
             "vals_index"
           ],
-          "litellm_id": "openrouter/anthropic/claude-haiku-5.5",
+          "litellm_id": "openrouter/inception/mercury-2.5",
           "modalities": [
-            "text",
-            "image",
-            "file"
+            "text"
           ],
-          "name": "Anthropic: Claude Haiku 5.5",
-          "or_slug": "anthropic/claude-haiku-5.5",
+          "name": "Inception: Mercury 2.5",
+          "or_slug": "inception/mercury-2.5",
           "pareto_rank": 4,
-          "quality": 71.74623331717356,
-          "quality_ci": 1.6,
-          "rank_distance": 8,
+          "quality": 61.18940684528419,
+          "quality_ci": null,
+          "rank_distance": 4,
           "scores": {
-            "benchlm": 68.9195473569989,
-            "tau2_bench_or": 92.7536231884058,
-            "vals_index": 32.55813953488372
+            "benchlm": 22.378813690568382,
+            "vals_index": 100.0
           },
           "supported_parameters": [
             "include_reasoning",
-            "max_completion_tokens",
             "max_tokens",
             "reasoning",
             "reasoning_effort",
             "response_format",
-            "stop",
-            "structured_outputs",
-            "tool_choice",
-            "tools",
-            "verbosity"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "deepseek/deepseek-v4.1-flash-20260910",
-          "context": 1048576,
-          "cost_1m_blended": 0.6305999999999999,
-          "evidence": [
-            "benchlm",
-            "tau2_bench_or",
-            "vals_index"
-          ],
-          "litellm_id": "openrouter/deepseek/deepseek-v4.1-flash",
-          "modalities": [
-            "text",
-            "image"
-          ],
-          "name": "DeepSeek: DeepSeek V4.1 Flash",
-          "or_slug": "deepseek/deepseek-v4.1-flash",
-          "pareto_rank": 5,
-          "quality": 77.94398252633461,
-          "quality_ci": 1.1,
-          "rank_distance": 19,
-          "scores": {
-            "benchlm": 71.33777708882343,
-            "tau2_bench_or": 94.63768115942028,
-            "vals_index": 51.162790697674424
-          },
-          "supported_parameters": [
-            "frequency_penalty",
-            "include_reasoning",
-            "logit_bias",
-            "logprobs",
-            "max_tokens",
-            "min_p",
-            "presence_penalty",
-            "reasoning",
-            "reasoning_effort",
-            "repetition_penalty",
-            "response_format",
-            "seed",
             "stop",
             "structured_outputs",
             "temperature",
             "tool_choice",
-            "tools",
-            "top_k",
-            "top_logprobs",
-            "top_p"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "thinkingmachines/inkling-small-20260730",
-          "context": 524288,
-          "cost_1m_blended": 0.715,
-          "evidence": [
-            "benchlm",
-            "tau2_bench_or",
-            "vals_index"
-          ],
-          "litellm_id": "openrouter/thinkingmachines/inkling-small",
-          "modalities": [
-            "text",
-            "image",
-            "audio"
-          ],
-          "name": "Thinking Machines: Inkling Small",
-          "or_slug": "thinkingmachines/inkling-small",
-          "pareto_rank": 6,
-          "quality": 73.17026431970086,
-          "quality_ci": 2.7,
-          "rank_distance": 24,
-          "scores": {
-            "benchlm": 50.658812587195776,
-            "tau2_bench_or": 72.17391304347827,
-            "vals_index": 97.67441860465115
-          },
-          "supported_parameters": [
-            "frequency_penalty",
-            "include_reasoning",
-            "logit_bias",
-            "max_tokens",
-            "min_p",
-            "presence_penalty",
-            "reasoning",
-            "reasoning_effort",
-            "repetition_penalty",
-            "seed",
-            "stop",
-            "temperature",
-            "tool_choice",
-            "tools",
-            "top_k",
-            "top_p"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "openai/gpt-5.6-luna-20260709",
-          "context": 1050000,
-          "cost_1m_blended": 0.582,
-          "evidence": [
-            "benchlm",
-            "tau2_bench_or",
-            "vals_index"
-          ],
-          "litellm_id": "openrouter/openai/gpt-5.6-luna",
-          "modalities": [
-            "text",
-            "image",
-            "file"
-          ],
-          "name": "OpenAI: GPT-5.6 Luna",
-          "or_slug": "openai/gpt-5.6-luna",
-          "pareto_rank": 7,
-          "quality": 72.13351360391371,
-          "quality_ci": 0.9,
-          "rank_distance": 9,
-          "scores": {
-            "benchlm": 68.39249728724229,
-            "tau2_bench_or": 85.65217391304348,
-            "vals_index": 48.837209302325576
-          },
-          "supported_parameters": [
-            "include_reasoning",
-            "max_completion_tokens",
-            "max_tokens",
-            "reasoning",
-            "reasoning_effort",
-            "response_format",
-            "seed",
-            "structured_outputs",
-            "tool_choice",
-            "tools",
-            "verbosity"
+            "tools"
           ],
           "weak_evidence": false
         },
@@ -576,10 +435,10 @@
           ],
           "name": "DeepSeek: DeepSeek V3.2 Exp",
           "or_slug": "deepseek/deepseek-v3.2-exp",
-          "pareto_rank": 8,
+          "pareto_rank": 5,
           "quality": 88.86527507390582,
           "quality_ci": 1.4,
-          "rank_distance": 14,
+          "rank_distance": 6,
           "scores": {
             "bfcl": 89.75953565505803,
             "tau2_bench_or": 87.97101449275362
@@ -600,84 +459,26 @@
           "weak_evidence": false
         },
         {
-          "canonical_slug": "xiaomi/mimo-v2.6-pro-20260921",
-          "context": 1050000,
-          "cost_1m_blended": 0.56586,
+          "canonical_slug": "inclusionai/ling-3.0-flash-20260723",
+          "context": 262144,
+          "cost_1m_blended": 0.03612,
           "evidence": [
             "benchlm",
-            "tau2_bench_or",
-            "vals_index"
+            "tau2_bench_or"
           ],
-          "litellm_id": "openrouter/xiaomi/mimo-v2.6-pro",
+          "litellm_id": "openrouter/inclusionai/ling-3.0-flash",
           "modalities": [
-            "text",
-            "image",
-            "audio",
-            "video"
+            "text"
           ],
-          "name": "Xiaomi: MiMo-V2.6-Pro",
-          "or_slug": "xiaomi/mimo-v2.6-pro",
-          "pareto_rank": 9,
-          "quality": 70.14785071585509,
-          "quality_ci": 0.3,
-          "rank_distance": 2,
+          "name": "inclusionAI: Ling 3.0 Flash",
+          "or_slug": "inclusionai/ling-3.0-flash",
+          "pareto_rank": 6,
+          "quality": 60.02715848208775,
+          "quality_ci": null,
+          "rank_distance": 6,
           "scores": {
-            "benchlm": 81.10370485196094,
-            "tau2_bench_or": 88.11594202898551,
-            "vals_index": 23.25581395348837
-          },
-          "supported_parameters": [
-            "frequency_penalty",
-            "include_reasoning",
-            "logit_bias",
-            "max_tokens",
-            "min_p",
-            "presence_penalty",
-            "reasoning",
-            "repetition_penalty",
-            "response_format",
-            "seed",
-            "stop",
-            "structured_outputs",
-            "temperature",
-            "tool_choice",
-            "tools",
-            "top_k",
-            "top_p"
-          ],
-          "weak_evidence": false
-        }
-      ],
-      "or_backbone_empty": false
-    },
-    "aqi-advice": {
-      "candidates": [
-        {
-          "canonical_slug": "xiaomi/mimo-v2.6-flash-20260921",
-          "context": 1050000,
-          "cost_1m_blended": 0.057960000000000005,
-          "evidence": [
-            "arena",
-            "benchlm",
-            "vals_index"
-          ],
-          "litellm_id": "openrouter/xiaomi/mimo-v2.6-flash",
-          "modalities": [
-            "text",
-            "image",
-            "audio",
-            "video"
-          ],
-          "name": "Xiaomi: MiMo-V2.6-Flash",
-          "or_slug": "xiaomi/mimo-v2.6-flash",
-          "pareto_rank": 0,
-          "quality": 65.14477331553323,
-          "quality_ci": 7.772588299134441,
-          "rank_distance": 4,
-          "scores": {
-            "arena": 90.71610427425037,
-            "benchlm": 67.50891334676793,
-            "vals_index": 37.2093023255814
+            "benchlm": 36.286201022146514,
+            "tau2_bench_or": 83.76811594202898
           },
           "supported_parameters": [
             "frequency_penalty",
@@ -692,7 +493,6 @@
             "response_format",
             "seed",
             "stop",
-            "structured_outputs",
             "temperature",
             "tool_choice",
             "tools",
@@ -703,75 +503,33 @@
           "weak_evidence": false
         },
         {
-          "canonical_slug": "anthropic/claude-haiku-5.5-20261007",
-          "context": 1000000,
-          "cost_1m_blended": 0.07699999999999999,
+          "canonical_slug": "deepseek/deepseek-v4-flash-20260423",
+          "context": 1048576,
+          "cost_1m_blended": 0.5223800000000001,
           "evidence": [
-            "benchlm",
-            "healthbench",
-            "vals_index"
+            "gaia",
+            "tau2_bench_or"
           ],
-          "litellm_id": "openrouter/anthropic/claude-haiku-5.5",
-          "modalities": [
-            "text",
-            "image",
-            "file"
-          ],
-          "name": "Anthropic: Claude Haiku 5.5",
-          "or_slug": "anthropic/claude-haiku-5.5",
-          "pareto_rank": 1,
-          "quality": 70.00219008455258,
-          "quality_ci": null,
-          "rank_distance": 4,
-          "scores": {
-            "benchlm": 68.9195473569989,
-            "healthbench": 89.26553672316383,
-            "vals_index": 32.55813953488372
-          },
-          "supported_parameters": [
-            "include_reasoning",
-            "max_completion_tokens",
-            "max_tokens",
-            "reasoning",
-            "reasoning_effort",
-            "response_format",
-            "stop",
-            "structured_outputs",
-            "tool_choice",
-            "tools",
-            "verbosity"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "openai/gpt-oss-120b",
-          "context": 131072,
-          "cost_1m_blended": 0.0503,
-          "evidence": [
-            "arena",
-            "benchlm",
-            "healthbench"
-          ],
-          "litellm_id": "openrouter/openai/gpt-oss-120b",
+          "litellm_id": "openrouter/deepseek/deepseek-v4-flash",
           "modalities": [
             "text"
           ],
-          "name": "OpenAI: gpt-oss-120b",
-          "or_slug": "openai/gpt-oss-120b",
-          "pareto_rank": 2,
-          "quality": 62.52284157308594,
-          "quality_ci": 4.361149683496251,
-          "rank_distance": 14,
+          "name": "DeepSeek: DeepSeek V4 Flash 0423",
+          "or_slug": "deepseek/deepseek-v4-flash",
+          "pareto_rank": 7,
+          "quality": 96.01449275362319,
+          "quality_ci": 2.0,
+          "rank_distance": 8,
           "scores": {
-            "arena": 70.16288325594685,
-            "benchlm": 23.99627964656643,
-            "healthbench": 77.96610169491524
+            "gaia": 100.0,
+            "tau2_bench_or": 92.02898550724639
           },
           "supported_parameters": [
             "frequency_penalty",
             "include_reasoning",
             "logit_bias",
             "logprobs",
+            "max_completion_tokens",
             "max_tokens",
             "min_p",
             "presence_penalty",
@@ -793,34 +551,38 @@
           "weak_evidence": false
         },
         {
-          "canonical_slug": "xiaomi/mimo-v2.5-pro-20260422",
-          "context": 1050000,
-          "cost_1m_blended": 0.17652,
+          "canonical_slug": "inclusionai/ling-3.0-flash-vl-20260910",
+          "context": 262144,
+          "cost_1m_blended": 0.03556,
           "evidence": [
-            "arena",
+            "artificial_analysis",
             "benchlm",
-            "vals_index"
+            "tau2_bench_or"
           ],
-          "litellm_id": "openrouter/xiaomi/mimo-v2.5-pro",
+          "litellm_id": "openrouter/inclusionai/ling-3.0-flash-vl",
           "modalities": [
-            "text"
+            "text",
+            "image",
+            "video"
           ],
-          "name": "Xiaomi: MiMo-V2.5-Pro",
-          "or_slug": "xiaomi/mimo-v2.5-pro",
-          "pareto_rank": 3,
-          "quality": 76.15887369546306,
-          "quality_ci": 3.6121180393148506,
-          "rank_distance": 15,
+          "name": "inclusionAI: Ling 3.0 Flash VL",
+          "or_slug": "inclusionai/ling-3.0-flash-vl",
+          "pareto_rank": 8,
+          "quality": 62.38775110821902,
+          "quality_ci": null,
+          "rank_distance": 8,
           "scores": {
-            "arena": 92.65452031239703,
-            "benchlm": 47.45000775073632,
-            "vals_index": 88.37209302325581
+            "artificial_analysis": 38.66171003717472,
+            "benchlm": 39.58494656961438,
+            "tau2_bench_or": 85.65217391304348
           },
           "supported_parameters": [
             "frequency_penalty",
             "include_reasoning",
+            "logit_bias",
             "logprobs",
             "max_tokens",
+            "min_p",
             "presence_penalty",
             "reasoning",
             "repetition_penalty",
@@ -838,41 +600,36 @@
           "weak_evidence": false
         },
         {
-          "canonical_slug": "xiaomi/mimo-v2.6-pro-20260921",
-          "context": 1050000,
-          "cost_1m_blended": 0.17652,
+          "canonical_slug": "google/gemini-3.1-pro-preview-20260219",
+          "context": 1048576,
+          "cost_1m_blended": 5.82,
           "evidence": [
-            "arena",
-            "benchlm",
+            "tau2_bench_or",
             "vals_index"
           ],
-          "litellm_id": "openrouter/xiaomi/mimo-v2.6-pro",
+          "litellm_id": "openrouter/google/gemini-3.1-pro-preview",
           "modalities": [
             "text",
             "image",
+            "file",
             "audio",
             "video"
           ],
-          "name": "Xiaomi: MiMo-V2.6-Pro",
-          "or_slug": "xiaomi/mimo-v2.6-pro",
-          "pareto_rank": 4,
-          "quality": 67.62900558513472,
-          "quality_ci": 9.364282375654739,
-          "rank_distance": 14,
+          "name": "Google: Gemini 3.1 Pro Preview",
+          "or_slug": "google/gemini-3.1-pro-preview",
+          "pareto_rank": null,
+          "quality": 92.37782271654869,
+          "quality_ci": 1.7,
+          "rank_distance": null,
           "scores": {
-            "arena": 98.52749794995484,
-            "benchlm": 81.10370485196094,
-            "vals_index": 23.25581395348837
+            "tau2_bench_or": 94.05797101449274,
+            "vals_index": 90.69767441860465
           },
           "supported_parameters": [
-            "frequency_penalty",
             "include_reasoning",
-            "logit_bias",
             "max_tokens",
-            "min_p",
-            "presence_penalty",
             "reasoning",
-            "repetition_penalty",
+            "reasoning_effort",
             "response_format",
             "seed",
             "stop",
@@ -880,77 +637,42 @@
             "temperature",
             "tool_choice",
             "tools",
-            "top_k",
             "top_p"
           ],
           "weak_evidence": false
-        },
+        }
+      ],
+      "or_backbone_empty": false
+    },
+    "aqi-advice": {
+      "candidates": [
         {
-          "canonical_slug": "openai/gpt-5.6-luna-20260709",
-          "context": 1050000,
-          "cost_1m_blended": 0.174,
-          "evidence": [
-            "benchlm",
-            "healthbench",
-            "vals_index"
-          ],
-          "litellm_id": "openrouter/openai/gpt-5.6-luna",
-          "modalities": [
-            "text",
-            "image",
-            "file"
-          ],
-          "name": "OpenAI: GPT-5.6 Luna",
-          "or_slug": "openai/gpt-5.6-luna",
-          "pareto_rank": 5,
-          "quality": 65.74810461349367,
-          "quality_ci": null,
-          "rank_distance": 7,
-          "scores": {
-            "benchlm": 68.39249728724229,
-            "healthbench": 72.88135593220339,
-            "vals_index": 48.837209302325576
-          },
-          "supported_parameters": [
-            "include_reasoning",
-            "max_completion_tokens",
-            "max_tokens",
-            "reasoning",
-            "reasoning_effort",
-            "response_format",
-            "seed",
-            "structured_outputs",
-            "tool_choice",
-            "tools",
-            "verbosity"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "minimax/minimax-m3-20260531",
+          "canonical_slug": "z-ai/glm-5.3-flash-20260826",
           "context": 1048576,
-          "cost_1m_blended": 0.22199999999999995,
+          "cost_1m_blended": 0.10099999999999999,
           "evidence": [
+            "aa_healthcare_index",
             "arena",
-            "benchlm",
-            "vals_index"
+            "artificial_analysis",
+            "benchlm"
           ],
-          "litellm_id": "openrouter/minimax/minimax-m3",
+          "litellm_id": "openrouter/z-ai/glm-5.3-flash",
           "modalities": [
             "text",
             "image",
             "video"
           ],
-          "name": "MiniMax: MiniMax M3",
-          "or_slug": "minimax/minimax-m3",
-          "pareto_rank": 6,
-          "quality": 73.89726523885987,
-          "quality_ci": 3.919933598400121,
-          "rank_distance": 19,
+          "name": "Z.ai: GLM 5.3 Flash",
+          "or_slug": "z-ai/glm-5.3-flash",
+          "pareto_rank": 0,
+          "quality": 71.99949319559428,
+          "quality_ci": 5.311412741480694,
+          "rank_distance": 0,
           "scores": {
-            "arena": 85.21899359107536,
-            "benchlm": 50.42629049759727,
-            "vals_index": 86.04651162790698
+            "aa_healthcare_index": 70.87198515769944,
+            "arena": 93.69250564095667,
+            "artificial_analysis": 70.63197026022304,
+            "benchlm": 55.05652779928759
           },
           "supported_parameters": [
             "frequency_penalty",
@@ -959,8 +681,10 @@
             "logprobs",
             "max_tokens",
             "min_p",
+            "parallel_tool_calls",
             "presence_penalty",
             "reasoning",
+            "reasoning_effort",
             "repetition_penalty",
             "response_format",
             "seed",
@@ -992,13 +716,13 @@
           ],
           "name": "Thinking Machines: Inkling Small",
           "or_slug": "thinkingmachines/inkling-small",
-          "pareto_rank": 7,
-          "quality": 76.46666841005488,
+          "pareto_rank": 1,
+          "quality": 76.4819514168422,
           "quality_ci": 4.8703213302188715,
-          "rank_distance": 23,
+          "rank_distance": 2,
           "scores": {
             "arena": 81.06677403831772,
-            "benchlm": 50.658812587195776,
+            "benchlm": 50.704661607557696,
             "vals_index": 97.67441860465115
           },
           "supported_parameters": [
@@ -1022,111 +746,12 @@
           "weak_evidence": false
         },
         {
-          "canonical_slug": "z-ai/glm-5.3-flash-20260826",
-          "context": 1048576,
-          "cost_1m_blended": 0.10099999999999999,
-          "evidence": [
-            "arena",
-            "benchlm"
-          ],
-          "litellm_id": "openrouter/z-ai/glm-5.3-flash",
-          "modalities": [
-            "text",
-            "image",
-            "video"
-          ],
-          "name": "Z.ai: GLM 5.3 Flash",
-          "or_slug": "z-ai/glm-5.3-flash",
-          "pareto_rank": 8,
-          "quality": 74.36911749262218,
-          "quality_ci": 5.311412741480694,
-          "rank_distance": 14,
-          "scores": {
-            "arena": 93.69250564095667,
-            "benchlm": 55.0457293442877
-          },
-          "supported_parameters": [
-            "frequency_penalty",
-            "include_reasoning",
-            "logit_bias",
-            "logprobs",
-            "max_tokens",
-            "min_p",
-            "parallel_tool_calls",
-            "presence_penalty",
-            "reasoning",
-            "reasoning_effort",
-            "repetition_penalty",
-            "response_format",
-            "seed",
-            "stop",
-            "structured_outputs",
-            "temperature",
-            "tool_choice",
-            "tools",
-            "top_k",
-            "top_logprobs",
-            "top_p"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "thinkingmachines/inkling-20260715",
-          "context": 524288,
-          "cost_1m_blended": 0.724,
-          "evidence": [
-            "arena",
-            "benchlm",
-            "vals_index"
-          ],
-          "litellm_id": "openrouter/thinkingmachines/inkling",
-          "modalities": [
-            "text",
-            "image",
-            "audio"
-          ],
-          "name": "Thinking Machines: Inkling",
-          "or_slug": "thinkingmachines/inkling",
-          "pareto_rank": 9,
-          "quality": 77.16178775367604,
-          "quality_ci": 4.483580698995979,
-          "rank_distance": 45,
-          "scores": {
-            "arena": 87.39989607187772,
-            "benchlm": 48.736629979848075,
-            "vals_index": 95.34883720930233
-          },
-          "supported_parameters": [
-            "frequency_penalty",
-            "include_reasoning",
-            "logit_bias",
-            "max_tokens",
-            "min_p",
-            "presence_penalty",
-            "reasoning",
-            "reasoning_effort",
-            "repetition_penalty",
-            "seed",
-            "stop",
-            "temperature",
-            "tool_choice",
-            "tools",
-            "top_k",
-            "top_p"
-          ],
-          "weak_evidence": false
-        }
-      ],
-      "or_backbone_empty": false
-    },
-    "classification": {
-      "candidates": [
-        {
           "canonical_slug": "xiaomi/mimo-v2.6-flash-20260921",
           "context": 1050000,
-          "cost_1m_blended": 0.168,
+          "cost_1m_blended": 0.057960000000000005,
           "evidence": [
             "arena",
+            "artificial_analysis",
             "benchlm",
             "vals_index"
           ],
@@ -1139,13 +764,14 @@
           ],
           "name": "Xiaomi: MiMo-V2.6-Flash",
           "or_slug": "xiaomi/mimo-v2.6-flash",
-          "pareto_rank": 0,
-          "quality": 65.14477331553323,
+          "pareto_rank": 2,
+          "quality": 64.92479995798134,
           "quality_ci": 7.772588299134441,
           "rank_distance": 2,
           "scores": {
             "arena": 90.71610427425037,
-            "benchlm": 67.50891334676793,
+            "artificial_analysis": 63.38289962825279,
+            "benchlm": 68.3908936038408,
             "vals_index": 37.2093023255814
           },
           "supported_parameters": [
@@ -1172,30 +798,153 @@
           "weak_evidence": false
         },
         {
-          "canonical_slug": "minimax/minimax-m3-20260531",
+          "canonical_slug": "deepseek/deepseek-v4-pro-20260423",
           "context": 1048576,
-          "cost_1m_blended": 0.48,
+          "cost_1m_blended": 0.43782750000000004,
           "evidence": [
             "arena",
+            "vals_index"
+          ],
+          "litellm_id": "openrouter/deepseek/deepseek-v4-pro",
+          "modalities": [
+            "text"
+          ],
+          "name": "DeepSeek: DeepSeek V4 Pro 0423",
+          "or_slug": "deepseek/deepseek-v4-pro",
+          "pareto_rank": 3,
+          "quality": 86.60427464916633,
+          "quality_ci": 3.8884013860767936,
+          "rank_distance": 4,
+          "scores": {
+            "arena": 89.48761906577451,
+            "vals_index": 83.72093023255815
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "logprobs",
+            "max_completion_tokens",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "inception/mercury-2.5-20260908",
+          "context": 260000,
+          "cost_1m_blended": 0.0258,
+          "evidence": [
             "benchlm",
             "vals_index"
           ],
-          "litellm_id": "openrouter/minimax/minimax-m3",
+          "litellm_id": "openrouter/inception/mercury-2.5",
+          "modalities": [
+            "text"
+          ],
+          "name": "Inception: Mercury 2.5",
+          "or_slug": "inception/mercury-2.5",
+          "pareto_rank": 4,
+          "quality": 61.18940684528419,
+          "quality_ci": null,
+          "rank_distance": 4,
+          "scores": {
+            "benchlm": 22.378813690568382,
+            "vals_index": 100.0
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "google/gemini-3.1-pro-preview-20260219",
+          "context": 1048576,
+          "cost_1m_blended": 1.74,
+          "evidence": [
+            "arena",
+            "vals_index"
+          ],
+          "litellm_id": "openrouter/google/gemini-3.1-pro-preview",
+          "modalities": [
+            "text",
+            "image",
+            "file",
+            "audio",
+            "video"
+          ],
+          "name": "Google: Gemini 3.1 Pro Preview",
+          "or_slug": "google/gemini-3.1-pro-preview",
+          "pareto_rank": 5,
+          "quality": 93.39091431800861,
+          "quality_ci": 2.9961065117112184,
+          "rank_distance": 6,
+          "scores": {
+            "arena": 96.08415421741257,
+            "vals_index": 90.69767441860465
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "inclusionai/ling-3.0-flash-vl-20260910",
+          "context": 262144,
+          "cost_1m_blended": 0.013300000000000001,
+          "evidence": [
+            "artificial_analysis",
+            "benchlm"
+          ],
+          "litellm_id": "openrouter/inclusionai/ling-3.0-flash-vl",
           "modalities": [
             "text",
             "image",
             "video"
           ],
-          "name": "MiniMax: MiniMax M3",
-          "or_slug": "minimax/minimax-m3",
-          "pareto_rank": 1,
-          "quality": 73.89726523885987,
-          "quality_ci": 3.919933598400121,
-          "rank_distance": 14,
+          "name": "inclusionAI: Ling 3.0 Flash VL",
+          "or_slug": "inclusionai/ling-3.0-flash-vl",
+          "pareto_rank": 6,
+          "quality": 39.12332830339455,
+          "quality_ci": null,
+          "rank_distance": 6,
           "scores": {
-            "arena": 85.21899359107536,
-            "benchlm": 50.42629049759727,
-            "vals_index": 86.04651162790698
+            "artificial_analysis": 38.66171003717472,
+            "benchlm": 39.58494656961438
           },
           "supported_parameters": [
             "frequency_penalty",
@@ -1221,28 +970,73 @@
           "weak_evidence": false
         },
         {
-          "canonical_slug": "xiaomi/mimo-v2.5-pro-20260422",
-          "context": 1050000,
-          "cost_1m_blended": 0.522,
+          "canonical_slug": "meta/muse-spark-1.1-20260709",
+          "context": 1048576,
+          "cost_1m_blended": 0.78,
+          "evidence": [
+            "arena",
+            "benchlm"
+          ],
+          "litellm_id": "openrouter/meta/muse-spark-1.1",
+          "modalities": [
+            "text",
+            "image",
+            "file",
+            "video"
+          ],
+          "name": "Meta: Muse Spark 1.1",
+          "or_slug": "meta/muse-spark-1.1",
+          "pareto_rank": null,
+          "quality": 82.05693557644922,
+          "quality_ci": 4.378299393969769,
+          "rank_distance": null,
+          "scores": {
+            "arena": 95.84687409544142,
+            "benchlm": 68.26699705745702
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "repetition_penalty",
+            "response_format",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "qwen/qwen3.8-max-20260902",
+          "context": 1000000,
+          "cost_1m_blended": 1.1750000000000003,
           "evidence": [
             "arena",
             "benchlm",
+            "healthbench",
             "vals_index"
           ],
-          "litellm_id": "openrouter/xiaomi/mimo-v2.5-pro",
+          "litellm_id": "openrouter/qwen/qwen3.8-max-0902",
           "modalities": [
-            "text"
+            "text",
+            "image",
+            "video"
           ],
-          "name": "Xiaomi: MiMo-V2.5-Pro",
-          "or_slug": "xiaomi/mimo-v2.5-pro",
-          "pareto_rank": 2,
-          "quality": 76.15887369546306,
-          "quality_ci": 3.6121180393148506,
-          "rank_distance": 18,
+          "name": "Qwen: Qwen3.8 Max (0902)",
+          "or_slug": "qwen/qwen3.8-max-0902",
+          "pareto_rank": null,
+          "quality": 82.92889959193741,
+          "quality_ci": 5.192988716103969,
+          "rank_distance": null,
           "scores": {
-            "arena": 92.65452031239703,
-            "benchlm": 47.45000775073632,
-            "vals_index": 88.37209302325581
+            "arena": 96.43624262191112,
+            "benchlm": 75.43750967941769,
+            "healthbench": 85.31073446327683,
+            "vals_index": 69.76744186046511
           },
           "supported_parameters": [
             "frequency_penalty",
@@ -1251,7 +1045,7 @@
             "max_tokens",
             "presence_penalty",
             "reasoning",
-            "repetition_penalty",
+            "reasoning_effort",
             "response_format",
             "seed",
             "stop",
@@ -1266,11 +1060,101 @@
           "weak_evidence": false
         },
         {
+          "canonical_slug": "anthropic/claude-4.7-opus-20260416",
+          "context": 1000000,
+          "cost_1m_blended": 3.8500000000000005,
+          "evidence": [
+            "arena",
+            "benchlm"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-opus-4.7",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Opus 4.7",
+          "or_slug": "anthropic/claude-opus-4.7",
+          "pareto_rank": null,
+          "quality": 81.26547144444294,
+          "quality_ci": 3.7586394528095752,
+          "rank_distance": null,
+          "scores": {
+            "arena": 96.78833796399813,
+            "benchlm": 65.74260492488773
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        }
+      ],
+      "or_backbone_empty": false
+    },
+    "classification": {
+      "candidates": [
+        {
+          "canonical_slug": "tencent/hy3-20260706",
+          "context": 262144,
+          "cost_1m_blended": 0.2112,
+          "evidence": [
+            "arena",
+            "benchlm"
+          ],
+          "litellm_id": "openrouter/tencent/hy3",
+          "modalities": [
+            "text"
+          ],
+          "name": "Tencent: Hy3",
+          "or_slug": "tencent/hy3",
+          "pareto_rank": 0,
+          "quality": 67.5218541905348,
+          "quality_ci": 6.5046781012599695,
+          "rank_distance": 0,
+          "scores": {
+            "arena": 87.15769320374265,
+            "benchlm": 47.88601517732694
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "max_completion_tokens",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
           "canonical_slug": "z-ai/glm-5.3-flash-20260826",
           "context": 1048576,
           "cost_1m_blended": 0.21999999999999997,
           "evidence": [
             "arena",
+            "artificial_analysis",
             "benchlm"
           ],
           "litellm_id": "openrouter/z-ai/glm-5.3-flash",
@@ -1281,13 +1165,14 @@
           ],
           "name": "Z.ai: GLM 5.3 Flash",
           "or_slug": "z-ai/glm-5.3-flash",
-          "pareto_rank": 3,
-          "quality": 74.36911749262218,
+          "pareto_rank": 1,
+          "quality": 73.12700123348911,
           "quality_ci": 5.311412741480694,
-          "rank_distance": 3,
+          "rank_distance": 2,
           "scores": {
             "arena": 93.69250564095667,
-            "benchlm": 55.0457293442877
+            "artificial_analysis": 70.63197026022304,
+            "benchlm": 55.05652779928759
           },
           "supported_parameters": [
             "frequency_penalty",
@@ -1315,83 +1200,44 @@
           "weak_evidence": false
         },
         {
-          "canonical_slug": "xiaomi/mimo-v2.6-pro-20260921",
+          "canonical_slug": "xiaomi/mimo-v2.6-flash-20260921",
           "context": 1050000,
-          "cost_1m_blended": 0.522,
+          "cost_1m_blended": 0.168,
           "evidence": [
             "arena",
+            "artificial_analysis",
             "benchlm",
             "vals_index"
           ],
-          "litellm_id": "openrouter/xiaomi/mimo-v2.6-pro",
+          "litellm_id": "openrouter/xiaomi/mimo-v2.6-flash",
           "modalities": [
             "text",
             "image",
             "audio",
             "video"
           ],
-          "name": "Xiaomi: MiMo-V2.6-Pro",
-          "or_slug": "xiaomi/mimo-v2.6-pro",
-          "pareto_rank": 4,
-          "quality": 67.62900558513472,
-          "quality_ci": 9.364282375654739,
-          "rank_distance": 17,
+          "name": "Xiaomi: MiMo-V2.6-Flash",
+          "or_slug": "xiaomi/mimo-v2.6-flash",
+          "pareto_rank": 2,
+          "quality": 64.92479995798134,
+          "quality_ci": 7.772588299134441,
+          "rank_distance": 2,
           "scores": {
-            "arena": 98.52749794995484,
-            "benchlm": 81.10370485196094,
-            "vals_index": 23.25581395348837
+            "arena": 90.71610427425037,
+            "artificial_analysis": 63.38289962825279,
+            "benchlm": 68.3908936038408,
+            "vals_index": 37.2093023255814
           },
           "supported_parameters": [
             "frequency_penalty",
             "include_reasoning",
             "logit_bias",
+            "logprobs",
             "max_tokens",
             "min_p",
             "presence_penalty",
             "reasoning",
             "repetition_penalty",
-            "response_format",
-            "seed",
-            "stop",
-            "structured_outputs",
-            "temperature",
-            "tool_choice",
-            "tools",
-            "top_k",
-            "top_p"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "qwen/qwen3.7-plus-20260602",
-          "context": 1000000,
-          "cost_1m_blended": 0.512,
-          "evidence": [
-            "arena",
-            "benchlm"
-          ],
-          "litellm_id": "openrouter/qwen/qwen3.7-plus",
-          "modalities": [
-            "text",
-            "image"
-          ],
-          "name": "Qwen: Qwen3.7 Plus",
-          "or_slug": "qwen/qwen3.7-plus",
-          "pareto_rank": 5,
-          "quality": 71.16972750342386,
-          "quality_ci": 4.333083786201769,
-          "rank_distance": 1,
-          "scores": {
-            "arena": 90.30101135470076,
-            "benchlm": 52.038443652146945
-          },
-          "supported_parameters": [
-            "frequency_penalty",
-            "include_reasoning",
-            "logprobs",
-            "max_tokens",
-            "presence_penalty",
-            "reasoning",
             "response_format",
             "seed",
             "stop",
@@ -1401,51 +1247,6 @@
             "tools",
             "top_k",
             "top_logprobs",
-            "top_p"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "tencent/hy3-20260706",
-          "context": 262144,
-          "cost_1m_blended": 0.2112,
-          "evidence": [
-            "arena",
-            "benchlm"
-          ],
-          "litellm_id": "openrouter/tencent/hy3",
-          "modalities": [
-            "text"
-          ],
-          "name": "Tencent: Hy3",
-          "or_slug": "tencent/hy3",
-          "pareto_rank": 6,
-          "quality": 67.52862183051805,
-          "quality_ci": 6.5046781012599695,
-          "rank_distance": 20,
-          "scores": {
-            "arena": 87.15769320374265,
-            "benchlm": 47.89955045729344
-          },
-          "supported_parameters": [
-            "frequency_penalty",
-            "include_reasoning",
-            "logit_bias",
-            "max_completion_tokens",
-            "max_tokens",
-            "min_p",
-            "presence_penalty",
-            "reasoning",
-            "reasoning_effort",
-            "repetition_penalty",
-            "response_format",
-            "seed",
-            "stop",
-            "structured_outputs",
-            "temperature",
-            "tool_choice",
-            "tools",
-            "top_k",
             "top_p"
           ],
           "weak_evidence": false
@@ -1464,10 +1265,10 @@
           ],
           "name": "DeepSeek: DeepSeek V4 Pro 0423",
           "or_slug": "deepseek/deepseek-v4-pro",
-          "pareto_rank": 7,
+          "pareto_rank": 3,
           "quality": 86.60427464916633,
           "quality_ci": 3.8884013860767936,
-          "rank_distance": 25,
+          "rank_distance": 4,
           "scores": {
             "arena": 89.48761906577451,
             "vals_index": 83.72093023255815
@@ -1511,12 +1312,12 @@
           ],
           "name": "Inception: Mercury 2.5",
           "or_slug": "inception/mercury-2.5",
-          "pareto_rank": 8,
-          "quality": 61.16881103704852,
+          "pareto_rank": 4,
+          "quality": 61.18940684528419,
           "quality_ci": null,
-          "rank_distance": 39,
+          "rank_distance": 4,
           "scores": {
-            "benchlm": 22.337622074097045,
+            "benchlm": 22.378813690568382,
             "vals_index": 100.0
           },
           "supported_parameters": [
@@ -1534,27 +1335,70 @@
           "weak_evidence": false
         },
         {
-          "canonical_slug": "moonshotai/kimi-k2.6-20260420",
-          "context": 262144,
-          "cost_1m_blended": 0.862,
+          "canonical_slug": "google/gemini-3.1-pro-preview-20260219",
+          "context": 1048576,
+          "cost_1m_blended": 4.000000000000001,
           "evidence": [
             "arena",
-            "benchlm"
+            "vals_index"
           ],
-          "litellm_id": "openrouter/moonshotai/kimi-k2.6",
+          "litellm_id": "openrouter/google/gemini-3.1-pro-preview",
           "modalities": [
             "text",
-            "image"
+            "image",
+            "file",
+            "audio",
+            "video"
           ],
-          "name": "MoonshotAI: Kimi K2.6",
-          "or_slug": "moonshotai/kimi-k2.6",
-          "pareto_rank": 9,
-          "quality": 73.82448660926495,
-          "quality_ci": 4.413430363741213,
-          "rank_distance": 15,
+          "name": "Google: Gemini 3.1 Pro Preview",
+          "or_slug": "google/gemini-3.1-pro-preview",
+          "pareto_rank": 5,
+          "quality": 93.39091431800861,
+          "quality_ci": 2.9961065117112184,
+          "rank_distance": 6,
           "scores": {
-            "arena": 90.49504359521569,
-            "benchlm": 57.153929623314205
+            "arena": 96.08415421741257,
+            "vals_index": 90.69767441860465
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "inclusionai/ling-3.0-flash-vl-20260910",
+          "context": 262144,
+          "cost_1m_blended": 0.029120000000000004,
+          "evidence": [
+            "artificial_analysis",
+            "benchlm"
+          ],
+          "litellm_id": "openrouter/inclusionai/ling-3.0-flash-vl",
+          "modalities": [
+            "text",
+            "image",
+            "video"
+          ],
+          "name": "inclusionAI: Ling 3.0 Flash VL",
+          "or_slug": "inclusionai/ling-3.0-flash-vl",
+          "pareto_rank": 6,
+          "quality": 39.12332830339455,
+          "quality_ci": null,
+          "rank_distance": 6,
+          "scores": {
+            "artificial_analysis": 38.66171003717472,
+            "benchlm": 39.58494656961438
           },
           "supported_parameters": [
             "frequency_penalty",
@@ -1563,10 +1407,136 @@
             "logprobs",
             "max_tokens",
             "min_p",
-            "parallel_tool_calls",
             "presence_penalty",
             "reasoning",
             "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "meta/muse-spark-1.1-20260709",
+          "context": 1048576,
+          "cost_1m_blended": 1.85,
+          "evidence": [
+            "arena",
+            "benchlm"
+          ],
+          "litellm_id": "openrouter/meta/muse-spark-1.1",
+          "modalities": [
+            "text",
+            "image",
+            "file",
+            "video"
+          ],
+          "name": "Meta: Muse Spark 1.1",
+          "or_slug": "meta/muse-spark-1.1",
+          "pareto_rank": null,
+          "quality": 82.05693557644922,
+          "quality_ci": 4.378299393969769,
+          "rank_distance": null,
+          "scores": {
+            "arena": 95.84687409544142,
+            "benchlm": 68.26699705745702
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "repetition_penalty",
+            "response_format",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-4.7-opus-20260416",
+          "context": 1000000,
+          "cost_1m_blended": 9.000000000000002,
+          "evidence": [
+            "arena",
+            "benchlm"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-opus-4.7",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Opus 4.7",
+          "or_slug": "anthropic/claude-opus-4.7",
+          "pareto_rank": null,
+          "quality": 81.26547144444294,
+          "quality_ci": 3.7586394528095752,
+          "rank_distance": null,
+          "scores": {
+            "arena": 96.78833796399813,
+            "benchlm": 65.74260492488773
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "qwen/qwen3.8-max-20260902",
+          "context": 1000000,
+          "cost_1m_blended": 2.8000000000000003,
+          "evidence": [
+            "arena",
+            "benchlm",
+            "vals_index"
+          ],
+          "litellm_id": "openrouter/qwen/qwen3.8-max-0902",
+          "modalities": [
+            "text",
+            "image",
+            "video"
+          ],
+          "name": "Qwen: Qwen3.8 Max (0902)",
+          "or_slug": "qwen/qwen3.8-max-0902",
+          "pareto_rank": null,
+          "quality": 80.54706472059797,
+          "quality_ci": 5.192988716103969,
+          "rank_distance": null,
+          "scores": {
+            "arena": 96.43624262191112,
+            "benchlm": 75.43750967941769,
+            "vals_index": 69.76744186046511
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logprobs",
+            "max_tokens",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
             "response_format",
             "seed",
             "stop",
@@ -1586,33 +1556,6 @@
     "embedding": {
       "candidates": [
         {
-          "canonical_slug": "baai/bge-m3-20251117",
-          "context": 8194,
-          "cost_1m_blended": 0.01,
-          "evidence": [
-            "mteb_classification",
-            "mteb_retrieval",
-            "mteb_sts"
-          ],
-          "litellm_id": "openrouter/baai/bge-m3",
-          "modalities": [
-            "text"
-          ],
-          "name": "BAAI: bge-m3",
-          "or_slug": "baai/bge-m3",
-          "pareto_rank": 0,
-          "quality": 88.61819217068951,
-          "quality_ci": null,
-          "rank_distance": 6,
-          "scores": {
-            "mteb_classification": 95.4308859162581,
-            "mteb_retrieval": 92.18353016566408,
-            "mteb_sts": 78.24016043014633
-          },
-          "supported_parameters": [],
-          "weak_evidence": false
-        },
-        {
           "canonical_slug": "intfloat/multilingual-e5-large-20251117",
           "context": 512,
           "cost_1m_blended": 0.01,
@@ -1627,14 +1570,39 @@
           ],
           "name": "Intfloat: Multilingual-E5-Large",
           "or_slug": "intfloat/multilingual-e5-large",
-          "pareto_rank": 1,
-          "quality": 87.71900723012163,
+          "pareto_rank": 0,
+          "quality": 92.94776480391089,
           "quality_ci": null,
-          "rank_distance": 6,
+          "rank_distance": 0,
           "scores": {
             "mteb_classification": 100.0,
-            "mteb_retrieval": 93.08834214077162,
-            "mteb_sts": 70.06867954959327
+            "mteb_retrieval": 95.18509158682811,
+            "mteb_sts": 83.65820282490454
+          },
+          "supported_parameters": [],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "google/gemini-embedding-001",
+          "context": 20000,
+          "cost_1m_blended": 0.15,
+          "evidence": [
+            "mteb_retrieval",
+            "mteb_sts"
+          ],
+          "litellm_id": "openrouter/google/gemini-embedding-001",
+          "modalities": [
+            "text"
+          ],
+          "name": "Google: Gemini Embedding 001",
+          "or_slug": "google/gemini-embedding-001",
+          "pareto_rank": 1,
+          "quality": 98.1017540176671,
+          "quality_ci": null,
+          "rank_distance": 2,
+          "scores": {
+            "mteb_retrieval": 100.0,
+            "mteb_sts": 96.20350803533422
           },
           "supported_parameters": [],
           "weak_evidence": false
@@ -1656,7 +1624,7 @@
           "pareto_rank": 2,
           "quality": 26.32610348179861,
           "quality_ci": null,
-          "rank_distance": 8,
+          "rank_distance": 2,
           "scores": {
             "mteb_retrieval": 41.029500029333065,
             "mteb_sts": 11.622706934264158
@@ -1665,53 +1633,28 @@
           "weak_evidence": false
         },
         {
-          "canonical_slug": "qwen/qwen3-embedding-8b",
-          "context": 32768,
+          "canonical_slug": "baai/bge-m3-20251117",
+          "context": 8194,
           "cost_1m_blended": 0.01,
           "evidence": [
             "mteb_classification",
             "mteb_retrieval",
             "mteb_sts"
           ],
-          "litellm_id": "openrouter/qwen/qwen3-embedding-8b",
+          "litellm_id": "openrouter/baai/bge-m3",
           "modalities": [
             "text"
           ],
-          "name": "Qwen: Qwen3 Embedding 8B",
-          "or_slug": "qwen/qwen3-embedding-8b",
-          "pareto_rank": 3,
-          "quality": 65.83730022505257,
+          "name": "BAAI: bge-m3",
+          "or_slug": "baai/bge-m3",
+          "pareto_rank": null,
+          "quality": 85.62912247153831,
           "quality_ci": null,
-          "rank_distance": 5,
+          "rank_distance": null,
           "scores": {
-            "mteb_classification": 5.506826694668239,
-            "mteb_retrieval": 95.94797669601479,
-            "mteb_sts": 96.05709728447471
-          },
-          "supported_parameters": [],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "baai/bge-base-en-v1.5-20251117",
-          "context": 512,
-          "cost_1m_blended": 0.005,
-          "evidence": [
-            "mteb_retrieval",
-            "mteb_sts"
-          ],
-          "litellm_id": "openrouter/baai/bge-base-en-v1.5",
-          "modalities": [
-            "text"
-          ],
-          "name": "BAAI: bge-base-en-v1.5",
-          "or_slug": "baai/bge-base-en-v1.5",
-          "pareto_rank": 4,
-          "quality": 24.47762875029342,
-          "quality_ci": null,
-          "rank_distance": 10,
-          "scores": {
-            "mteb_retrieval": 31.783833424341033,
-            "mteb_sts": 17.171424076245803
+            "mteb_classification": 86.46367681880453,
+            "mteb_retrieval": 92.18353016566408,
+            "mteb_sts": 78.24016043014633
           },
           "supported_parameters": [],
           "weak_evidence": false
@@ -1731,12 +1674,12 @@
           ],
           "name": "Qwen: Qwen3 Embedding 4B",
           "or_slug": "qwen/qwen3-embedding-4b",
-          "pareto_rank": 5,
-          "quality": 74.0582983665761,
+          "pareto_rank": null,
+          "quality": 73.02690155737565,
           "quality_ci": null,
-          "rank_distance": 10,
+          "rank_distance": null,
           "scores": {
-            "mteb_classification": 32.929011746079475,
+            "mteb_classification": 29.834821318478156,
             "mteb_retrieval": 94.62595840121305,
             "mteb_sts": 94.61992495243575
           },
@@ -1744,26 +1687,78 @@
           "weak_evidence": false
         },
         {
-          "canonical_slug": "thenlper/gte-base-20251117",
-          "context": 512,
-          "cost_1m_blended": 0.005,
+          "canonical_slug": "qwen/qwen3-embedding-8b",
+          "context": 32768,
+          "cost_1m_blended": 0.01,
+          "evidence": [
+            "mteb_classification",
+            "mteb_retrieval",
+            "mteb_sts"
+          ],
+          "litellm_id": "openrouter/qwen/qwen3-embedding-8b",
+          "modalities": [
+            "text"
+          ],
+          "name": "Qwen: Qwen3 Embedding 8B",
+          "or_slug": "qwen/qwen3-embedding-8b",
+          "pareto_rank": null,
+          "quality": 65.66481635200174,
+          "quality_ci": null,
+          "rank_distance": null,
+          "scores": {
+            "mteb_classification": 4.989375075515698,
+            "mteb_retrieval": 95.94797669601479,
+            "mteb_sts": 96.05709728447471
+          },
+          "supported_parameters": [],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "openai/text-embedding-3-large",
+          "context": 8192,
+          "cost_1m_blended": 0.13,
           "evidence": [
             "mteb_retrieval",
             "mteb_sts"
           ],
-          "litellm_id": "openrouter/thenlper/gte-base",
+          "litellm_id": "openrouter/openai/text-embedding-3-large",
           "modalities": [
             "text"
           ],
-          "name": "Thenlper: GTE-Base",
-          "or_slug": "thenlper/gte-base",
-          "pareto_rank": 6,
-          "quality": 23.888689386311228,
+          "name": "OpenAI: Text Embedding 3 Large",
+          "or_slug": "openai/text-embedding-3-large",
+          "pareto_rank": null,
+          "quality": 65.44250082584466,
           "quality_ci": null,
-          "rank_distance": 10,
+          "rank_distance": null,
           "scores": {
-            "mteb_retrieval": 30.209325204316023,
-            "mteb_sts": 17.56805356830643
+            "mteb_retrieval": 91.04292554367694,
+            "mteb_sts": 39.84207610801237
+          },
+          "supported_parameters": [],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "openai/text-embedding-3-small",
+          "context": 8192,
+          "cost_1m_blended": 0.02,
+          "evidence": [
+            "mteb_retrieval",
+            "mteb_sts"
+          ],
+          "litellm_id": "openrouter/openai/text-embedding-3-small",
+          "modalities": [
+            "text"
+          ],
+          "name": "OpenAI: Text Embedding 3 Small",
+          "or_slug": "openai/text-embedding-3-small",
+          "pareto_rank": null,
+          "quality": 47.58096439142619,
+          "quality_ci": null,
+          "rank_distance": null,
+          "scores": {
+            "mteb_retrieval": 65.91239344203113,
+            "mteb_sts": 29.249535340821247
           },
           "supported_parameters": [],
           "weak_evidence": false
@@ -1782,10 +1777,10 @@
           ],
           "name": "Intfloat: E5-Large-v2",
           "or_slug": "intfloat/e5-large-v2",
-          "pareto_rank": 7,
+          "pareto_rank": null,
           "quality": 32.35208960051844,
           "quality_ci": null,
-          "rank_distance": 2,
+          "rank_distance": null,
           "scores": {
             "mteb_retrieval": 48.31334924839684,
             "mteb_sts": 16.390829952640033
@@ -1794,55 +1789,26 @@
           "weak_evidence": false
         },
         {
-          "canonical_slug": "sentence-transformers/all-mpnet-base-v2-20251117",
+          "canonical_slug": "baai/bge-large-en-v1.5-20251117",
           "context": 512,
-          "cost_1m_blended": 0.005,
+          "cost_1m_blended": 0.01,
           "evidence": [
-            "mteb_classification",
             "mteb_retrieval",
             "mteb_sts"
           ],
-          "litellm_id": "openrouter/sentence-transformers/all-mpnet-base-v2",
+          "litellm_id": "openrouter/baai/bge-large-en-v1.5",
           "modalities": [
             "text"
           ],
-          "name": "Sentence Transformers: all-mpnet-base-v2",
-          "or_slug": "sentence-transformers/all-mpnet-base-v2",
-          "pareto_rank": 8,
-          "quality": 15.268846413101214,
+          "name": "BAAI: bge-large-en-v1.5",
+          "or_slug": "baai/bge-large-en-v1.5",
+          "pareto_rank": null,
+          "quality": 26.03337920259354,
           "quality_ci": null,
-          "rank_distance": 10,
+          "rank_distance": null,
           "scores": {
-            "mteb_classification": 9.329357278051601,
-            "mteb_retrieval": 35.61179730406648,
-            "mteb_sts": 0.8653846571855575
-          },
-          "supported_parameters": [],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "sentence-transformers/all-minilm-l12-v2-20251117",
-          "context": 512,
-          "cost_1m_blended": 0.005,
-          "evidence": [
-            "mteb_classification",
-            "mteb_retrieval",
-            "mteb_sts"
-          ],
-          "litellm_id": "openrouter/sentence-transformers/all-minilm-l12-v2",
-          "modalities": [
-            "text"
-          ],
-          "name": "Sentence Transformers: all-MiniLM-L12-v2",
-          "or_slug": "sentence-transformers/all-minilm-l12-v2",
-          "pareto_rank": 9,
-          "quality": 14.126063403436548,
-          "quality_ci": null,
-          "rank_distance": 10,
-          "scores": {
-            "mteb_classification": 0.5023018273224703,
-            "mteb_retrieval": 40.81773792493446,
-            "mteb_sts": 1.0581504580527135
+            "mteb_retrieval": 36.47520454165972,
+            "mteb_sts": 15.591553863527357
           },
           "supported_parameters": [],
           "weak_evidence": false
@@ -1853,28 +1819,30 @@
     "healthcare-advice": {
       "candidates": [
         {
-          "canonical_slug": "openai/gpt-oss-120b",
-          "context": 131072,
-          "cost_1m_blended": 0.0503,
+          "canonical_slug": "qwen/qwen3.8-27b-20260814",
+          "context": 1000000,
+          "cost_1m_blended": 0.3995,
           "evidence": [
             "benchlm",
             "bridge",
-            "healthbench"
+            "vals_medscribe"
           ],
-          "litellm_id": "openrouter/openai/gpt-oss-120b",
+          "litellm_id": "openrouter/qwen/qwen3.8-27b",
           "modalities": [
-            "text"
+            "text",
+            "image",
+            "video"
           ],
-          "name": "OpenAI: gpt-oss-120b",
-          "or_slug": "openai/gpt-oss-120b",
+          "name": "Qwen: Qwen3.8 27B",
+          "or_slug": "qwen/qwen3.8-27b",
           "pareto_rank": 0,
-          "quality": 60.0547169617594,
+          "quality": 63.42985336906767,
           "quality_ci": null,
-          "rank_distance": 5,
+          "rank_distance": 1,
           "scores": {
-            "benchlm": 23.99627964656643,
-            "bridge": 60.29038481064069,
-            "healthbench": 77.96610169491524
+            "benchlm": 56.45036394610501,
+            "bridge": 97.3905980302569,
+            "vals_medscribe": 36.44859813084112
           },
           "supported_parameters": [
             "frequency_penalty",
@@ -1902,193 +1870,36 @@
           "weak_evidence": false
         },
         {
-          "canonical_slug": "anthropic/claude-haiku-5.5-20261007",
-          "context": 1000000,
-          "cost_1m_blended": 0.07699999999999999,
-          "evidence": [
-            "benchlm",
-            "healthbench"
-          ],
-          "litellm_id": "openrouter/anthropic/claude-haiku-5.5",
-          "modalities": [
-            "text",
-            "image",
-            "file"
-          ],
-          "name": "Anthropic: Claude Haiku 5.5",
-          "or_slug": "anthropic/claude-haiku-5.5",
-          "pareto_rank": 1,
-          "quality": 79.09254204008137,
-          "quality_ci": null,
-          "rank_distance": 3,
-          "scores": {
-            "benchlm": 68.9195473569989,
-            "healthbench": 89.26553672316383
-          },
-          "supported_parameters": [
-            "include_reasoning",
-            "max_completion_tokens",
-            "max_tokens",
-            "reasoning",
-            "reasoning_effort",
-            "response_format",
-            "stop",
-            "structured_outputs",
-            "tool_choice",
-            "tools",
-            "verbosity"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "openai/gpt-5.6-luna-20260709",
+          "canonical_slug": "xiaomi/mimo-v2.5-20260422",
           "context": 1050000,
-          "cost_1m_blended": 0.174,
+          "cost_1m_blended": 0.057960000000000005,
           "evidence": [
-            "benchlm",
-            "healthbench",
+            "artificial_analysis",
             "vals_medscribe"
           ],
-          "litellm_id": "openrouter/openai/gpt-5.6-luna",
+          "litellm_id": "openrouter/xiaomi/mimo-v2.5",
           "modalities": [
             "text",
             "image",
-            "file"
-          ],
-          "name": "OpenAI: GPT-5.6 Luna",
-          "or_slug": "openai/gpt-5.6-luna",
-          "pareto_rank": 2,
-          "quality": 61.3218211558368,
-          "quality_ci": null,
-          "rank_distance": 7,
-          "scores": {
-            "benchlm": 68.39249728724229,
-            "healthbench": 72.88135593220339,
-            "vals_medscribe": 31.132075471698112
-          },
-          "supported_parameters": [
-            "include_reasoning",
-            "max_completion_tokens",
-            "max_tokens",
-            "reasoning",
-            "reasoning_effort",
-            "response_format",
-            "seed",
-            "structured_outputs",
-            "tool_choice",
-            "tools",
-            "verbosity"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "inception/mercury-2.5-20260908",
-          "context": 260000,
-          "cost_1m_blended": 0.0258,
-          "evidence": [
-            "benchlm",
-            "vals_medscribe"
-          ],
-          "litellm_id": "openrouter/inception/mercury-2.5",
-          "modalities": [
-            "text"
-          ],
-          "name": "Inception: Mercury 2.5",
-          "or_slug": "inception/mercury-2.5",
-          "pareto_rank": 3,
-          "quality": 59.75371669742588,
-          "quality_ci": null,
-          "rank_distance": 16,
-          "scores": {
-            "benchlm": 22.337622074097045,
-            "vals_medscribe": 97.16981132075472
-          },
-          "supported_parameters": [
-            "include_reasoning",
-            "max_tokens",
-            "reasoning",
-            "reasoning_effort",
-            "response_format",
-            "stop",
-            "structured_outputs",
-            "temperature",
-            "tool_choice",
-            "tools"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "google/gemini-2.5-flash",
-          "context": 1048576,
-          "cost_1m_blended": 0.331,
-          "evidence": [
-            "benchlm",
-            "bridge",
-            "vals_medscribe"
-          ],
-          "litellm_id": "openrouter/google/gemini-2.5-flash",
-          "modalities": [
-            "text",
-            "image",
-            "file",
             "audio",
             "video"
           ],
-          "name": "Google: Gemini 2.5 Flash",
-          "or_slug": "google/gemini-2.5-flash",
-          "pareto_rank": 4,
-          "quality": 56.65116443775645,
+          "name": "Xiaomi: MiMo-V2.5",
+          "or_slug": "xiaomi/mimo-v2.5",
+          "pareto_rank": 1,
+          "quality": 61.00997116353402,
           "quality_ci": null,
-          "rank_distance": 16,
+          "rank_distance": 1,
           "scores": {
-            "benchlm": 31.716013021237018,
-            "bridge": 93.89785765052291,
-            "vals_medscribe": 44.339622641509436
-          },
-          "supported_parameters": [
-            "include_reasoning",
-            "max_tokens",
-            "reasoning",
-            "response_format",
-            "seed",
-            "stop",
-            "structured_outputs",
-            "temperature",
-            "tool_choice",
-            "tools",
-            "top_p"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "meta-llama/llama-4-scout-17b-16e-instruct",
-          "context": 1310720,
-          "cost_1m_blended": 0.12,
-          "evidence": [
-            "benchlm",
-            "vals_medscribe"
-          ],
-          "litellm_id": "openrouter/meta-llama/llama-4-scout",
-          "modalities": [
-            "text",
-            "image"
-          ],
-          "name": "Meta: Llama 4 Scout",
-          "or_slug": "meta-llama/llama-4-scout",
-          "pareto_rank": 5,
-          "quality": 55.45761517155451,
-          "quality_ci": null,
-          "rank_distance": 15,
-          "scores": {
-            "benchlm": 11.858626569524107,
-            "vals_medscribe": 99.05660377358491
+            "artificial_analysis": 39.776951672862445,
+            "vals_medscribe": 82.2429906542056
           },
           "supported_parameters": [
             "frequency_penalty",
-            "logit_bias",
+            "include_reasoning",
             "max_tokens",
-            "min_p",
             "presence_penalty",
+            "reasoning",
             "repetition_penalty",
             "response_format",
             "seed",
@@ -2099,126 +1910,6 @@
             "tools",
             "top_k",
             "top_p"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "google/gemini-3.5-flash-lite-20260721",
-          "context": 1048576,
-          "cost_1m_blended": 0.331,
-          "evidence": [
-            "benchlm",
-            "vals_medscribe"
-          ],
-          "litellm_id": "openrouter/google/gemini-3.5-flash-lite",
-          "modalities": [
-            "text",
-            "image",
-            "file",
-            "audio",
-            "video"
-          ],
-          "name": "Google: Gemini 3.5 Flash Lite",
-          "or_slug": "google/gemini-3.5-flash-lite",
-          "pareto_rank": 6,
-          "quality": 64.86020888965584,
-          "quality_ci": null,
-          "rank_distance": 7,
-          "scores": {
-            "benchlm": 44.81475740195319,
-            "vals_medscribe": 84.90566037735849
-          },
-          "supported_parameters": [
-            "include_reasoning",
-            "max_tokens",
-            "reasoning",
-            "reasoning_effort",
-            "response_format",
-            "seed",
-            "stop",
-            "structured_outputs",
-            "temperature",
-            "tool_choice",
-            "tools",
-            "top_p"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "openai/gpt-6-luna-20260922",
-          "context": 1050000,
-          "cost_1m_blended": 0.07699999999999999,
-          "evidence": [
-            "benchlm",
-            "vals_medscribe"
-          ],
-          "litellm_id": "openrouter/openai/gpt-6-luna",
-          "modalities": [
-            "text",
-            "image",
-            "file"
-          ],
-          "name": "OpenAI: GPT-6 Luna",
-          "or_slug": "openai/gpt-6-luna",
-          "pareto_rank": 7,
-          "quality": 52.76964519176491,
-          "quality_ci": null,
-          "rank_distance": 22,
-          "scores": {
-            "benchlm": 67.80344132692603,
-            "vals_medscribe": 37.735849056603776
-          },
-          "supported_parameters": [
-            "include_reasoning",
-            "max_completion_tokens",
-            "max_tokens",
-            "reasoning",
-            "reasoning_effort",
-            "response_format",
-            "seed",
-            "structured_outputs",
-            "tool_choice",
-            "tools",
-            "verbosity"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "openai/gpt-5-nano-2025-08-07",
-          "context": 400000,
-          "cost_1m_blended": 0.0535,
-          "evidence": [
-            "benchlm",
-            "vals_medscribe"
-          ],
-          "litellm_id": "openrouter/openai/gpt-5-nano",
-          "modalities": [
-            "text",
-            "image",
-            "file"
-          ],
-          "name": "OpenAI: GPT-5 Nano",
-          "or_slug": "openai/gpt-5-nano",
-          "pareto_rank": 8,
-          "quality": 50.9719130864602,
-          "quality_ci": null,
-          "rank_distance": 29,
-          "scores": {
-            "benchlm": 24.58533560688265,
-            "vals_medscribe": 77.35849056603774
-          },
-          "supported_parameters": [
-            "include_reasoning",
-            "max_completion_tokens",
-            "max_tokens",
-            "reasoning",
-            "reasoning_effort",
-            "response_format",
-            "seed",
-            "structured_outputs",
-            "tool_choice",
-            "tools",
-            "verbosity"
           ],
           "weak_evidence": false
         },
@@ -2236,13 +1927,13 @@
           ],
           "name": "Z.ai: GLM 4.7",
           "or_slug": "z-ai/glm-4.7",
-          "pareto_rank": 9,
-          "quality": 65.25776316674612,
+          "pareto_rank": 2,
+          "quality": 65.28725616913616,
           "quality_ci": null,
-          "rank_distance": 13,
+          "rank_distance": 3,
           "scores": {
-            "benchlm": 40.892884824058285,
-            "vals_medscribe": 89.62264150943396
+            "benchlm": 40.85488617004802,
+            "vals_medscribe": 89.7196261682243
           },
           "supported_parameters": [
             "frequency_penalty",
@@ -2265,6 +1956,300 @@
             "top_p"
           ],
           "weak_evidence": false
+        },
+        {
+          "canonical_slug": "inception/mercury-2.5-20260908",
+          "context": 260000,
+          "cost_1m_blended": 0.0258,
+          "evidence": [
+            "benchlm",
+            "vals_medscribe"
+          ],
+          "litellm_id": "openrouter/inception/mercury-2.5",
+          "modalities": [
+            "text"
+          ],
+          "name": "Inception: Mercury 2.5",
+          "or_slug": "inception/mercury-2.5",
+          "pareto_rank": 3,
+          "quality": 59.787537686405685,
+          "quality_ci": null,
+          "rank_distance": 3,
+          "scores": {
+            "benchlm": 22.378813690568382,
+            "vals_medscribe": 97.19626168224299
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "stepfun/step-5-preview-20261008",
+          "context": 1000000,
+          "cost_1m_blended": 0.505,
+          "evidence": [
+            "aa_healthcare_index",
+            "artificial_analysis",
+            "benchlm"
+          ],
+          "litellm_id": "openrouter/stepfun/step-5-preview",
+          "modalities": [
+            "text",
+            "image",
+            "video"
+          ],
+          "name": "StepFun: Step 5 Preview",
+          "or_slug": "stepfun/step-5-preview",
+          "pareto_rank": 4,
+          "quality": 69.01340580770584,
+          "quality_ci": null,
+          "rank_distance": 5,
+          "scores": {
+            "aa_healthcare_index": 63.4508348794063,
+            "artificial_analysis": 74.1635687732342,
+            "benchlm": 74.98838469877653
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logprobs",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tools",
+            "top_logprobs",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "inclusionai/ling-3.0-flash-20260723",
+          "context": 262144,
+          "cost_1m_blended": 0.013440000000000002,
+          "evidence": [
+            "benchlm",
+            "vals_medscribe"
+          ],
+          "litellm_id": "openrouter/inclusionai/ling-3.0-flash",
+          "modalities": [
+            "text"
+          ],
+          "name": "inclusionAI: Ling 3.0 Flash",
+          "or_slug": "inclusionai/ling-3.0-flash",
+          "pareto_rank": 5,
+          "quality": 42.44216593163401,
+          "quality_ci": null,
+          "rank_distance": 5,
+          "scores": {
+            "benchlm": 36.286201022146514,
+            "vals_medscribe": 48.598130841121495
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "logprobs",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "openai/o4-mini-2025-04-16",
+          "context": 200000,
+          "cost_1m_blended": 0.8525000000000001,
+          "evidence": [
+            "medhelm",
+            "vals_medscribe"
+          ],
+          "litellm_id": "openrouter/openai/o4-mini",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "OpenAI: o4 Mini",
+          "or_slug": "openai/o4-mini",
+          "pareto_rank": 6,
+          "quality": 94.39252336448598,
+          "quality_ci": null,
+          "rank_distance": 7,
+          "scores": {
+            "medhelm": 100.0,
+            "vals_medscribe": 88.78504672897196
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "response_format",
+            "seed",
+            "structured_outputs",
+            "tool_choice",
+            "tools"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "inclusionai/ling-3.0-flash-vl-20260910",
+          "context": 262144,
+          "cost_1m_blended": 0.013300000000000001,
+          "evidence": [
+            "artificial_analysis",
+            "benchlm"
+          ],
+          "litellm_id": "openrouter/inclusionai/ling-3.0-flash-vl",
+          "modalities": [
+            "text",
+            "image",
+            "video"
+          ],
+          "name": "inclusionAI: Ling 3.0 Flash VL",
+          "or_slug": "inclusionai/ling-3.0-flash-vl",
+          "pareto_rank": 7,
+          "quality": 39.12332830339455,
+          "quality_ci": null,
+          "rank_distance": 7,
+          "scores": {
+            "artificial_analysis": 38.66171003717472,
+            "benchlm": 39.58494656961438
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "logprobs",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-opus-5.5-20260921",
+          "context": 1000000,
+          "cost_1m_blended": 2.9400000000000004,
+          "evidence": [
+            "aa_healthcare_index",
+            "artificial_analysis",
+            "benchlm",
+            "healthbench",
+            "vals_medscribe"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-opus-5.5",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Opus 5.5",
+          "or_slug": "anthropic/claude-opus-5.5",
+          "pareto_rank": null,
+          "quality": 79.94350282485877,
+          "quality_ci": null,
+          "rank_distance": null,
+          "scores": {
+            "aa_healthcare_index": 100.0,
+            "artificial_analysis": 100.0,
+            "benchlm": 100.0,
+            "healthbench": 86.44067796610169,
+            "vals_medscribe": 0.0
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "openai/gpt-6-astra-20260903",
+          "context": 1050000,
+          "cost_1m_blended": 7.700000000000001,
+          "evidence": [
+            "aa_healthcare_index",
+            "artificial_analysis",
+            "benchlm",
+            "vals_medscribe"
+          ],
+          "litellm_id": "openrouter/openai/gpt-6-astra",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "OpenAI: GPT-6 Astra",
+          "or_slug": "openai/gpt-6-astra",
+          "pareto_rank": null,
+          "quality": 75.4765830327047,
+          "quality_ci": null,
+          "rank_distance": null,
+          "scores": {
+            "aa_healthcare_index": 83.6734693877551,
+            "artificial_analysis": 90.89219330855019,
+            "benchlm": 97.86278457487998,
+            "vals_medscribe": 13.084112149532709
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "seed",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
         }
       ],
       "or_backbone_empty": false
@@ -2272,30 +2257,29 @@
     "manga-text": {
       "candidates": [
         {
-          "canonical_slug": "qwen/qwen3.5-35b-a3b-20260224",
-          "context": 262144,
-          "cost_1m_blended": 0.49,
+          "canonical_slug": "xiaomi/mimo-v2.6-flash-20260921",
+          "context": 1050000,
+          "cost_1m_blended": 0.196,
           "evidence": [
             "arena",
-            "benchlm",
-            "ocrbench"
+            "benchlm"
           ],
-          "litellm_id": "openrouter/qwen/qwen3.5-35b-a3b",
+          "litellm_id": "openrouter/xiaomi/mimo-v2.6-flash",
           "modalities": [
             "text",
             "image",
+            "audio",
             "video"
           ],
-          "name": "Qwen: Qwen3.5-35B-A3B",
-          "or_slug": "qwen/qwen3.5-35b-a3b",
+          "name": "Xiaomi: MiMo-V2.6-Flash",
+          "or_slug": "xiaomi/mimo-v2.6-flash",
           "pareto_rank": 0,
-          "quality": 67.42026567726293,
-          "quality_ci": 4.212609054237532,
-          "rank_distance": 1,
+          "quality": 79.55349893904558,
+          "quality_ci": 7.772588299134441,
+          "rank_distance": 0,
           "scores": {
-            "arena": 76.72018317347225,
-            "benchlm": 38.04061385831653,
-            "ocrbench": 87.5
+            "arena": 90.71610427425037,
+            "benchlm": 68.3908936038408
           },
           "supported_parameters": [
             "frequency_penalty",
@@ -2338,12 +2322,12 @@
           "name": "Xiaomi: MiMo-V2.6-Pro",
           "or_slug": "xiaomi/mimo-v2.6-pro",
           "pareto_rank": 1,
-          "quality": 89.81560140095789,
+          "quality": 89.80889377906601,
           "quality_ci": 9.364282375654739,
-          "rank_distance": 0,
+          "rank_distance": 2,
           "scores": {
             "arena": 98.52749794995484,
-            "benchlm": 81.10370485196094
+            "benchlm": 81.09028960817717
           },
           "supported_parameters": [
             "frequency_penalty",
@@ -2367,40 +2351,36 @@
           "weak_evidence": false
         },
         {
-          "canonical_slug": "qwen/qwen3.5-122b-a10b-20260224",
-          "context": 262144,
-          "cost_1m_blended": 0.9880000000000001,
+          "canonical_slug": "google/gemma-3-12b-it",
+          "context": 131072,
+          "cost_1m_blended": 0.08999999999999998,
           "evidence": [
             "arena",
-            "benchlm",
-            "ocrbench"
+            "manga109_v2026",
+            "mangavqa"
           ],
-          "litellm_id": "openrouter/qwen/qwen3.5-122b-a10b",
+          "litellm_id": "openrouter/google/gemma-3-12b-it",
           "modalities": [
             "text",
-            "image",
-            "video"
+            "image"
           ],
-          "name": "Qwen: Qwen3.5-122B-A10B",
-          "or_slug": "qwen/qwen3.5-122b-a10b",
+          "name": "Google: Gemma 3 12B",
+          "or_slug": "google/gemma-3-12b-it",
           "pareto_rank": 2,
-          "quality": 69.69219095051717,
-          "quality_ci": 4.271876851356524,
-          "rank_distance": 10,
+          "quality": 56.56269781459869,
+          "quality_ci": 9.374595854862946,
+          "rank_distance": 2,
           "scores": {
-            "arena": 81.84137973897509,
-            "benchlm": 29.158270035653388,
-            "ocrbench": 98.07692307692307
+            "arena": 63.12539562919739,
+            "manga109_v2026": 100.0,
+            "mangavqa": 0.0
           },
           "supported_parameters": [
             "frequency_penalty",
-            "include_reasoning",
             "logit_bias",
-            "logprobs",
             "max_tokens",
             "min_p",
             "presence_penalty",
-            "reasoning",
             "repetition_penalty",
             "response_format",
             "seed",
@@ -2410,7 +2390,6 @@
             "tool_choice",
             "tools",
             "top_k",
-            "top_logprobs",
             "top_p"
           ],
           "weak_evidence": false
@@ -2430,10 +2409,10 @@
           ],
           "name": "Qwen: Qwen3 VL 235B A22B Instruct",
           "or_slug": "qwen/qwen3-vl-235b-a22b-instruct",
-          "pareto_rank": 3,
+          "pareto_rank": null,
           "quality": 89.8088522884062,
           "quality_ci": 6.524380896506159,
-          "rank_distance": 3,
+          "rank_distance": null,
           "scores": {
             "arena": 82.50231996142777,
             "ocrbench": 97.11538461538461
@@ -2460,89 +2439,37 @@
           "weak_evidence": false
         },
         {
-          "canonical_slug": "xiaomi/mimo-v2.6-flash-20260921",
-          "context": 1050000,
-          "cost_1m_blended": 0.196,
+          "canonical_slug": "qwen/qwen3.8-max-20260902",
+          "context": 1000000,
+          "cost_1m_blended": 3.6,
           "evidence": [
             "arena",
             "benchlm"
           ],
-          "litellm_id": "openrouter/xiaomi/mimo-v2.6-flash",
-          "modalities": [
-            "text",
-            "image",
-            "audio",
-            "video"
-          ],
-          "name": "Xiaomi: MiMo-V2.6-Flash",
-          "or_slug": "xiaomi/mimo-v2.6-flash",
-          "pareto_rank": 4,
-          "quality": 79.11250881050915,
-          "quality_ci": 7.772588299134441,
-          "rank_distance": 11,
-          "scores": {
-            "arena": 90.71610427425037,
-            "benchlm": 67.50891334676793
-          },
-          "supported_parameters": [
-            "frequency_penalty",
-            "include_reasoning",
-            "logit_bias",
-            "logprobs",
-            "max_tokens",
-            "min_p",
-            "presence_penalty",
-            "reasoning",
-            "repetition_penalty",
-            "response_format",
-            "seed",
-            "stop",
-            "structured_outputs",
-            "temperature",
-            "tool_choice",
-            "tools",
-            "top_k",
-            "top_logprobs",
-            "top_p"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "z-ai/glm-5.3-flash-20260826",
-          "context": 1048576,
-          "cost_1m_blended": 0.29,
-          "evidence": [
-            "arena",
-            "benchlm"
-          ],
-          "litellm_id": "openrouter/z-ai/glm-5.3-flash",
+          "litellm_id": "openrouter/qwen/qwen3.8-max-0902",
           "modalities": [
             "text",
             "image",
             "video"
           ],
-          "name": "Z.ai: GLM 5.3 Flash",
-          "or_slug": "z-ai/glm-5.3-flash",
-          "pareto_rank": 5,
-          "quality": 74.36911749262218,
-          "quality_ci": 5.311412741480694,
-          "rank_distance": 12,
+          "name": "Qwen: Qwen3.8 Max (0902)",
+          "or_slug": "qwen/qwen3.8-max-0902",
+          "pareto_rank": null,
+          "quality": 85.9368761506644,
+          "quality_ci": 5.192988716103969,
+          "rank_distance": null,
           "scores": {
-            "arena": 93.69250564095667,
-            "benchlm": 55.0457293442877
+            "arena": 96.43624262191112,
+            "benchlm": 75.43750967941769
           },
           "supported_parameters": [
             "frequency_penalty",
             "include_reasoning",
-            "logit_bias",
             "logprobs",
             "max_tokens",
-            "min_p",
-            "parallel_tool_calls",
             "presence_penalty",
             "reasoning",
             "reasoning_effort",
-            "repetition_penalty",
             "response_format",
             "seed",
             "stop",
@@ -2557,140 +2484,41 @@
           "weak_evidence": false
         },
         {
-          "canonical_slug": "qwen/qwen3.5-27b-20260224",
-          "context": 262144,
-          "cost_1m_blended": 1.1960000000000002,
-          "evidence": [
-            "arena",
-            "benchlm",
-            "ocrbench"
-          ],
-          "litellm_id": "openrouter/qwen/qwen3.5-27b",
-          "modalities": [
-            "text",
-            "image",
-            "video"
-          ],
-          "name": "Qwen: Qwen3.5-27B",
-          "or_slug": "qwen/qwen3.5-27b",
-          "pareto_rank": 6,
-          "quality": 64.91834956459981,
-          "quality_ci": 4.279237869711324,
-          "rank_distance": 12,
-          "scores": {
-            "arena": 79.97961137340785,
-            "benchlm": 42.660052705006976,
-            "ocrbench": 72.11538461538461
-          },
-          "supported_parameters": [
-            "frequency_penalty",
-            "include_reasoning",
-            "logit_bias",
-            "logprobs",
-            "max_tokens",
-            "min_p",
-            "presence_penalty",
-            "reasoning",
-            "repetition_penalty",
-            "response_format",
-            "seed",
-            "stop",
-            "structured_outputs",
-            "temperature",
-            "tool_choice",
-            "tools",
-            "top_k",
-            "top_logprobs",
-            "top_p"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "qwen/qwen3.7-plus-20260602",
-          "context": 1000000,
-          "cost_1m_blended": 0.7040000000000001,
+          "canonical_slug": "openai/gpt-5.5-20260423",
+          "context": 1050000,
+          "cost_1m_blended": 15.0,
           "evidence": [
             "arena",
             "benchlm"
           ],
-          "litellm_id": "openrouter/qwen/qwen3.7-plus",
+          "litellm_id": "openrouter/openai/gpt-5.5",
           "modalities": [
             "text",
-            "image"
+            "image",
+            "file"
           ],
-          "name": "Qwen: Qwen3.7 Plus",
-          "or_slug": "qwen/qwen3.7-plus",
-          "pareto_rank": 7,
-          "quality": 71.16972750342386,
-          "quality_ci": 4.333083786201769,
-          "rank_distance": 13,
+          "name": "OpenAI: GPT-5.5",
+          "or_slug": "openai/gpt-5.5",
+          "pareto_rank": null,
+          "quality": 82.10802260975643,
+          "quality_ci": 3.666252629219116,
+          "rank_distance": null,
           "scores": {
-            "arena": 90.30101135470076,
-            "benchlm": 52.038443652146945
+            "arena": 93.05296639033521,
+            "benchlm": 71.16307882917765
           },
           "supported_parameters": [
-            "frequency_penalty",
             "include_reasoning",
-            "logprobs",
+            "max_completion_tokens",
             "max_tokens",
-            "presence_penalty",
             "reasoning",
+            "reasoning_effort",
             "response_format",
             "seed",
-            "stop",
             "structured_outputs",
-            "temperature",
             "tool_choice",
             "tools",
-            "top_k",
-            "top_logprobs",
-            "top_p"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "moonshotai/kimi-k2.5-0127",
-          "context": 262144,
-          "cost_1m_blended": 1.17,
-          "evidence": [
-            "benchlm",
-            "ocrbench"
-          ],
-          "litellm_id": "openrouter/moonshotai/kimi-k2.5",
-          "modalities": [
-            "text",
-            "image"
-          ],
-          "name": "MoonshotAI: Kimi K2.5",
-          "or_slug": "moonshotai/kimi-k2.5",
-          "pareto_rank": 8,
-          "quality": 73.42272515889009,
-          "quality_ci": null,
-          "rank_distance": 4,
-          "scores": {
-            "benchlm": 46.845450317780184,
-            "ocrbench": 100.0
-          },
-          "supported_parameters": [
-            "frequency_penalty",
-            "include_reasoning",
-            "logit_bias",
-            "logprobs",
-            "max_tokens",
-            "min_p",
-            "presence_penalty",
-            "reasoning",
-            "repetition_penalty",
-            "response_format",
-            "seed",
-            "stop",
-            "structured_outputs",
-            "temperature",
-            "tool_choice",
-            "tools",
-            "top_k",
-            "top_logprobs",
-            "top_p"
+            "verbosity"
           ],
           "weak_evidence": false
         },
@@ -2711,13 +2539,13 @@
           ],
           "name": "Meta: Muse Spark 1.1",
           "or_slug": "meta/muse-spark-1.1",
-          "pareto_rank": 9,
-          "quality": 82.096433482382,
+          "pareto_rank": null,
+          "quality": 82.05693557644922,
           "quality_ci": 4.378299393969769,
-          "rank_distance": 15,
+          "rank_distance": null,
           "scores": {
             "arena": 95.84687409544142,
-            "benchlm": 68.34599286932259
+            "benchlm": 68.26699705745702
           },
           "supported_parameters": [
             "include_reasoning",
@@ -2734,211 +2562,131 @@
             "top_p"
           ],
           "weak_evidence": false
+        },
+        {
+          "canonical_slug": "stepfun/step-5-preview-20261008",
+          "context": 1000000,
+          "cost_1m_blended": 1.68,
+          "evidence": [
+            "arena",
+            "benchlm"
+          ],
+          "litellm_id": "openrouter/stepfun/step-5-preview",
+          "modalities": [
+            "text",
+            "image",
+            "video"
+          ],
+          "name": "StepFun: Step 5 Preview",
+          "or_slug": "stepfun/step-5-preview",
+          "pareto_rank": null,
+          "quality": 81.84976252692044,
+          "quality_ci": 11.010474364324864,
+          "rank_distance": null,
+          "scores": {
+            "arena": 88.71114035506436,
+            "benchlm": 74.98838469877653
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logprobs",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tools",
+            "top_logprobs",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-4.8-opus-20260528",
+          "context": 1000000,
+          "cost_1m_blended": 13.000000000000002,
+          "evidence": [
+            "arena",
+            "benchlm"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-opus-4.8",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Opus 4.8",
+          "or_slug": "anthropic/claude-opus-4.8",
+          "pareto_rank": null,
+          "quality": 81.71347158273383,
+          "quality_ci": 3.8479969555131674,
+          "rank_distance": null,
+          "scores": {
+            "arena": 90.18859718436188,
+            "benchlm": 73.2383459811058
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-4.7-opus-20260416",
+          "context": 1000000,
+          "cost_1m_blended": 13.000000000000002,
+          "evidence": [
+            "arena",
+            "benchlm"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-opus-4.7",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Opus 4.7",
+          "or_slug": "anthropic/claude-opus-4.7",
+          "pareto_rank": null,
+          "quality": 81.26547144444294,
+          "quality_ci": 3.7586394528095752,
+          "rank_distance": null,
+          "scores": {
+            "arena": 96.78833796399813,
+            "benchlm": 65.74260492488773
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
         }
       ],
       "or_backbone_empty": false
     },
     "permissive": {
       "candidates": [
-        {
-          "canonical_slug": "mistralai/ministral-8b-2512",
-          "context": 262144,
-          "cost_1m_blended": 0.15,
-          "evidence": [
-            "aa_agentic_index",
-            "ugi"
-          ],
-          "litellm_id": "openrouter/mistralai/ministral-8b-2512",
-          "modalities": [
-            "text",
-            "image"
-          ],
-          "name": "Mistral: Ministral 3 8B 2512",
-          "or_slug": "mistralai/ministral-8b-2512",
-          "pareto_rank": 0,
-          "quality": 24.887971496111547,
-          "quality_ci": null,
-          "rank_distance": 5,
-          "scores": {
-            "aa_agentic_index": 0.8650519031141869,
-            "ugi": 48.91089108910891
-          },
-          "supported_parameters": [
-            "frequency_penalty",
-            "max_tokens",
-            "presence_penalty",
-            "response_format",
-            "seed",
-            "stop",
-            "structured_outputs",
-            "temperature",
-            "tool_choice",
-            "tools",
-            "top_p"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "mistralai/ministral-14b-2512",
-          "context": 262144,
-          "cost_1m_blended": 0.19999999999999998,
-          "evidence": [
-            "aa_agentic_index",
-            "ugi"
-          ],
-          "litellm_id": "openrouter/mistralai/ministral-14b-2512",
-          "modalities": [
-            "text",
-            "image"
-          ],
-          "name": "Mistral: Ministral 3 14B 2512",
-          "or_slug": "mistralai/ministral-14b-2512",
-          "pareto_rank": 1,
-          "quality": 26.71653705162904,
-          "quality_ci": null,
-          "rank_distance": 1,
-          "scores": {
-            "aa_agentic_index": 1.7301038062283738,
-            "ugi": 51.70297029702971
-          },
-          "supported_parameters": [
-            "frequency_penalty",
-            "max_tokens",
-            "presence_penalty",
-            "response_format",
-            "seed",
-            "stop",
-            "structured_outputs",
-            "temperature",
-            "tool_choice",
-            "tools",
-            "top_p"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "deepseek/deepseek-chat-v3-0324",
-          "context": 163840,
-          "cost_1m_blended": 0.7150000000000001,
-          "evidence": [
-            "aa_agentic_index",
-            "ugi"
-          ],
-          "litellm_id": "openrouter/deepseek/deepseek-chat-v3-0324",
-          "modalities": [
-            "text"
-          ],
-          "name": "DeepSeek: DeepSeek V3 0324",
-          "or_slug": "deepseek/deepseek-chat-v3-0324",
-          "pareto_rank": 2,
-          "quality": 48.63523930247696,
-          "quality_ci": null,
-          "rank_distance": 11,
-          "scores": {
-            "aa_agentic_index": 1.2110726643598617,
-            "ugi": 96.05940594059406
-          },
-          "supported_parameters": [
-            "frequency_penalty",
-            "logprobs",
-            "max_tokens",
-            "response_format",
-            "seed",
-            "structured_outputs",
-            "temperature",
-            "tool_choice",
-            "tools",
-            "top_k",
-            "top_logprobs",
-            "top_p"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "meta-llama/llama-4-scout-17b-16e-instruct",
-          "context": 1310720,
-          "cost_1m_blended": 0.19999999999999998,
-          "evidence": [
-            "aa_agentic_index",
-            "ugi"
-          ],
-          "litellm_id": "openrouter/meta-llama/llama-4-scout",
-          "modalities": [
-            "text",
-            "image"
-          ],
-          "name": "Meta: Llama 4 Scout",
-          "or_slug": "meta-llama/llama-4-scout",
-          "pareto_rank": 3,
-          "quality": 24.662852444413993,
-          "quality_ci": null,
-          "rank_distance": 2,
-          "scores": {
-            "aa_agentic_index": 0.6920415224913495,
-            "ugi": 48.633663366336634
-          },
-          "supported_parameters": [
-            "frequency_penalty",
-            "logit_bias",
-            "max_tokens",
-            "min_p",
-            "presence_penalty",
-            "repetition_penalty",
-            "response_format",
-            "seed",
-            "stop",
-            "structured_outputs",
-            "temperature",
-            "tool_choice",
-            "tools",
-            "top_k",
-            "top_p"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "meta-llama/llama-4-maverick-17b-128e-instruct",
-          "context": 1048576,
-          "cost_1m_blended": 0.42,
-          "evidence": [
-            "aa_agentic_index",
-            "ugi"
-          ],
-          "litellm_id": "openrouter/meta-llama/llama-4-maverick",
-          "modalities": [
-            "text",
-            "image"
-          ],
-          "name": "Meta: Llama 4 Maverick",
-          "or_slug": "meta-llama/llama-4-maverick",
-          "pareto_rank": 4,
-          "quality": 34.68995169413136,
-          "quality_ci": null,
-          "rank_distance": 5,
-          "scores": {
-            "aa_agentic_index": 0.8650519031141869,
-            "ugi": 68.51485148514853
-          },
-          "supported_parameters": [
-            "frequency_penalty",
-            "logit_bias",
-            "logprobs",
-            "max_tokens",
-            "presence_penalty",
-            "repetition_penalty",
-            "response_format",
-            "seed",
-            "stop",
-            "structured_outputs",
-            "temperature",
-            "tool_choice",
-            "tools",
-            "top_k",
-            "top_logprobs",
-            "top_p"
-          ],
-          "weak_evidence": false
-        },
         {
           "canonical_slug": "mistralai/mistral-medium-3.1",
           "context": 131072,
@@ -2955,13 +2703,13 @@
           ],
           "name": "Mistral: Mistral Medium 3.1",
           "or_slug": "mistralai/mistral-medium-3.1",
-          "pareto_rank": 5,
-          "quality": 43.279865702833256,
+          "pareto_rank": 0,
+          "quality": 39.27639167121957,
           "quality_ci": null,
-          "rank_distance": 10,
+          "rank_distance": 0,
           "scores": {
             "aa_agentic_index": 3.1141868512110724,
-            "ugi": 83.44554455445544
+            "ugi": 75.43859649122807
           },
           "supported_parameters": [
             "frequency_penalty",
@@ -2974,6 +2722,46 @@
             "temperature",
             "tool_choice",
             "tools",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "deepseek/deepseek-r1",
+          "context": 64000,
+          "cost_1m_blended": 1.6,
+          "evidence": [
+            "aa_agentic_index",
+            "ugi"
+          ],
+          "litellm_id": "openrouter/deepseek/deepseek-r1",
+          "modalities": [
+            "text"
+          ],
+          "name": "DeepSeek: R1",
+          "or_slug": "deepseek/deepseek-r1",
+          "pareto_rank": 1,
+          "quality": 40.7325778608657,
+          "quality_ci": null,
+          "rank_distance": 2,
+          "scores": {
+            "aa_agentic_index": 1.7301038062283738,
+            "ugi": 79.73505191550304
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "max_tokens",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
             "top_p"
           ],
           "weak_evidence": false
@@ -2993,13 +2781,13 @@
           ],
           "name": "Google: Gemma 3 12B",
           "or_slug": "google/gemma-3-12b-it",
-          "pareto_rank": 6,
-          "quality": 14.287128712871286,
+          "pareto_rank": 2,
+          "quality": 12.916219119226637,
           "quality_ci": null,
-          "rank_distance": 14,
+          "rank_distance": 2,
           "scores": {
             "aa_agentic_index": 0.0,
-            "ugi": 28.574257425742573
+            "ugi": 25.832438238453275
           },
           "supported_parameters": [
             "frequency_penalty",
@@ -3021,38 +2809,76 @@
           "weak_evidence": false
         },
         {
-          "canonical_slug": "google/gemma-4-26b-a4b-it-20260403",
-          "context": 262144,
-          "cost_1m_blended": 0.19499999999999998,
+          "canonical_slug": "google/gemini-2.5-pro",
+          "context": 1048576,
+          "cost_1m_blended": 5.625,
           "evidence": [
             "aa_agentic_index",
             "ugi"
           ],
-          "litellm_id": "openrouter/google/gemma-4-26b-a4b-it",
+          "litellm_id": "openrouter/google/gemini-2.5-pro",
           "modalities": [
             "text",
             "image",
+            "file",
+            "audio",
             "video"
           ],
-          "name": "Google: Gemma 4 26B A4B ",
-          "or_slug": "google/gemma-4-26b-a4b-it",
-          "pareto_rank": 7,
-          "quality": 16.59046216040289,
+          "name": "Google: Gemini 2.5 Pro",
+          "or_slug": "google/gemini-2.5-pro",
+          "pareto_rank": null,
+          "quality": 38.33660399144178,
           "quality_ci": null,
-          "rank_distance": 9,
+          "rank_distance": null,
           "scores": {
-            "aa_agentic_index": 4.844290657439446,
-            "ugi": 28.336633663366335
+            "aa_agentic_index": 2.595155709342561,
+            "ugi": 74.07805227354099
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "google/gemma-3-27b-it",
+          "context": 131072,
+          "cost_1m_blended": 0.265,
+          "evidence": [
+            "aa_agentic_index",
+            "ugi"
+          ],
+          "litellm_id": "openrouter/google/gemma-3-27b-it",
+          "modalities": [
+            "text",
+            "image"
+          ],
+          "name": "Google: Gemma 3 27B",
+          "or_slug": "google/gemma-3-27b-it",
+          "pareto_rank": null,
+          "quality": 12.504475474400287,
+          "quality_ci": null,
+          "rank_distance": null,
+          "scores": {
+            "aa_agentic_index": 0.0,
+            "ugi": 25.008950948800575
           },
           "supported_parameters": [
             "frequency_penalty",
-            "include_reasoning",
             "logit_bias",
             "logprobs",
             "max_tokens",
             "min_p",
             "presence_penalty",
-            "reasoning",
             "repetition_penalty",
             "response_format",
             "seed",
@@ -3068,39 +2894,145 @@
           "weak_evidence": false
         },
         {
-          "canonical_slug": "google/gemma-4-31b-it-20260402",
-          "context": 262144,
-          "cost_1m_blended": 0.21499999999999997,
+          "canonical_slug": "anthropic/claude-fable-5.1-20260831",
+          "context": 1000000,
+          "cost_1m_blended": 30.0,
           "evidence": [
-            "aa_agentic_index",
-            "ugi"
+            "aa_agentic_index"
           ],
-          "litellm_id": "openrouter/google/gemma-4-31b-it",
+          "litellm_id": "openrouter/anthropic/claude-fable-5.1",
           "modalities": [
             "text",
             "image",
-            "video"
+            "file"
           ],
-          "name": "Google: Gemma 4 31B",
-          "or_slug": "google/gemma-4-31b-it",
-          "pareto_rank": 8,
-          "quality": 18.477405872075096,
+          "name": "Anthropic: Claude Fable 5.1",
+          "or_slug": "anthropic/claude-fable-5.1",
+          "pareto_rank": null,
+          "quality": 100.0,
           "quality_ci": null,
-          "rank_distance": 4,
+          "rank_distance": null,
           "scores": {
-            "aa_agentic_index": 7.093425605536334,
-            "ugi": 29.86138613861386
+            "aa_agentic_index": 100.0
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": true
+        },
+        {
+          "canonical_slug": "x-ai/grok-4.5-20260708",
+          "context": 500000,
+          "cost_1m_blended": 4.0,
+          "evidence": [
+            "ugi"
+          ],
+          "litellm_id": "openrouter/x-ai/grok-4.5",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "SpaceXAI: Grok 4.5",
+          "or_slug": "x-ai/grok-4.5",
+          "pareto_rank": null,
+          "quality": 100.0,
+          "quality_ci": null,
+          "rank_distance": null,
+          "scores": {
+            "ugi": 100.0
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "logprobs",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "seed",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_logprobs",
+            "top_p"
+          ],
+          "weak_evidence": true
+        },
+        {
+          "canonical_slug": "x-ai/grok-4.3-20260430",
+          "context": 1000000,
+          "cost_1m_blended": 1.8750000000000002,
+          "evidence": [
+            "ugi"
+          ],
+          "litellm_id": "openrouter/x-ai/grok-4.3",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "SpaceXAI: Grok 4.3",
+          "or_slug": "x-ai/grok-4.3",
+          "pareto_rank": null,
+          "quality": 94.7905477980666,
+          "quality_ci": null,
+          "rank_distance": null,
+          "scores": {
+            "ugi": 94.7905477980666
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "logprobs",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "seed",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_logprobs",
+            "top_p"
+          ],
+          "weak_evidence": true
+        },
+        {
+          "canonical_slug": "mistralai/mistral-large",
+          "context": 128000,
+          "cost_1m_blended": 4.0,
+          "evidence": [
+            "ugi"
+          ],
+          "litellm_id": "openrouter/mistralai/mistral-large",
+          "modalities": [
+            "text",
+            "file"
+          ],
+          "name": "Mistral Large",
+          "or_slug": "mistralai/mistral-large",
+          "pareto_rank": null,
+          "quality": 94.46831364124597,
+          "quality_ci": null,
+          "rank_distance": null,
+          "scores": {
+            "ugi": 94.46831364124597
           },
           "supported_parameters": [
             "frequency_penalty",
-            "include_reasoning",
-            "logit_bias",
-            "logprobs",
             "max_tokens",
-            "min_p",
             "presence_penalty",
-            "reasoning",
-            "repetition_penalty",
             "response_format",
             "seed",
             "stop",
@@ -3108,51 +3040,48 @@
             "temperature",
             "tool_choice",
             "tools",
-            "top_k",
-            "top_logprobs",
             "top_p"
           ],
-          "weak_evidence": false
+          "weak_evidence": true
         },
         {
-          "canonical_slug": "deepseek/deepseek-r1",
-          "context": 64000,
-          "cost_1m_blended": 1.6,
+          "canonical_slug": "deepseek/deepseek-chat-v3",
+          "context": 163840,
+          "cost_1m_blended": 0.64305,
           "evidence": [
-            "aa_agentic_index",
             "ugi"
           ],
-          "litellm_id": "openrouter/deepseek/deepseek-r1",
+          "litellm_id": "openrouter/deepseek/deepseek-chat",
           "modalities": [
             "text"
           ],
-          "name": "DeepSeek: R1",
-          "or_slug": "deepseek/deepseek-r1",
-          "pareto_rank": 9,
-          "quality": 44.96406180410428,
+          "name": "DeepSeek: DeepSeek V3",
+          "or_slug": "deepseek/deepseek-chat",
+          "pareto_rank": null,
+          "quality": 90.40458288578589,
           "quality_ci": null,
-          "rank_distance": 14,
+          "rank_distance": null,
           "scores": {
-            "aa_agentic_index": 1.7301038062283738,
-            "ugi": 88.1980198019802
+            "ugi": 90.40458288578589
           },
           "supported_parameters": [
             "frequency_penalty",
-            "include_reasoning",
+            "logit_bias",
             "max_tokens",
+            "min_p",
             "presence_penalty",
-            "reasoning",
             "repetition_penalty",
             "response_format",
             "seed",
             "stop",
+            "structured_outputs",
             "temperature",
             "tool_choice",
             "tools",
             "top_k",
             "top_p"
           ],
-          "weak_evidence": false
+          "weak_evidence": true
         }
       ],
       "or_backbone_empty": false
@@ -3196,11 +3125,11 @@
           "name": "Intfloat: Multilingual-E5-Large",
           "or_slug": "intfloat/multilingual-e5-large",
           "pareto_rank": null,
-          "quality": 93.38061009816808,
+          "quality": 93.94367449542058,
           "quality_ci": null,
           "rank_distance": null,
           "scores": {
-            "mteb_reranking": 93.38061009816808
+            "mteb_reranking": 93.94367449542058
           },
           "supported_parameters": [],
           "weak_evidence": true
@@ -3395,81 +3324,30 @@
     "story-gen": {
       "candidates": [
         {
-          "canonical_slug": "xiaomi/mimo-v2.5-pro-20260422",
-          "context": 1050000,
-          "cost_1m_blended": 0.6960000000000001,
+          "canonical_slug": "z-ai/glm-5.3-flash-20260826",
+          "context": 1048576,
+          "cost_1m_blended": 0.36,
           "evidence": [
             "arena",
-            "benchlm",
-            "eqbench4",
-            "eqbench_creative_v3",
-            "eqbench_longform",
-            "vals_index"
+            "artificial_analysis",
+            "benchlm"
           ],
-          "litellm_id": "openrouter/xiaomi/mimo-v2.5-pro",
+          "litellm_id": "openrouter/z-ai/glm-5.3-flash",
           "modalities": [
-            "text"
+            "text",
+            "image",
+            "video"
           ],
-          "name": "Xiaomi: MiMo-V2.5-Pro",
-          "or_slug": "xiaomi/mimo-v2.5-pro",
+          "name": "Z.ai: GLM 5.3 Flash",
+          "or_slug": "z-ai/glm-5.3-flash",
           "pareto_rank": 0,
-          "quality": 71.59837964381344,
-          "quality_ci": 10.700000000000045,
-          "rank_distance": 37,
+          "quality": 73.12700123348911,
+          "quality_ci": 5.311412741480694,
+          "rank_distance": 0,
           "scores": {
-            "arena": 92.65452031239703,
-            "benchlm": 47.45000775073632,
-            "eqbench4": 54.923469387755084,
-            "eqbench_creative_v3": 65.54502609841383,
-            "eqbench_longform": 80.64516129032259,
-            "vals_index": 88.37209302325581
-          },
-          "supported_parameters": [
-            "frequency_penalty",
-            "include_reasoning",
-            "logprobs",
-            "max_tokens",
-            "presence_penalty",
-            "reasoning",
-            "repetition_penalty",
-            "response_format",
-            "seed",
-            "stop",
-            "structured_outputs",
-            "temperature",
-            "tool_choice",
-            "tools",
-            "top_k",
-            "top_logprobs",
-            "top_p"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "deepseek/deepseek-v3.2-20251201",
-          "context": 163840,
-          "cost_1m_blended": 0.35559999999999997,
-          "evidence": [
-            "arena",
-            "benchlm",
-            "eqbench_creative_v3",
-            "eqbench_longform"
-          ],
-          "litellm_id": "openrouter/deepseek/deepseek-v3.2",
-          "modalities": [
-            "text"
-          ],
-          "name": "DeepSeek: DeepSeek V3.2",
-          "or_slug": "deepseek/deepseek-v3.2",
-          "pareto_rank": 1,
-          "quality": 65.747407351256,
-          "quality_ci": 3.47042960993258,
-          "rank_distance": 9,
-          "scores": {
-            "arena": 83.50434131385488,
-            "benchlm": 42.79956595876608,
-            "eqbench_creative_v3": 66.6396391830943,
-            "eqbench_longform": 70.04608294930875
+            "arena": 93.69250564095667,
+            "artificial_analysis": 70.63197026022304,
+            "benchlm": 55.05652779928759
           },
           "supported_parameters": [
             "frequency_penalty",
@@ -3478,8 +3356,10 @@
             "logprobs",
             "max_tokens",
             "min_p",
+            "parallel_tool_calls",
             "presence_penalty",
             "reasoning",
+            "reasoning_effort",
             "repetition_penalty",
             "response_format",
             "seed",
@@ -3495,81 +3375,35 @@
           "weak_evidence": false
         },
         {
-          "canonical_slug": "openai/gpt-5.6-luna-20260709",
-          "context": 1050000,
-          "cost_1m_blended": 0.7999999999999999,
-          "evidence": [
-            "benchlm",
-            "eqbench4",
-            "eqbench_creative_v3",
-            "eqbench_longform",
-            "vals_index"
-          ],
-          "litellm_id": "openrouter/openai/gpt-5.6-luna",
-          "modalities": [
-            "text",
-            "image",
-            "file"
-          ],
-          "name": "OpenAI: GPT-5.6 Luna",
-          "or_slug": "openai/gpt-5.6-luna",
-          "pareto_rank": 2,
-          "quality": 63.90828809588605,
-          "quality_ci": 12.849999999999909,
-          "rank_distance": 26,
-          "scores": {
-            "benchlm": 68.39249728724229,
-            "eqbench4": 41.65816326530611,
-            "eqbench_creative_v3": 82.53686717681042,
-            "eqbench_longform": 83.41013824884793,
-            "vals_index": 48.837209302325576
-          },
-          "supported_parameters": [
-            "include_reasoning",
-            "max_completion_tokens",
-            "max_tokens",
-            "reasoning",
-            "reasoning_effort",
-            "response_format",
-            "seed",
-            "structured_outputs",
-            "tool_choice",
-            "tools",
-            "verbosity"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "openai/gpt-oss-120b",
-          "context": 131072,
-          "cost_1m_blended": 0.11679999999999999,
+          "canonical_slug": "deepseek/deepseek-v4-flash-20260423",
+          "context": 1048576,
+          "cost_1m_blended": 0.77492,
           "evidence": [
             "arena",
-            "benchlm",
             "eqbench_creative_v3",
             "eqbench_longform"
           ],
-          "litellm_id": "openrouter/openai/gpt-oss-120b",
+          "litellm_id": "openrouter/deepseek/deepseek-v4-flash",
           "modalities": [
             "text"
           ],
-          "name": "OpenAI: gpt-oss-120b",
-          "or_slug": "openai/gpt-oss-120b",
-          "pareto_rank": 3,
-          "quality": 38.787759713770555,
-          "quality_ci": 4.361149683496251,
-          "rank_distance": 54,
+          "name": "DeepSeek: DeepSeek V4 Flash 0423",
+          "or_slug": "deepseek/deepseek-v4-flash",
+          "pareto_rank": 1,
+          "quality": 77.03488231022682,
+          "quality_ci": 4.02773611793225,
+          "rank_distance": 2,
           "scores": {
-            "arena": 70.16288325594685,
-            "benchlm": 23.99627964656643,
-            "eqbench_creative_v3": 38.564840622307806,
-            "eqbench_longform": 22.427035330261134
+            "arena": 85.22392535442418,
+            "eqbench_creative_v3": 68.87447423098362,
+            "eqbench_longform": 68.81720430107528
           },
           "supported_parameters": [
             "frequency_penalty",
             "include_reasoning",
             "logit_bias",
             "logprobs",
+            "max_completion_tokens",
             "max_tokens",
             "min_p",
             "presence_penalty",
@@ -3591,11 +3425,94 @@
           "weak_evidence": false
         },
         {
+          "canonical_slug": "deepseek/deepseek-v3.2-exp",
+          "context": 163840,
+          "cost_1m_blended": 0.35400000000000004,
+          "evidence": [
+            "arena",
+            "eqbench_longform"
+          ],
+          "litellm_id": "openrouter/deepseek/deepseek-v3.2-exp",
+          "modalities": [
+            "text"
+          ],
+          "name": "DeepSeek: DeepSeek V3.2 Exp",
+          "or_slug": "deepseek/deepseek-v3.2-exp",
+          "pareto_rank": 2,
+          "quality": 71.46455391208166,
+          "quality_ci": 6.3458149192560995,
+          "rank_distance": 2,
+          "scores": {
+            "arena": 83.02127372278082,
+            "eqbench_longform": 59.9078341013825
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "response_format",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "stepfun/step-5-preview-20261008",
+          "context": 1000000,
+          "cost_1m_blended": 2.02,
+          "evidence": [
+            "arena",
+            "artificial_analysis",
+            "benchlm",
+            "vals_index"
+          ],
+          "litellm_id": "openrouter/stepfun/step-5-preview",
+          "modalities": [
+            "text",
+            "image",
+            "video"
+          ],
+          "name": "StepFun: Step 5 Preview",
+          "or_slug": "stepfun/step-5-preview",
+          "pareto_rank": 3,
+          "quality": 75.74484322421063,
+          "quality_ci": 11.010474364324864,
+          "rank_distance": 4,
+          "scores": {
+            "arena": 88.71114035506436,
+            "artificial_analysis": 74.1635687732342,
+            "benchlm": 74.98838469877653,
+            "vals_index": 65.11627906976744
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logprobs",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tools",
+            "top_logprobs",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
           "canonical_slug": "xiaomi/mimo-v2.6-flash-20260921",
           "context": 1050000,
           "cost_1m_blended": 0.224,
           "evidence": [
             "arena",
+            "artificial_analysis",
             "benchlm",
             "vals_index"
           ],
@@ -3609,12 +3526,13 @@
           "name": "Xiaomi: MiMo-V2.6-Flash",
           "or_slug": "xiaomi/mimo-v2.6-flash",
           "pareto_rank": 4,
-          "quality": 65.14477331553323,
+          "quality": 64.92479995798134,
           "quality_ci": 7.772588299134441,
-          "rank_distance": 36,
+          "rank_distance": 4,
           "scores": {
             "arena": 90.71610427425037,
-            "benchlm": 67.50891334676793,
+            "artificial_analysis": 63.38289962825279,
+            "benchlm": 68.3908936038408,
             "vals_index": 37.2093023255814
           },
           "supported_parameters": [
@@ -3641,30 +3559,296 @@
           "weak_evidence": false
         },
         {
-          "canonical_slug": "z-ai/glm-4.7-flash-20260119",
-          "context": 200000,
-          "cost_1m_blended": 0.2642,
+          "canonical_slug": "meta/muse-spark-1.1-20260709",
+          "context": 1048576,
+          "cost_1m_blended": 3.0499999999999994,
           "evidence": [
             "arena",
             "benchlm",
+            "eqbench4",
             "eqbench_creative_v3",
             "eqbench_longform"
           ],
-          "litellm_id": "openrouter/z-ai/glm-4.7-flash",
+          "litellm_id": "openrouter/meta/muse-spark-1.1",
+          "modalities": [
+            "text",
+            "image",
+            "file",
+            "video"
+          ],
+          "name": "Meta: Muse Spark 1.1",
+          "or_slug": "meta/muse-spark-1.1",
+          "pareto_rank": 5,
+          "quality": 79.63196447799359,
+          "quality_ci": 13.5,
+          "rank_distance": 6,
+          "scores": {
+            "arena": 95.84687409544142,
+            "benchlm": 68.26699705745702,
+            "eqbench4": 68.21428571428574,
+            "eqbench_creative_v3": 87.52343789591039,
+            "eqbench_longform": 75.8832565284178
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "repetition_penalty",
+            "response_format",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "inception/mercury-2.5-20260908",
+          "context": 260000,
+          "cost_1m_blended": 0.106,
+          "evidence": [
+            "benchlm",
+            "vals_index"
+          ],
+          "litellm_id": "openrouter/inception/mercury-2.5",
           "modalities": [
             "text"
           ],
-          "name": "Z.ai: GLM 4.7 Flash",
-          "or_slug": "z-ai/glm-4.7-flash",
-          "pareto_rank": 5,
-          "quality": 45.47264658198139,
-          "quality_ci": 5.687163038662334,
-          "rank_distance": 36,
+          "name": "Inception: Mercury 2.5",
+          "or_slug": "inception/mercury-2.5",
+          "pareto_rank": 6,
+          "quality": 61.18940684528419,
+          "quality_ci": null,
+          "rank_distance": 6,
           "scores": {
-            "arena": 66.8871905666384,
-            "benchlm": 27.28259184622539,
-            "eqbench_creative_v3": 46.86058886129833,
-            "eqbench_longform": 40.86021505376344
+            "benchlm": 22.378813690568382,
+            "vals_index": 100.0
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "qwen/qwen3.8-max-20260902",
+          "context": 1000000,
+          "cost_1m_blended": 4.4,
+          "evidence": [
+            "arena",
+            "benchlm",
+            "vals_index"
+          ],
+          "litellm_id": "openrouter/qwen/qwen3.8-max-0902",
+          "modalities": [
+            "text",
+            "image",
+            "video"
+          ],
+          "name": "Qwen: Qwen3.8 Max (0902)",
+          "or_slug": "qwen/qwen3.8-max-0902",
+          "pareto_rank": 7,
+          "quality": 80.54706472059797,
+          "quality_ci": 5.192988716103969,
+          "rank_distance": 8,
+          "scores": {
+            "arena": 96.43624262191112,
+            "benchlm": 75.43750967941769,
+            "vals_index": 69.76744186046511
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logprobs",
+            "max_tokens",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "inclusionai/ling-3.0-flash-vl-20260910",
+          "context": 262144,
+          "cost_1m_blended": 0.04536,
+          "evidence": [
+            "artificial_analysis",
+            "benchlm"
+          ],
+          "litellm_id": "openrouter/inclusionai/ling-3.0-flash-vl",
+          "modalities": [
+            "text",
+            "image",
+            "video"
+          ],
+          "name": "inclusionAI: Ling 3.0 Flash VL",
+          "or_slug": "inclusionai/ling-3.0-flash-vl",
+          "pareto_rank": 8,
+          "quality": 39.12332830339455,
+          "quality_ci": null,
+          "rank_distance": 8,
+          "scores": {
+            "artificial_analysis": 38.66171003717472,
+            "benchlm": 39.58494656961438
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "logprobs",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "aion-labs/aion-3.5-20260923",
+          "context": 262144,
+          "cost_1m_blended": 4.8,
+          "evidence": [
+            "eqbench_creative_v3",
+            "eqbench_longform"
+          ],
+          "litellm_id": "openrouter/aion-labs/aion-3.5",
+          "modalities": [
+            "text"
+          ],
+          "name": "AionLabs: Aion 3.5",
+          "or_slug": "aion-labs/aion-3.5",
+          "pareto_rank": 9,
+          "quality": 90.59165668121028,
+          "quality_ci": null,
+          "rank_distance": 10,
+          "scores": {
+            "eqbench_creative_v3": 87.63492626564637,
+            "eqbench_longform": 93.54838709677419
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_p"
+          ],
+          "weak_evidence": false
+        }
+      ],
+      "or_backbone_empty": false
+    },
+    "translation": {
+      "candidates": [
+        {
+          "canonical_slug": "nvidia/nemotron-3-super-120b-a12b-20230311",
+          "context": 262144,
+          "cost_1m_blended": 0.19099999999999998,
+          "evidence": [
+            "arena",
+            "wmt24pp"
+          ],
+          "litellm_id": "openrouter/nvidia/nemotron-3-super-120b-a12b",
+          "modalities": [
+            "text"
+          ],
+          "name": "NVIDIA: Nemotron 3 Super",
+          "or_slug": "nvidia/nemotron-3-super-120b-a12b",
+          "pareto_rank": 0,
+          "quality": 86.48622265708838,
+          "quality_ci": 7.064978602915517,
+          "rank_distance": 1,
+          "scores": {
+            "arena": 72.97244531417675,
+            "wmt24pp": 100.0
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "logprobs",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "xiaomi/mimo-v2.6-flash-20260921",
+          "context": 1050000,
+          "cost_1m_blended": 0.18200000000000002,
+          "evidence": [
+            "arena",
+            "artificial_analysis",
+            "benchlm",
+            "vals_index"
+          ],
+          "litellm_id": "openrouter/xiaomi/mimo-v2.6-flash",
+          "modalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "name": "Xiaomi: MiMo-V2.6-Flash",
+          "or_slug": "xiaomi/mimo-v2.6-flash",
+          "pareto_rank": 1,
+          "quality": 64.92479995798134,
+          "quality_ci": 7.772588299134441,
+          "rank_distance": 1,
+          "scores": {
+            "arena": 90.71610427425037,
+            "artificial_analysis": 63.38289962825279,
+            "benchlm": 68.3908936038408,
+            "vals_index": 37.2093023255814
           },
           "supported_parameters": [
             "frequency_penalty",
@@ -3692,12 +3876,9 @@
         {
           "canonical_slug": "deepseek/deepseek-v4-pro-20260423",
           "context": 1048576,
-          "cost_1m_blended": 1.5284159999999998,
+          "cost_1m_blended": 1.241838,
           "evidence": [
             "arena",
-            "eqbench4",
-            "eqbench_creative_v3",
-            "eqbench_longform",
             "vals_index"
           ],
           "litellm_id": "openrouter/deepseek/deepseek-v4-pro",
@@ -3706,15 +3887,12 @@
           ],
           "name": "DeepSeek: DeepSeek V4 Pro 0423",
           "or_slug": "deepseek/deepseek-v4-pro",
-          "pareto_rank": 6,
-          "quality": 76.00136286172003,
-          "quality_ci": 9.049999999999955,
-          "rank_distance": 53,
+          "pareto_rank": 2,
+          "quality": 86.60427464916633,
+          "quality_ci": 3.8884013860767936,
+          "rank_distance": 3,
           "scores": {
             "arena": 89.48761906577451,
-            "eqbench4": 44.0561224489796,
-            "eqbench_creative_v3": 68.57548269396442,
-            "eqbench_longform": 83.56374807987712,
             "vals_index": 83.72093023255815
           },
           "supported_parameters": [
@@ -3743,529 +3921,6 @@
           "weak_evidence": false
         },
         {
-          "canonical_slug": "google/gemma-3-12b-it",
-          "context": 131072,
-          "cost_1m_blended": 0.11,
-          "evidence": [
-            "arena",
-            "eqbench_creative_v3",
-            "eqbench_longform"
-          ],
-          "litellm_id": "openrouter/google/gemma-3-12b-it",
-          "modalities": [
-            "text",
-            "image"
-          ],
-          "name": "Google: Gemma 3 12B",
-          "or_slug": "google/gemma-3-12b-it",
-          "pareto_rank": 7,
-          "quality": 51.19888663426599,
-          "quality_ci": 9.374595854862946,
-          "rank_distance": 65,
-          "scores": {
-            "arena": 63.12539562919739,
-            "eqbench_creative_v3": 46.90113008665687,
-            "eqbench_longform": 31.643625192012287
-          },
-          "supported_parameters": [
-            "frequency_penalty",
-            "logit_bias",
-            "max_tokens",
-            "min_p",
-            "presence_penalty",
-            "repetition_penalty",
-            "response_format",
-            "seed",
-            "stop",
-            "structured_outputs",
-            "temperature",
-            "tool_choice",
-            "tools",
-            "top_k",
-            "top_p"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "minimax/minimax-m2.5-20260211",
-          "context": 204800,
-          "cost_1m_blended": 0.756,
-          "evidence": [
-            "arena",
-            "benchlm",
-            "eqbench_creative_v3",
-            "eqbench_longform"
-          ],
-          "litellm_id": "openrouter/minimax/minimax-m2.5",
-          "modalities": [
-            "text"
-          ],
-          "name": "MiniMax: MiniMax M2.5",
-          "or_slug": "minimax/minimax-m2.5",
-          "pareto_rank": 8,
-          "quality": 59.85877961068119,
-          "quality_ci": 3.8759012018008434,
-          "rank_distance": 2,
-          "scores": {
-            "arena": 68.78704294203982,
-            "benchlm": 44.07068671523795,
-            "eqbench_creative_v3": 58.83545330157604,
-            "eqbench_longform": 67.74193548387096
-          },
-          "supported_parameters": [
-            "frequency_penalty",
-            "include_reasoning",
-            "logit_bias",
-            "logprobs",
-            "max_tokens",
-            "min_p",
-            "presence_penalty",
-            "reasoning",
-            "repetition_penalty",
-            "response_format",
-            "seed",
-            "stop",
-            "structured_outputs",
-            "temperature",
-            "tool_choice",
-            "tools",
-            "top_k",
-            "top_logprobs",
-            "top_p"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "deepseek/deepseek-v4.1-flash-20260910",
-          "context": 1048576,
-          "cost_1m_blended": 0.84,
-          "evidence": [
-            "benchlm",
-            "eqbench_creative_v3",
-            "eqbench_longform",
-            "vals_index"
-          ],
-          "litellm_id": "openrouter/deepseek/deepseek-v4.1-flash",
-          "modalities": [
-            "text",
-            "image"
-          ],
-          "name": "DeepSeek: DeepSeek V4.1 Flash",
-          "or_slug": "deepseek/deepseek-v4.1-flash",
-          "pareto_rank": 9,
-          "quality": 67.87954467465659,
-          "quality_ci": null,
-          "rank_distance": 14,
-          "scores": {
-            "benchlm": 71.33777708882343,
-            "eqbench_creative_v3": 67.91162012871837,
-            "eqbench_longform": 81.10599078341014,
-            "vals_index": 51.162790697674424
-          },
-          "supported_parameters": [
-            "frequency_penalty",
-            "include_reasoning",
-            "logit_bias",
-            "logprobs",
-            "max_tokens",
-            "min_p",
-            "presence_penalty",
-            "reasoning",
-            "reasoning_effort",
-            "repetition_penalty",
-            "response_format",
-            "seed",
-            "stop",
-            "structured_outputs",
-            "temperature",
-            "tool_choice",
-            "tools",
-            "top_k",
-            "top_logprobs",
-            "top_p"
-          ],
-          "weak_evidence": false
-        }
-      ],
-      "or_backbone_empty": false
-    },
-    "translation": {
-      "candidates": [
-        {
-          "canonical_slug": "xiaomi/mimo-v2.6-flash-20260921",
-          "context": 1050000,
-          "cost_1m_blended": 0.18200000000000002,
-          "evidence": [
-            "arena",
-            "benchlm",
-            "vals_index"
-          ],
-          "litellm_id": "openrouter/xiaomi/mimo-v2.6-flash",
-          "modalities": [
-            "text",
-            "image",
-            "audio",
-            "video"
-          ],
-          "name": "Xiaomi: MiMo-V2.6-Flash",
-          "or_slug": "xiaomi/mimo-v2.6-flash",
-          "pareto_rank": 0,
-          "quality": 65.14477331553323,
-          "quality_ci": 7.772588299134441,
-          "rank_distance": 2,
-          "scores": {
-            "arena": 90.71610427425037,
-            "benchlm": 67.50891334676793,
-            "vals_index": 37.2093023255814
-          },
-          "supported_parameters": [
-            "frequency_penalty",
-            "include_reasoning",
-            "logit_bias",
-            "logprobs",
-            "max_tokens",
-            "min_p",
-            "presence_penalty",
-            "reasoning",
-            "repetition_penalty",
-            "response_format",
-            "seed",
-            "stop",
-            "structured_outputs",
-            "temperature",
-            "tool_choice",
-            "tools",
-            "top_k",
-            "top_logprobs",
-            "top_p"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "google/gemma-3-12b-it",
-          "context": 131072,
-          "cost_1m_blended": 0.08,
-          "evidence": [
-            "arena",
-            "flores_speakleash"
-          ],
-          "litellm_id": "openrouter/google/gemma-3-12b-it",
-          "modalities": [
-            "text",
-            "image"
-          ],
-          "name": "Google: Gemma 3 12B",
-          "or_slug": "google/gemma-3-12b-it",
-          "pareto_rank": 1,
-          "quality": 81.56269781459869,
-          "quality_ci": 9.374595854862946,
-          "rank_distance": 9,
-          "scores": {
-            "arena": 63.12539562919739,
-            "flores_speakleash": 100.0
-          },
-          "supported_parameters": [
-            "frequency_penalty",
-            "logit_bias",
-            "max_tokens",
-            "min_p",
-            "presence_penalty",
-            "repetition_penalty",
-            "response_format",
-            "seed",
-            "stop",
-            "structured_outputs",
-            "temperature",
-            "tool_choice",
-            "tools",
-            "top_k",
-            "top_p"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "xiaomi/mimo-v2.5-pro-20260422",
-          "context": 1050000,
-          "cost_1m_blended": 0.5655,
-          "evidence": [
-            "arena",
-            "benchlm",
-            "vals_index"
-          ],
-          "litellm_id": "openrouter/xiaomi/mimo-v2.5-pro",
-          "modalities": [
-            "text"
-          ],
-          "name": "Xiaomi: MiMo-V2.5-Pro",
-          "or_slug": "xiaomi/mimo-v2.5-pro",
-          "pareto_rank": 2,
-          "quality": 76.15887369546306,
-          "quality_ci": 3.6121180393148506,
-          "rank_distance": 18,
-          "scores": {
-            "arena": 92.65452031239703,
-            "benchlm": 47.45000775073632,
-            "vals_index": 88.37209302325581
-          },
-          "supported_parameters": [
-            "frequency_penalty",
-            "include_reasoning",
-            "logprobs",
-            "max_tokens",
-            "presence_penalty",
-            "reasoning",
-            "repetition_penalty",
-            "response_format",
-            "seed",
-            "stop",
-            "structured_outputs",
-            "temperature",
-            "tool_choice",
-            "tools",
-            "top_k",
-            "top_logprobs",
-            "top_p"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "xiaomi/mimo-v2.6-pro-20260921",
-          "context": 1050000,
-          "cost_1m_blended": 0.5655,
-          "evidence": [
-            "arena",
-            "benchlm",
-            "vals_index"
-          ],
-          "litellm_id": "openrouter/xiaomi/mimo-v2.6-pro",
-          "modalities": [
-            "text",
-            "image",
-            "audio",
-            "video"
-          ],
-          "name": "Xiaomi: MiMo-V2.6-Pro",
-          "or_slug": "xiaomi/mimo-v2.6-pro",
-          "pareto_rank": 3,
-          "quality": 67.62900558513472,
-          "quality_ci": 9.364282375654739,
-          "rank_distance": 17,
-          "scores": {
-            "arena": 98.52749794995484,
-            "benchlm": 81.10370485196094,
-            "vals_index": 23.25581395348837
-          },
-          "supported_parameters": [
-            "frequency_penalty",
-            "include_reasoning",
-            "logit_bias",
-            "max_tokens",
-            "min_p",
-            "presence_penalty",
-            "reasoning",
-            "repetition_penalty",
-            "response_format",
-            "seed",
-            "stop",
-            "structured_outputs",
-            "temperature",
-            "tool_choice",
-            "tools",
-            "top_k",
-            "top_p"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "minimax/minimax-m3-20260531",
-          "context": 1048576,
-          "cost_1m_blended": 0.57,
-          "evidence": [
-            "arena",
-            "benchlm",
-            "vals_index"
-          ],
-          "litellm_id": "openrouter/minimax/minimax-m3",
-          "modalities": [
-            "text",
-            "image",
-            "video"
-          ],
-          "name": "MiniMax: MiniMax M3",
-          "or_slug": "minimax/minimax-m3",
-          "pareto_rank": 4,
-          "quality": 73.89726523885987,
-          "quality_ci": 3.919933598400121,
-          "rank_distance": 19,
-          "scores": {
-            "arena": 85.21899359107536,
-            "benchlm": 50.42629049759727,
-            "vals_index": 86.04651162790698
-          },
-          "supported_parameters": [
-            "frequency_penalty",
-            "include_reasoning",
-            "logit_bias",
-            "logprobs",
-            "max_tokens",
-            "min_p",
-            "presence_penalty",
-            "reasoning",
-            "repetition_penalty",
-            "response_format",
-            "seed",
-            "stop",
-            "structured_outputs",
-            "temperature",
-            "tool_choice",
-            "tools",
-            "top_k",
-            "top_logprobs",
-            "top_p"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "z-ai/glm-5.3-flash-20260826",
-          "context": 1048576,
-          "cost_1m_blended": 0.255,
-          "evidence": [
-            "arena",
-            "benchlm"
-          ],
-          "litellm_id": "openrouter/z-ai/glm-5.3-flash",
-          "modalities": [
-            "text",
-            "image",
-            "video"
-          ],
-          "name": "Z.ai: GLM 5.3 Flash",
-          "or_slug": "z-ai/glm-5.3-flash",
-          "pareto_rank": 5,
-          "quality": 74.36911749262218,
-          "quality_ci": 5.311412741480694,
-          "rank_distance": 4,
-          "scores": {
-            "arena": 93.69250564095667,
-            "benchlm": 55.0457293442877
-          },
-          "supported_parameters": [
-            "frequency_penalty",
-            "include_reasoning",
-            "logit_bias",
-            "logprobs",
-            "max_tokens",
-            "min_p",
-            "parallel_tool_calls",
-            "presence_penalty",
-            "reasoning",
-            "reasoning_effort",
-            "repetition_penalty",
-            "response_format",
-            "seed",
-            "stop",
-            "structured_outputs",
-            "temperature",
-            "tool_choice",
-            "tools",
-            "top_k",
-            "top_logprobs",
-            "top_p"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "thinkingmachines/inkling-small-20260730",
-          "context": 524288,
-          "cost_1m_blended": 0.6749999999999999,
-          "evidence": [
-            "arena",
-            "benchlm",
-            "vals_index"
-          ],
-          "litellm_id": "openrouter/thinkingmachines/inkling-small",
-          "modalities": [
-            "text",
-            "image",
-            "audio"
-          ],
-          "name": "Thinking Machines: Inkling Small",
-          "or_slug": "thinkingmachines/inkling-small",
-          "pareto_rank": 6,
-          "quality": 76.46666841005488,
-          "quality_ci": 4.8703213302188715,
-          "rank_distance": 24,
-          "scores": {
-            "arena": 81.06677403831772,
-            "benchlm": 50.658812587195776,
-            "vals_index": 97.67441860465115
-          },
-          "supported_parameters": [
-            "frequency_penalty",
-            "include_reasoning",
-            "logit_bias",
-            "max_tokens",
-            "min_p",
-            "presence_penalty",
-            "reasoning",
-            "reasoning_effort",
-            "repetition_penalty",
-            "seed",
-            "stop",
-            "temperature",
-            "tool_choice",
-            "tools",
-            "top_k",
-            "top_p"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "tencent/hy3-20260706",
-          "context": 262144,
-          "cost_1m_blended": 0.2508,
-          "evidence": [
-            "arena",
-            "benchlm"
-          ],
-          "litellm_id": "openrouter/tencent/hy3",
-          "modalities": [
-            "text"
-          ],
-          "name": "Tencent: Hy3",
-          "or_slug": "tencent/hy3",
-          "pareto_rank": 7,
-          "quality": 67.52862183051805,
-          "quality_ci": 6.5046781012599695,
-          "rank_distance": 21,
-          "scores": {
-            "arena": 87.15769320374265,
-            "benchlm": 47.89955045729344
-          },
-          "supported_parameters": [
-            "frequency_penalty",
-            "include_reasoning",
-            "logit_bias",
-            "max_completion_tokens",
-            "max_tokens",
-            "min_p",
-            "presence_penalty",
-            "reasoning",
-            "reasoning_effort",
-            "repetition_penalty",
-            "response_format",
-            "seed",
-            "stop",
-            "structured_outputs",
-            "temperature",
-            "tool_choice",
-            "tools",
-            "top_k",
-            "top_p"
-          ],
-          "weak_evidence": false
-        },
-        {
           "canonical_slug": "inception/mercury-2.5-20260908",
           "context": 260000,
           "cost_1m_blended": 0.07300000000000001,
@@ -4279,12 +3934,12 @@
           ],
           "name": "Inception: Mercury 2.5",
           "or_slug": "inception/mercury-2.5",
-          "pareto_rank": 8,
-          "quality": 61.16881103704852,
+          "pareto_rank": 3,
+          "quality": 61.18940684528419,
           "quality_ci": null,
-          "rank_distance": 43,
+          "rank_distance": 3,
           "scores": {
-            "benchlm": 22.337622074097045,
+            "benchlm": 22.378813690568382,
             "vals_index": 100.0
           },
           "supported_parameters": [
@@ -4302,27 +3957,117 @@
           "weak_evidence": false
         },
         {
-          "canonical_slug": "qwen/qwen3.7-plus-20260602",
-          "context": 1000000,
-          "cost_1m_blended": 0.608,
+          "canonical_slug": "google/gemini-3.1-pro-preview-20260219",
+          "context": 1048576,
+          "cost_1m_blended": 5.0,
           "evidence": [
             "arena",
-            "benchlm"
+            "vals_index"
           ],
-          "litellm_id": "openrouter/qwen/qwen3.7-plus",
+          "litellm_id": "openrouter/google/gemini-3.1-pro-preview",
           "modalities": [
             "text",
-            "image"
+            "image",
+            "file",
+            "audio",
+            "video"
           ],
-          "name": "Qwen: Qwen3.7 Plus",
-          "or_slug": "qwen/qwen3.7-plus",
-          "pareto_rank": 9,
-          "quality": 71.16972750342386,
-          "quality_ci": 4.333083786201769,
-          "rank_distance": 3,
+          "name": "Google: Gemini 3.1 Pro Preview",
+          "or_slug": "google/gemini-3.1-pro-preview",
+          "pareto_rank": 4,
+          "quality": 93.39091431800861,
+          "quality_ci": 2.9961065117112184,
+          "rank_distance": 5,
           "scores": {
-            "arena": 90.30101135470076,
-            "benchlm": 52.038443652146945
+            "arena": 96.08415421741257,
+            "vals_index": 90.69767441860465
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "inclusionai/ling-3.0-flash-vl-20260910",
+          "context": 262144,
+          "cost_1m_blended": 0.033179999999999994,
+          "evidence": [
+            "artificial_analysis",
+            "benchlm"
+          ],
+          "litellm_id": "openrouter/inclusionai/ling-3.0-flash-vl",
+          "modalities": [
+            "text",
+            "image",
+            "video"
+          ],
+          "name": "inclusionAI: Ling 3.0 Flash VL",
+          "or_slug": "inclusionai/ling-3.0-flash-vl",
+          "pareto_rank": 5,
+          "quality": 39.12332830339455,
+          "quality_ci": null,
+          "rank_distance": 5,
+          "scores": {
+            "artificial_analysis": 38.66171003717472,
+            "benchlm": 39.58494656961438
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logit_bias",
+            "logprobs",
+            "max_tokens",
+            "min_p",
+            "presence_penalty",
+            "reasoning",
+            "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "qwen/qwen3.7-max-20260520",
+          "context": 1000000,
+          "cost_1m_blended": 2.3600000000000003,
+          "evidence": [
+            "arena",
+            "benchlm",
+            "wmt24pp"
+          ],
+          "litellm_id": "openrouter/qwen/qwen3.7-max",
+          "modalities": [
+            "text"
+          ],
+          "name": "Qwen: Qwen3.7 Max",
+          "or_slug": "qwen/qwen3.7-max",
+          "pareto_rank": null,
+          "quality": 88.47433343715102,
+          "quality_ci": 9.683548500174311,
+          "rank_distance": null,
+          "scores": {
+            "arena": 95.0665026053906,
+            "benchlm": 63.34210933870219,
+            "wmt24pp": 97.74436090225564
           },
           "supported_parameters": [
             "frequency_penalty",
@@ -4331,6 +4076,133 @@
             "max_tokens",
             "presence_penalty",
             "reasoning",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "meta/muse-spark-1.1-20260709",
+          "context": 1048576,
+          "cost_1m_blended": 2.15,
+          "evidence": [
+            "arena",
+            "benchlm"
+          ],
+          "litellm_id": "openrouter/meta/muse-spark-1.1",
+          "modalities": [
+            "text",
+            "image",
+            "file",
+            "video"
+          ],
+          "name": "Meta: Muse Spark 1.1",
+          "or_slug": "meta/muse-spark-1.1",
+          "pareto_rank": null,
+          "quality": 82.05693557644922,
+          "quality_ci": 4.378299393969769,
+          "rank_distance": null,
+          "scores": {
+            "arena": 95.84687409544142,
+            "benchlm": 68.26699705745702
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "repetition_penalty",
+            "response_format",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-4.7-opus-20260416",
+          "context": 1000000,
+          "cost_1m_blended": 11.0,
+          "evidence": [
+            "arena",
+            "benchlm"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-opus-4.7",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Opus 4.7",
+          "or_slug": "anthropic/claude-opus-4.7",
+          "pareto_rank": null,
+          "quality": 81.26547144444294,
+          "quality_ci": 3.7586394528095752,
+          "rank_distance": null,
+          "scores": {
+            "arena": 96.78833796399813,
+            "benchlm": 65.74260492488773
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "qwen/qwen3.8-max-20260902",
+          "context": 1000000,
+          "cost_1m_blended": 3.1999999999999997,
+          "evidence": [
+            "arena",
+            "benchlm",
+            "vals_index"
+          ],
+          "litellm_id": "openrouter/qwen/qwen3.8-max-0902",
+          "modalities": [
+            "text",
+            "image",
+            "video"
+          ],
+          "name": "Qwen: Qwen3.8 Max (0902)",
+          "or_slug": "qwen/qwen3.8-max-0902",
+          "pareto_rank": null,
+          "quality": 80.54706472059797,
+          "quality_ci": 5.192988716103969,
+          "rank_distance": null,
+          "scores": {
+            "arena": 96.43624262191112,
+            "benchlm": 75.43750967941769,
+            "vals_index": 69.76744186046511
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logprobs",
+            "max_tokens",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
             "response_format",
             "seed",
             "stop",
@@ -4350,60 +4222,12 @@
     "vision": {
       "candidates": [
         {
-          "canonical_slug": "qwen/qwen3.5-35b-a3b-20260224",
-          "context": 262144,
-          "cost_1m_blended": 0.165,
-          "evidence": [
-            "arena",
-            "benchlm",
-            "ocrbench"
-          ],
-          "litellm_id": "openrouter/qwen/qwen3.5-35b-a3b",
-          "modalities": [
-            "text",
-            "image",
-            "video"
-          ],
-          "name": "Qwen: Qwen3.5-35B-A3B",
-          "or_slug": "qwen/qwen3.5-35b-a3b",
-          "pareto_rank": 0,
-          "quality": 72.4401992579472,
-          "quality_ci": 4.212609054237532,
-          "rank_distance": 1,
-          "scores": {
-            "arena": 76.72018317347225,
-            "benchlm": 38.04061385831653,
-            "ocrbench": 87.5
-          },
-          "supported_parameters": [
-            "frequency_penalty",
-            "include_reasoning",
-            "logit_bias",
-            "logprobs",
-            "max_tokens",
-            "min_p",
-            "presence_penalty",
-            "reasoning",
-            "repetition_penalty",
-            "response_format",
-            "seed",
-            "stop",
-            "structured_outputs",
-            "temperature",
-            "tool_choice",
-            "tools",
-            "top_k",
-            "top_logprobs",
-            "top_p"
-          ],
-          "weak_evidence": false
-        },
-        {
           "canonical_slug": "xiaomi/mimo-v2.6-pro-20260921",
           "context": 1050000,
           "cost_1m_blended": 0.17652,
           "evidence": [
             "arena",
+            "artificial_analysis",
             "benchlm"
           ],
           "litellm_id": "openrouter/xiaomi/mimo-v2.6-pro",
@@ -4415,13 +4239,14 @@
           ],
           "name": "Xiaomi: MiMo-V2.6-Pro",
           "or_slug": "xiaomi/mimo-v2.6-pro",
-          "pareto_rank": 1,
-          "quality": 89.81560140095789,
+          "pareto_rank": 0,
+          "quality": 86.20469002867101,
           "quality_ci": 9.364282375654739,
           "rank_distance": 0,
           "scores": {
             "arena": 98.52749794995484,
-            "benchlm": 81.10370485196094
+            "artificial_analysis": 78.99628252788104,
+            "benchlm": 81.09028960817717
           },
           "supported_parameters": [
             "frequency_penalty",
@@ -4440,54 +4265,6 @@
             "tool_choice",
             "tools",
             "top_k",
-            "top_p"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "xiaomi/mimo-v2.6-flash-20260921",
-          "context": 1050000,
-          "cost_1m_blended": 0.057960000000000005,
-          "evidence": [
-            "arena",
-            "benchlm"
-          ],
-          "litellm_id": "openrouter/xiaomi/mimo-v2.6-flash",
-          "modalities": [
-            "text",
-            "image",
-            "audio",
-            "video"
-          ],
-          "name": "Xiaomi: MiMo-V2.6-Flash",
-          "or_slug": "xiaomi/mimo-v2.6-flash",
-          "pareto_rank": 2,
-          "quality": 79.11250881050915,
-          "quality_ci": 7.772588299134441,
-          "rank_distance": 11,
-          "scores": {
-            "arena": 90.71610427425037,
-            "benchlm": 67.50891334676793
-          },
-          "supported_parameters": [
-            "frequency_penalty",
-            "include_reasoning",
-            "logit_bias",
-            "logprobs",
-            "max_tokens",
-            "min_p",
-            "presence_penalty",
-            "reasoning",
-            "repetition_penalty",
-            "response_format",
-            "seed",
-            "stop",
-            "structured_outputs",
-            "temperature",
-            "tool_choice",
-            "tools",
-            "top_k",
-            "top_logprobs",
             "top_p"
           ],
           "weak_evidence": false
@@ -4507,10 +4284,10 @@
           ],
           "name": "Qwen: Qwen3 VL 235B A22B Instruct",
           "or_slug": "qwen/qwen3-vl-235b-a22b-instruct",
-          "pareto_rank": 3,
+          "pareto_rank": 1,
           "quality": 89.8088522884062,
           "quality_ci": 6.524380896506159,
-          "rank_distance": 4,
+          "rank_distance": 2,
           "scores": {
             "arena": 82.50231996142777,
             "ocrbench": 97.11538461538461
@@ -4537,79 +4314,31 @@
           "weak_evidence": false
         },
         {
-          "canonical_slug": "z-ai/glm-5.3-flash-20260826",
-          "context": 1048576,
-          "cost_1m_blended": 0.10099999999999999,
+          "canonical_slug": "xiaomi/mimo-v2.6-flash-20260921",
+          "context": 1050000,
+          "cost_1m_blended": 0.057960000000000005,
           "evidence": [
             "arena",
+            "artificial_analysis",
             "benchlm"
           ],
-          "litellm_id": "openrouter/z-ai/glm-5.3-flash",
+          "litellm_id": "openrouter/xiaomi/mimo-v2.6-flash",
           "modalities": [
             "text",
             "image",
+            "audio",
             "video"
           ],
-          "name": "Z.ai: GLM 5.3 Flash",
-          "or_slug": "z-ai/glm-5.3-flash",
-          "pareto_rank": 4,
-          "quality": 74.36911749262218,
-          "quality_ci": 5.311412741480694,
-          "rank_distance": 12,
+          "name": "Xiaomi: MiMo-V2.6-Flash",
+          "or_slug": "xiaomi/mimo-v2.6-flash",
+          "pareto_rank": 2,
+          "quality": 74.16329916878131,
+          "quality_ci": 7.772588299134441,
+          "rank_distance": 2,
           "scores": {
-            "arena": 93.69250564095667,
-            "benchlm": 55.0457293442877
-          },
-          "supported_parameters": [
-            "frequency_penalty",
-            "include_reasoning",
-            "logit_bias",
-            "logprobs",
-            "max_tokens",
-            "min_p",
-            "parallel_tool_calls",
-            "presence_penalty",
-            "reasoning",
-            "reasoning_effort",
-            "repetition_penalty",
-            "response_format",
-            "seed",
-            "stop",
-            "structured_outputs",
-            "temperature",
-            "tool_choice",
-            "tools",
-            "top_k",
-            "top_logprobs",
-            "top_p"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "qwen/qwen3.5-122b-a10b-20260224",
-          "context": 262144,
-          "cost_1m_blended": 0.44199999999999995,
-          "evidence": [
-            "arena",
-            "benchlm",
-            "ocrbench"
-          ],
-          "litellm_id": "openrouter/qwen/qwen3.5-122b-a10b",
-          "modalities": [
-            "text",
-            "image",
-            "video"
-          ],
-          "name": "Qwen: Qwen3.5-122B-A10B",
-          "or_slug": "qwen/qwen3.5-122b-a10b",
-          "pareto_rank": 5,
-          "quality": 76.78837398211866,
-          "quality_ci": 4.271876851356524,
-          "rank_distance": 14,
-          "scores": {
-            "arena": 81.84137973897509,
-            "benchlm": 29.158270035653388,
-            "ocrbench": 98.07692307692307
+            "arena": 90.71610427425037,
+            "artificial_analysis": 63.38289962825279,
+            "benchlm": 68.3908936038408
           },
           "supported_parameters": [
             "frequency_penalty",
@@ -4635,119 +4364,67 @@
           "weak_evidence": false
         },
         {
-          "canonical_slug": "qwen/qwen3.5-27b-20260224",
-          "context": 262144,
-          "cost_1m_blended": 0.49399999999999994,
-          "evidence": [
-            "arena",
-            "benchlm",
-            "ocrbench"
-          ],
-          "litellm_id": "openrouter/qwen/qwen3.5-27b",
-          "modalities": [
-            "text",
-            "image",
-            "video"
-          ],
-          "name": "Qwen: Qwen3.5-27B",
-          "or_slug": "qwen/qwen3.5-27b",
-          "pareto_rank": 6,
-          "quality": 66.717608327296,
-          "quality_ci": 4.279237869711324,
-          "rank_distance": 14,
-          "scores": {
-            "arena": 79.97961137340785,
-            "benchlm": 42.660052705006976,
-            "ocrbench": 72.11538461538461
-          },
-          "supported_parameters": [
-            "frequency_penalty",
-            "include_reasoning",
-            "logit_bias",
-            "logprobs",
-            "max_tokens",
-            "min_p",
-            "presence_penalty",
-            "reasoning",
-            "repetition_penalty",
-            "response_format",
-            "seed",
-            "stop",
-            "structured_outputs",
-            "temperature",
-            "tool_choice",
-            "tools",
-            "top_k",
-            "top_logprobs",
-            "top_p"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "qwen/qwen3.7-plus-20260602",
+          "canonical_slug": "anthropic/claude-opus-5.5-20260921",
           "context": 1000000,
-          "cost_1m_blended": 0.23680000000000004,
+          "cost_1m_blended": 2.9400000000000004,
           "evidence": [
-            "arena",
+            "artificial_analysis",
             "benchlm"
           ],
-          "litellm_id": "openrouter/qwen/qwen3.7-plus",
+          "litellm_id": "openrouter/anthropic/claude-opus-5.5",
           "modalities": [
             "text",
-            "image"
+            "image",
+            "file"
           ],
-          "name": "Qwen: Qwen3.7 Plus",
-          "or_slug": "qwen/qwen3.7-plus",
-          "pareto_rank": 7,
-          "quality": 71.16972750342386,
-          "quality_ci": 4.333083786201769,
-          "rank_distance": 13,
-          "scores": {
-            "arena": 90.30101135470076,
-            "benchlm": 52.038443652146945
-          },
-          "supported_parameters": [
-            "frequency_penalty",
-            "include_reasoning",
-            "logprobs",
-            "max_tokens",
-            "presence_penalty",
-            "reasoning",
-            "response_format",
-            "seed",
-            "stop",
-            "structured_outputs",
-            "temperature",
-            "tool_choice",
-            "tools",
-            "top_k",
-            "top_logprobs",
-            "top_p"
-          ],
-          "weak_evidence": false
-        },
-        {
-          "canonical_slug": "moonshotai/kimi-k2.5-0127",
-          "context": 262144,
-          "cost_1m_blended": 0.36400000000000005,
-          "evidence": [
-            "benchlm",
-            "ocrbench"
-          ],
-          "litellm_id": "openrouter/moonshotai/kimi-k2.5",
-          "modalities": [
-            "text",
-            "image"
-          ],
-          "name": "MoonshotAI: Kimi K2.5",
-          "or_slug": "moonshotai/kimi-k2.5",
-          "pareto_rank": 8,
-          "quality": 73.42272515889009,
+          "name": "Anthropic: Claude Opus 5.5",
+          "or_slug": "anthropic/claude-opus-5.5",
+          "pareto_rank": 3,
+          "quality": 100.0,
           "quality_ci": null,
           "rank_distance": 4,
           "scores": {
-            "benchlm": 46.845450317780184,
-            "ocrbench": 100.0
+            "artificial_analysis": 100.0,
+            "benchlm": 100.0
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "inclusionai/ling-3.0-flash-vl-20260910",
+          "context": 262144,
+          "cost_1m_blended": 0.013300000000000001,
+          "evidence": [
+            "artificial_analysis",
+            "benchlm"
+          ],
+          "litellm_id": "openrouter/inclusionai/ling-3.0-flash-vl",
+          "modalities": [
+            "text",
+            "image",
+            "video"
+          ],
+          "name": "inclusionAI: Ling 3.0 Flash VL",
+          "or_slug": "inclusionai/ling-3.0-flash-vl",
+          "pareto_rank": 4,
+          "quality": 39.12332830339455,
+          "quality_ci": null,
+          "rank_distance": 4,
+          "scores": {
+            "artificial_analysis": 38.66171003717472,
+            "benchlm": 39.58494656961438
           },
           "supported_parameters": [
             "frequency_penalty",
@@ -4759,6 +4436,129 @@
             "presence_penalty",
             "reasoning",
             "repetition_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "structured_outputs",
+            "temperature",
+            "tool_choice",
+            "tools",
+            "top_k",
+            "top_logprobs",
+            "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "openai/gpt-6-astra-20260903",
+          "context": 1050000,
+          "cost_1m_blended": 7.700000000000001,
+          "evidence": [
+            "artificial_analysis",
+            "benchlm"
+          ],
+          "litellm_id": "openrouter/openai/gpt-6-astra",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "OpenAI: GPT-6 Astra",
+          "or_slug": "openai/gpt-6-astra",
+          "pareto_rank": null,
+          "quality": 94.37748894171509,
+          "quality_ci": null,
+          "rank_distance": null,
+          "scores": {
+            "artificial_analysis": 90.89219330855019,
+            "benchlm": 97.86278457487998
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "seed",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-fable-5.1-20260831",
+          "context": 1000000,
+          "cost_1m_blended": 7.175000000000001,
+          "evidence": [
+            "artificial_analysis",
+            "benchlm"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-fable-5.1",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Fable 5.1",
+          "or_slug": "anthropic/claude-fable-5.1",
+          "pareto_rank": null,
+          "quality": 92.64303804464537,
+          "quality_ci": null,
+          "rank_distance": null,
+          "scores": {
+            "artificial_analysis": 92.19330855018588,
+            "benchlm": 93.09276753910486
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "qwen/qwen3.8-max-20260902",
+          "context": 1000000,
+          "cost_1m_blended": 1.1750000000000003,
+          "evidence": [
+            "arena",
+            "benchlm"
+          ],
+          "litellm_id": "openrouter/qwen/qwen3.8-max-0902",
+          "modalities": [
+            "text",
+            "image",
+            "video"
+          ],
+          "name": "Qwen: Qwen3.8 Max (0902)",
+          "or_slug": "qwen/qwen3.8-max-0902",
+          "pareto_rank": null,
+          "quality": 85.9368761506644,
+          "quality_ci": 5.192988716103969,
+          "rank_distance": null,
+          "scores": {
+            "arena": 96.43624262191112,
+            "benchlm": 75.43750967941769
+          },
+          "supported_parameters": [
+            "frequency_penalty",
+            "include_reasoning",
+            "logprobs",
+            "max_tokens",
+            "presence_penalty",
+            "reasoning",
+            "reasoning_effort",
             "response_format",
             "seed",
             "stop",
@@ -4789,13 +4589,13 @@
           ],
           "name": "Meta: Muse Spark 1.1",
           "or_slug": "meta/muse-spark-1.1",
-          "pareto_rank": 9,
-          "quality": 82.096433482382,
+          "pareto_rank": null,
+          "quality": 82.05693557644922,
           "quality_ci": 4.378299393969769,
-          "rank_distance": 14,
+          "rank_distance": null,
           "scores": {
             "arena": 95.84687409544142,
-            "benchlm": 68.34599286932259
+            "benchlm": 68.26699705745702
           },
           "supported_parameters": [
             "include_reasoning",
@@ -4810,6 +4610,45 @@
             "tools",
             "top_k",
             "top_p"
+          ],
+          "weak_evidence": false
+        },
+        {
+          "canonical_slug": "anthropic/claude-4.8-opus-20260528",
+          "context": 1000000,
+          "cost_1m_blended": 3.8500000000000005,
+          "evidence": [
+            "arena",
+            "benchlm"
+          ],
+          "litellm_id": "openrouter/anthropic/claude-opus-4.8",
+          "modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "name": "Anthropic: Claude Opus 4.8",
+          "or_slug": "anthropic/claude-opus-4.8",
+          "pareto_rank": null,
+          "quality": 81.71347158273383,
+          "quality_ci": 3.8479969555131674,
+          "rank_distance": null,
+          "scores": {
+            "arena": 90.18859718436188,
+            "benchlm": 73.2383459811058
+          },
+          "supported_parameters": [
+            "include_reasoning",
+            "max_completion_tokens",
+            "max_tokens",
+            "reasoning",
+            "reasoning_effort",
+            "response_format",
+            "stop",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "verbosity"
           ],
           "weak_evidence": false
         }

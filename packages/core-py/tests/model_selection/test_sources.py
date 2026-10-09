@@ -1,9 +1,9 @@
 """model_selection fetchers + cache tests — mock httpx, no real network.
 
 Ported from knowledge_core tests: OpenRouterModelsSource, ArtificialAnalysis
-(key absent/present), UGI CSV parse, Arena parquet, fetch_endpoint_stats,
-FileCache TTL/stale/corrupt, _fetch_source cache paths, enrich_uptime,
-version guard, join edge paths.
+(key absent/present), LiveBench/UGI CSV parse, Arena parquet,
+fetch_endpoint_stats, FileCache TTL/stale/corrupt, _fetch_source cache paths,
+enrich_uptime, version guard, join edge paths.
 """
 
 from __future__ import annotations
@@ -31,6 +31,7 @@ from hull_core.model_selection.normalize import (
 from hull_core.model_selection.sources import (
     ArenaSource,
     ArtificialAnalysisSource,
+    LiveBenchSource,
     OpenRouterModelsSource,
     SourceRecord,
     UGISource,
@@ -146,6 +147,19 @@ def test_aa_source_parses_evaluations(monkeypatch):
 
 
 # --- CSV sources --------------------------------------------------------------
+
+
+def test_livebench_csv_parse():
+    csv_text = "model,global_average,ci\nGPT-6,72.5,1.2\nGrok,60.0,\nbad-row,,\n"
+    with patch(
+        "hull_core.model_selection.sources.httpx.get",
+        return_value=_resp(content=csv_text.encode()),
+    ):
+        recs = LiveBenchSource().fetch()
+    assert recs["gpt-6"].score == 72.5
+    assert recs["gpt-6"].score_ci == 1.2
+    assert recs["grok"].score == 60.0
+    assert "bad-row" not in recs
 
 
 def test_ugi_csv_parse():

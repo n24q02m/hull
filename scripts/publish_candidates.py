@@ -51,7 +51,6 @@ FIELDS = (
     "weak_evidence",
     "modalities",
     "supported_parameters",
-    "or_task_spend_share",  # boards-v2: OR usage share (quadrant tie-break only)
 )
 
 
@@ -77,7 +76,7 @@ def _fill_unscanned_profiles(
         if not block.get("or_backbone_empty"):
             continue
         profile = get_task(name)
-        for src in (*profile.specialized_sources, *profile.aggregate_sources, *profile.usage_sources):
+        for src in (*profile.specialized_sources, *profile.aggregate_sources):
             if src not in source_status:
                 source_status[src] = {
                     "status": "missing",

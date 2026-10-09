@@ -20,7 +20,6 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from hull_core.model_selection.board_aliases import BOARD_ALIASES, UNMATCHED_REPORT_LIMIT
 from hull_core.model_selection.sources import SourceRecord, slugify
 from hull_core.model_selection.tasks import Constraints, TaskProfile
 
@@ -300,12 +299,6 @@ def join_sources(
     are not measurable and are filtered downstream (boards-first
     qualification). Picks must be OR-servable (2026-10-08 directive), so
     board rows that match no OR catalog entry create no candidate.
-
-    boards-v2 (2026-10-09): sources declared in ``board_aliases.BOARD_ALIASES``
-    resolve their rows through the versioned explicit mapping table FIRST
-    (uniqueness-gated ladder still applies to unmapped rows); rows matching
-    nothing are REPORTED via ``status_out[source]["unmatched_names"]``, never
-    guessed.
     """
     alias_index = _alias_index(or_records)
     part_index = _part_index(or_records)
@@ -330,21 +323,10 @@ def join_sources(
     for source_name, records in source_records.items():
         if source_name == "openrouter_models":
             continue
-        # boards-v2 (2026-10-09): explicit versioned name->or_slug mappings
-        # win over the ladder; a mapped slug missing from the catalog is
-        # UNMATCHED (reported — the table is authoritative, never re-guessed).
-        alias_map = BOARD_ALIASES.get(source_name, {})
         matched = 0
-        unmatched: list[str] = []
         for rec in records.values():
-            mapped = alias_map.get(rec.key) or (alias_map.get(slugify(rec.name)) if rec.name else None)
-            if mapped is not None:
-                slug = mapped if mapped in or_records else None
-            else:
-                slug = _match_key(rec, alias_index, part_index, join_idx)
+            slug = _match_key(rec, alias_index, part_index, join_idx)
             if slug is None:
-                if source_name in BOARD_ALIASES:  # declared boards report, empty map included
-                    unmatched.append(rec.name or rec.key)
                 continue
             matched += 1
             cand = candidates[slug]
@@ -366,15 +348,6 @@ def join_sources(
             if task is not None and matched == 0 and records:
                 entry["status"] = "degraded"
                 entry["reason"] = "zero_join"
-            # boards-v2 unmapped-name report (2026-10-09): every alias-declared
-            # board (including an intentionally empty map like arena_agent)
-            # publishes the rows neither the table nor the ladder resolved, so
-            # a renamed board or a delisted OR slug is visible in the snapshot
-            # instead of silently dropped.
-            if source_name in BOARD_ALIASES and unmatched:
-                entry["unmatched_names"] = sorted(set(unmatched))[:UNMATCHED_REPORT_LIMIT]
-                if len(unmatched) > UNMATCHED_REPORT_LIMIT:
-                    entry["unmatched_names_total"] = len(unmatched)
 
     return list(candidates.values())
 

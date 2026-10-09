@@ -27,7 +27,6 @@ import logging
 import os
 import re
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from urllib.parse import quote
 from typing import Any, Protocol, runtime_checkable
@@ -51,6 +50,7 @@ OR_BENCH_URL = "https://openrouter.ai/benchmarks/{bench}"
 # requires a Pro subscription" on /api/v2/language/models but 200 on /free
 # (verified 2026-10-08). Same row shape; capability indexes ride along.
 AA_MODELS_URL = "https://artificialanalysis.ai/api/v2/language/models/free"
+LIVEBENCH_CSV_URL = "https://raw.githubusercontent.com/live-bench/LiveBench/main/livebench/data/stats.csv"
 # 2026-10-07: the DontPlanToEnd/UGI-Leaderboard DATASET went gated (401
 # anonymous); the author's space ships the same leaderboard as CSV with a
 # richer schema ("author/model_name", "UGI <trophy>") — still public.
@@ -68,6 +68,7 @@ BENCHLM_MD_URL = "https://benchlm.ai/md/index.md"
 LLMSTATS_BENCH_URL = "https://llm-stats.com/benchmarks/{bench}"
 BFCL_CSV_URL = "https://gorilla.cs.berkeley.edu/data_overall.csv"
 EQBENCH4_DATA_URL = "https://eqbench.com/eqbench4/eqbench4_data.js"
+FLORES_CSV_URL = "https://huggingface.co/spaces/speakleash/leaderboard-flores/resolve/main/results.csv"
 # MangaVQA/MangaOCR project site (manga109 org GitHub Pages; the README's
 # atsumiyai.github.io link 404s — manga109.github.io is the live surface,
 # verified 2026-10-08).
@@ -158,21 +159,11 @@ class SourceStatus:
     fetched_at: str | None = None  # ISO-8601 UTC of the data pull
     row_count: int = 0
     reason: str | None = None
-    # Board data date from API/commit metadata (GitHub commits API, HF dataset
-    # API, arXiv dateline — never a page footer). Served fresh only: a stale
-    # cache hit cannot re-derive it, so cached snapshots leave it unset.
-    board_updated_at: str | None = None
-    # Verbatim credit line for licensed datasets (OR usage is CC BY 4.0).
-    attribution: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         out: dict[str, Any] = {"status": self.status, "fetched_at": self.fetched_at, "row_count": self.row_count}
         if self.reason:
             out["reason"] = self.reason
-        if self.board_updated_at:
-            out["board_updated_at"] = self.board_updated_at
-        if self.attribution:
-            out["attribution"] = self.attribution
         return out
 
 
@@ -436,6 +427,22 @@ class ArtificialAnalysisSource(_BaseSource):
         return records
 
 
+class LiveBenchSource(_BaseSource):
+    """LiveBench (contamination hedge) via the CSV release on GitHub live-bench/LiveBench."""
+
+    name = "livebench"
+    ttl_seconds = WEEK
+
+    def _fetch(self) -> dict[str, SourceRecord]:
+        text = _get_bytes(LIVEBENCH_CSV_URL).decode("utf-8", errors="replace")
+        return _parse_csv_records(
+            text,
+            name_cols=("model", "model_name", "name"),
+            score_cols=("global_average", "score", "average", "avg"),
+            ci_cols=("ci", "confidence_interval", "stderr"),
+        )
+
+
 class UGISource(_BaseSource):
     """UGI leaderboard (HF CSV) — the ``permissive`` profile's specialized board.
 
@@ -509,458 +516,6 @@ class ArenaSource(_BaseSource):
             )
             records[rec.key] = rec
         return records
-
-
-# --- boards-v2 fetchers (2026-10-09 directive: closed-inclusive boards + OR usage)
-#
-# Conventions: parsers are pure functions over fetched bytes/text (fixture-
-# testable); every board captures ``board_updated_at`` from API/commit
-# metadata (GitHub commits/repo API, HF dataset rows, arXiv dateline — never
-# a page footer); join names for these boards are versioned in
-# ``board_aliases.py`` and rows matching nothing are REPORTED, never guessed.
-
-AGENTSET_EMBED_URL = "https://raw.githubusercontent.com/agentset-ai/embedding-leaderboard/main/results/benchmarks.json"
-AGENTSET_EMBED_COMMIT_URL = (
-    "https://api.github.com/repos/agentset-ai/embedding-leaderboard/commits?path=results/benchmarks.json&per_page=1"
-)
-AGENTSET_RERANK_URL = "https://agentset.ai/rerankers"
-AGENTSET_RERANK_REPO_URL = "https://api.github.com/repos/agentset-ai/reranker-eval"
-HINDSIGHT_CONTENTS_URL = (
-    "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/contents/results/leaderboard/{sub}"
-)
-HINDSIGHT_RAW_URL = (
-    "https://raw.githubusercontent.com/vectorize-io/hindsight-benchmarks/main/results/leaderboard/{sub}/{name}"
-)
-HINDSIGHT_COMMIT_URL = (
-    "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/commits?path=results/leaderboard&per_page=1"
-)
-# LMArena agent arena: same parquet release infra as ``arena``, branch `agent`
-# (verified 2026-10-09: rows carry tier suffixes (Max)/(High)/(xHigh) and a
-# ``leaderboard_publish_date`` column).
-ARENA_AGENT_PARQUET_URL = (
-    "https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset/resolve/main/agent/latest-00000-of-00001.parquet"
-)
-WMT25_HTML_URL = "https://arxiv.org/html/2508.14909v2"  # WMT25 General MT preliminary ranking
-WMT25_ABS_URL = "https://arxiv.org/abs/2508.14909"
-OR_USAGE_DAILY_URL = "https://openrouter.ai/api/v1/datasets/rankings-daily"
-OR_USAGE_FRONTEND_URL = "https://openrouter.ai/api/frontend/v1/rankings/models"
-OR_USAGE_WINDOW_DAYS = 30
-
-_ARENA_TIER_SUFFIX = re.compile(r"\s*\((?:Max|High|xHigh)\)\s*$")
-_ARENA_SNAPSHOT_SUFFIX = re.compile(r"\s*\(\d{3,4}\)\s*$")
-_WMT25_LATEX_TOKEN = re.compile(r"\\[a-zA-Z]+")
-_OR_PERMASLUG_DATE_TAIL = re.compile(r"-\d{8}$")
-
-
-def _github_commit_date(url: str) -> str | None:
-    """``YYYY-MM-DD`` of the most recent commit touching a path (GitHub REST)."""
-    data = _get_json(url)
-    row = data[0] if isinstance(data, list) and data else None
-    date = row.get("commit", {}).get("committer", {}).get("date") if isinstance(row, dict) else None
-    return str(date)[:10] or None if date else None
-
-
-def _arxiv_last_revised(abs_url: str) -> str | None:
-    """``YYYY-MM-DD`` of the arXiv paper version, from the abs-page dateline
-    (arXiv's own API-served metadata; "last revised", falling back to the
-    submission date)."""
-    html = _get_bytes(abs_url).decode("utf-8", errors="replace")
-    for pattern in (r"last revised (\d{1,2} \w+ \d{4})", r"Submitted on (\d{1,2} \w+ \d{4})"):
-        m = re.search(pattern, html)
-        if m:
-            try:
-                return datetime.strptime(m.group(1), "%d %b %Y").date().isoformat()
-            except ValueError:
-                continue
-    return None
-
-
-def _usage_base_slug(permaslug: str) -> str:
-    """Permaslug -> base slug: drop ``:variant`` and the ``-YYYYMMDD`` date
-    tail on the last segment (``voyageai/rerank-2.5-lite-20260727`` ->
-    ``voyageai/rerank-2.5-lite``) so usage joins the OR catalog id."""
-    base = permaslug.split(":", 1)[0]
-    org, sep, part = base.rpartition("/")
-    part = _OR_PERMASLUG_DATE_TAIL.sub("", part)
-    return sep.join((org, part)) if sep else part
-
-
-class AgentSetEmbedSource(_BaseSource):
-    """AgentSet embeddings leaderboard: LLM-judge Elo over RAG retrieval
-    (FiQa/MSMARCO/SciFact/DBPedia/...), 18 models incl. the closed vendors
-    MTEB lacks. Mirror: ``agentset-ai/embedding-leaderboard`` results/benchmarks.json
-    (a JSON list of ``{name, overall: {elo, ...}, by_dataset}``). Stale
-    (~2026-03) but closed-inclusive — always paired with an independent board
-    before promoting an embed pick. ``board_updated_at`` = GitHub commits API
-    for the JSON path (the site prints no trustworthy date)."""
-
-    name = "agentset_elo"
-    ttl_seconds = WEEK
-
-    def _fetch(self) -> dict[str, SourceRecord]:
-        rows = _get_json(AGENTSET_EMBED_URL)
-        try:
-            self.board_updated_at = _github_commit_date(AGENTSET_EMBED_COMMIT_URL)
-        except Exception as exc:  # commit metadata must never kill the board
-            logger.info("model_selection agentset_elo commit date unavailable: %s", exc)
-            self.board_updated_at = None
-        records: dict[str, SourceRecord] = {}
-        for row in rows if isinstance(rows, list) else []:
-            if not isinstance(row, dict):
-                continue
-            name = str(row.get("name") or "").strip()
-            overall = row.get("overall") if isinstance(row.get("overall"), dict) else {}
-            elo = _float(overall.get("elo"))
-            if not name or elo is None:
-                continue
-            rec = SourceRecord(
-                key=slugify(name),
-                name=name,
-                score=elo,
-                board_version=self.board_updated_at,
-                raw={"overall": overall},
-            )
-            records[rec.key] = rec
-        return records
-
-
-def _parse_agentset_rerank_table(html: str) -> dict[str, SourceRecord]:
-    """AgentSet rerankers static table: header carries an ``ELO`` column;
-    one row per reranker (``Cohere Rerank 4 Pro``, ``Zerank 2``, ...)."""
-    start = html.find("<table")
-    if start < 0:
-        return {}
-    end = html.find("</table>", start)
-    frag = html[start : end + len("</table>")] if end >= 0 else html[start:]
-    parsed = [
-        [_strip_tags(c) for c in re.findall(r"<t[hd][^>]*>(.*?)</t[hd]>", tr, re.S)]
-        for tr in re.findall(r"<tr[^>]*>(.*?)</tr>", frag, re.S)
-    ]
-    if not parsed:
-        return {}
-    elo_col = next((i for i, cell in enumerate(parsed[0]) if "elo" in cell.lower()), None)
-    if elo_col is None:
-        return {}
-    records: dict[str, SourceRecord] = {}
-    for row in parsed[1:]:
-        if len(row) <= elo_col:
-            continue
-        name = row[0].strip()
-        elo = _float(row[elo_col])
-        if not name or elo is None:
-            continue
-        rec = SourceRecord(key=slugify(name), name=name, score=elo)
-        records[rec.key] = rec
-    return records
-
-
-class AgentSetRerankSource(_BaseSource):
-    """AgentSet rerankers board: the static HTML table on agentset.ai/rerankers
-    (server-rendered — no JS needed; verified 2026-10-09). Stale (~2026-02):
-    newer routes (e.g. Voyage rerank-3) are absent, so OR usage stays the
-    liveness signal for rerank picks. ``board_updated_at`` = the
-    ``agentset-ai/reranker-eval`` repo ``pushed_at`` (the site prints no
-    date). Fragile HTML: parse defensively, empty table -> ``{}``."""
-
-    name = "agentset_rerank"
-    ttl_seconds = WEEK
-
-    def _fetch(self) -> dict[str, SourceRecord]:
-        html = _get_bytes(AGENTSET_RERANK_URL).decode("utf-8", errors="replace")
-        records = _parse_agentset_rerank_table(html)
-        if not records:
-            self.missing_reason = "agentset_rerank_table_empty"
-            return {}
-        try:
-            data = _get_json(AGENTSET_RERANK_REPO_URL)
-            pushed = str(data.get("pushed_at") or "")[:10] or None if isinstance(data, dict) else None
-            self.board_updated_at = pushed
-        except Exception as exc:
-            logger.info("model_selection agentset_rerank repo date unavailable: %s", exc)
-            self.board_updated_at = None
-        for rec in records.values():
-            rec.board_version = self.board_updated_at
-        return records
-
-
-class HindsightSource(_BaseSource):
-    """Hindsight benchmarks (vectorize-io): one small JSON per model under
-    ``results/leaderboard/{reranker,embeddings}/`` (MRR + recall@k on the
-    LoComo ``recall()`` harness, n=165 — directional, self-admitted bias).
-    Files are listed via the GitHub contents API and fetched raw; a file that
-    fails to parse is skipped (fail-open), an empty listing -> ``{}``.
-    ``board_updated_at`` = GitHub commits API for the leaderboard directory."""
-
-    ttl_seconds = WEEK
-
-    def __init__(self, name: str, sub: str, id_field: str) -> None:
-        super().__init__()
-        self.name = name
-        self.sub = sub  # "reranker" | "embeddings"
-        self.id_field = id_field  # "reranker_id" | "embedding_id"
-
-    def _fetch(self) -> dict[str, SourceRecord]:
-        listing = _get_json(HINDSIGHT_CONTENTS_URL.format(sub=self.sub))
-        files = [
-            str(e.get("name"))
-            for e in (listing if isinstance(listing, list) else [])
-            if isinstance(e, dict) and str(e.get("name", "")).endswith(".json")
-        ]
-        if not files:
-            self.missing_reason = "hindsight_listing_empty"
-            return {}
-        records: dict[str, SourceRecord] = {}
-        for fname in files:
-            try:
-                blob = _get_json(HINDSIGHT_RAW_URL.format(sub=self.sub, name=fname))
-            except Exception as exc:  # one bad file must not kill the board
-                logger.info("model_selection hindsight file skipped: sub=%s file=%s error=%s", self.sub, fname, exc)
-                continue
-            if not isinstance(blob, dict):
-                continue
-            key = str(blob.get(self.id_field) or Path(fname).stem).strip()
-            score = _float(blob.get("mrr"))
-            if not key or score is None:
-                continue
-            records[key] = SourceRecord(
-                key=key,
-                name=key,
-                score=score,
-                raw={
-                    "recall_at_1": blob.get("recall_at_1"),
-                    "recall_at_3": blob.get("recall_at_3"),
-                    "recall_at_5": blob.get("recall_at_5"),
-                },
-            )
-        try:
-            self.board_updated_at = _github_commit_date(HINDSIGHT_COMMIT_URL)
-        except Exception as exc:
-            logger.info("model_selection hindsight commit date unavailable: %s", exc)
-            self.board_updated_at = None
-        for rec in records.values():
-            rec.board_version = self.board_updated_at
-        return records
-
-
-class ArenaAgentSource(_BaseSource):
-    """LMArena agent arena: the ``agent`` branch of the same
-    ``lmarena-ai/leaderboard-dataset`` parquet release as ``arena`` (published
-    2026-10-02, weekly cadence; verified 2026-10-09). Rows carry effort-tier
-    suffixes ``(Max)/(High)/(xHigh)`` — settings of the SAME model, so they
-    are stripped (snapshot markers like ``(0813)`` too) and a stripped-name
-    collision collapses to the best observed score; the OR-side ladder still
-    uniqueness-gates the join. ``board_updated_at`` = the parquet's
-    ``leaderboard_publish_date`` column max."""
-
-    name = "arena_agent"
-    ttl_seconds = WEEK
-
-    def _fetch(self) -> dict[str, SourceRecord]:
-        rows = _read_parquet_rows(_get_bytes(ARENA_AGENT_PARQUET_URL))
-        best: dict[str, tuple[float, SourceRecord]] = {}
-        dates: list[str] = []
-        for row in rows:
-            if str(row.get("category") or "overall") != "overall":
-                continue
-            name = str(row.get("model_name") or "").strip()
-            for _ in range(2):  # "(High) (0813)": snapshot then tier
-                stripped = _ARENA_SNAPSHOT_SUFFIX.sub("", _ARENA_TIER_SUFFIX.sub("", name))
-                if stripped == name:
-                    break
-                name = stripped
-            score = _float(row.get("score"))
-            if not name or score is None:
-                continue
-            date = str(row.get("leaderboard_publish_date") or "")
-            if date:
-                dates.append(date)
-            lo, hi = _float(row.get("score_ci_lower")), _float(row.get("score_ci_upper"))
-            rec = SourceRecord(
-                key=slugify(name),
-                name=name,
-                score=score,
-                score_ci=(hi - lo) / 2 if lo is not None and hi is not None else None,
-                board_version=date or None,
-                raw=dict(row),
-            )
-            prev = best.get(rec.key)
-            if prev is None or score > prev[0]:
-                best[rec.key] = (score, rec)
-        self.board_updated_at = max(dates) if dates else None
-        return {key: rec for key, (_, rec) in best.items()}
-
-
-def _parse_wmt25_autorank(html: str) -> dict[str, SourceRecord]:
-    """WMT25 per-language-pair ranking tables -> one record per system.
-
-    Each table has a label row (language pair), a header row with an
-    ``AutoRank`` column (lower = better), and one row per system; system cells
-    carry LaTeX decoration (``\\blacktriangle``) and ``[M]``-style markers.
-    Board score = NEGATIVE mean AutoRank across the pairs a system appears in,
-    so the pipeline's higher-is-better min-max normalization stays honest.
-    """
-    per_system: dict[str, list[float]] = {}
-    for table_m in re.finditer(r"<table.*?</table>", html, re.S):
-        parsed = [
-            [_strip_tags(c) for c in re.findall(r"<t[hd][^>]*>(.*?)</t[hd]>", tr, re.S)]
-            for tr in re.findall(r"<tr[^>]*>(.*?)</tr>", table_m.group(0), re.S)
-        ]
-        if len(parsed) < 3:
-            continue
-        header_idx = next((i for i, row in enumerate(parsed) if any("AutoRank" in c for c in row)), None)
-        if header_idx is None or header_idx + 1 >= len(parsed):
-            continue
-        rank_col = next(i for i, cell in enumerate(parsed[header_idx]) if "AutoRank" in cell)
-        for row in parsed[header_idx + 1 :]:
-            if len(row) <= rank_col:
-                continue
-            name = _WMT25_LATEX_TOKEN.sub(" ", row[0])
-            name = re.sub(r"^[^A-Za-z0-9]+", "", name)
-            name = re.sub(r"\[[A-Za-z]\]\s*$", "", name).strip()
-            rank = _float(row[rank_col])
-            if not name or rank is None:
-                continue
-            per_system.setdefault(name, []).append(rank)
-    records: dict[str, SourceRecord] = {}
-    for name, ranks in per_system.items():
-        rec = SourceRecord(
-            key=slugify(name),
-            name=name,
-            score=-sum(ranks) / len(ranks),
-            raw={"n_lps": len(ranks), "mean_autorank": sum(ranks) / len(ranks)},
-        )
-        records[rec.key] = rec
-    return records
-
-
-class Wmt25GmtrSource(_BaseSource):
-    """WMT25 General MT preliminary ranking (arXiv 2508.14909v2) — the annual
-    closed-inclusive translation anchor. Mean AutoRank across the 31 language
-    pairs (published negated: higher = better). Static per year (arXiv HTML
-    re-fetched weekly is one ~3 MB request). ``board_updated_at`` = the
-    arXiv dateline revision date (2025-08-24 for v2), never a page footer."""
-
-    name = "wmt25_gmtr"
-    ttl_seconds = WEEK
-
-    def _fetch(self) -> dict[str, SourceRecord]:
-        html = _get_bytes(WMT25_HTML_URL).decode("utf-8", errors="replace")
-        records = _parse_wmt25_autorank(html)
-        if not records:
-            self.missing_reason = "wmt25_tables_empty"
-            return {}
-        try:
-            self.board_updated_at = _arxiv_last_revised(WMT25_ABS_URL)
-        except Exception as exc:
-            logger.info("model_selection wmt25 revision date unavailable: %s", exc)
-            self.board_updated_at = None
-        for rec in records.values():
-            rec.board_version = self.board_updated_at
-        return records
-
-
-def _usage_rows(data: Any) -> list[dict[str, Any]]:
-    """Rankings payload -> row dicts (both feeds nest rows under ``data``)."""
-    if isinstance(data, dict):
-        data = data.get("data") or data.get("rows") or []
-    return [row for row in (data or []) if isinstance(row, dict)]
-
-
-def _usage_slug(row: dict[str, Any]) -> str | None:
-    for key in ("model_permaslug", "permaslug", "slug", "model"):
-        value = row.get(key)
-        if value:
-            return str(value)
-    return None
-
-
-def _usage_tokens(row: dict[str, Any]) -> float | None:
-    for key in ("total_tokens", "rankingMetricValue", "tokens"):
-        value = _float(row.get(key))
-        if value is not None:
-            return value
-    return None
-
-
-class OrUsageSource(_BaseSource):
-    """OpenRouter real-world usage -> ``or_task_spend_share`` (tie-break ONLY).
-
-    NOT a quality board: ``candidates()`` folds the aggregated totals into
-    ``ModelCandidate.or_task_spend_share`` for the quadrant tie-break; usage
-    never enters scores/evidence, and absence is neutral.
-
-    Two feeds, both aggregated to total tokens per BASE permaslug (``:variant``
-    and ``-YYYYMMDD`` date tails stripped):
-    - PRIMARY ``GET /api/v1/datasets/rankings-daily`` (documented Data API,
-      ``Authorization: Bearer $OPENROUTER_API_KEY``, CC BY 4.0 — the
-      attribution line is recorded verbatim in the snapshot). Key absent ->
-      skipped (fail-open, recorded).
-    - SUPPLEMENT ``GET /api/frontend/v1/rankings/models`` (public, keyless,
-      UNDOCUMENTED — verified 2026-10-09 to carry the embeddings/rerank
-      long-tail the primary top-50/day ranking omits). May vanish without
-      notice: fail-open.
-
-    Both empty -> ``{}`` with ``or_usage_api_key_required`` /
-    ``or_usage_unavailable``; ``board_updated_at`` = newest window date seen.
-    """
-
-    name = "or_usage"
-    ttl_seconds = DAY
-
-    def _fetch(self) -> dict[str, SourceRecord]:
-        totals: dict[str, float] = {}
-        dates: list[str] = []
-        as_ofs: list[str] = []  # explicit meta.as_of from the documented feed
-        api_key = os.environ.get("OPENROUTER_API_KEY")
-        key_absent = not api_key
-        if api_key:
-            try:
-                end = datetime.now(UTC).date()
-                start = end - timedelta(days=OR_USAGE_WINDOW_DAYS)
-                data = _get_json(
-                    OR_USAGE_DAILY_URL,
-                    headers={"Authorization": f"Bearer {api_key}"},
-                    params={"start_date": start.isoformat(), "end_date": end.isoformat()},
-                )
-                meta = data.get("meta") if isinstance(data, dict) else None
-                as_of = str((meta or {}).get("as_of") or "")[:10]
-                if as_of:
-                    as_ofs.append(as_of)
-                for row in _usage_rows(data):
-                    slug = _usage_slug(row)
-                    tokens = _usage_tokens(row)
-                    if not slug or tokens is None:
-                        continue
-                    base = _usage_base_slug(slug)
-                    totals[base] = totals.get(base, 0.0) + tokens
-                    date = str(row.get("date") or "")
-                    if date:
-                        dates.append(date[:10])
-            except Exception as exc:  # primary feed must not kill the supplement
-                logger.info("model_selection or_usage primary failed: %s", exc)
-        try:
-            data = _get_json(OR_USAGE_FRONTEND_URL)
-            for row in _usage_rows(data):
-                slug = _usage_slug(row)
-                tokens = _usage_tokens(row)
-                if not slug or tokens is None:
-                    continue
-                base = _usage_base_slug(slug)
-                totals[base] = totals.get(base, 0.0) + tokens
-                date = str(row.get("date") or "")
-                if date:
-                    dates.append(date[:10])
-        except Exception as exc:
-            logger.info("model_selection or_usage supplement failed: %s", exc)
-        if not totals:
-            self.missing_reason = "or_usage_api_key_required" if key_absent else "or_usage_unavailable"
-            return {}
-        self.board_updated_at = max(dates) if dates else None
-        self.attribution = f"Source: OpenRouter (openrouter.ai/rankings), as of {self.board_updated_at or 'unknown'}"
-        return {
-            slug: SourceRecord(key=slug, name=slug, score=tokens, raw={"total_tokens": tokens})
-            for slug, tokens in sorted(totals.items())
-        }
 
 
 # --- MTEB fetchers ------------------------------------------------------------
@@ -1470,6 +1025,52 @@ class EqBench4Source(_BaseSource):
         return records
 
 
+def _parse_flores_csv(text: str) -> dict[str, SourceRecord]:
+    """speakleash FLORES leaderboard CSV: task rows, ``bleu``/``chrf`` metric
+    sub-rows (the metric row repeats the task only implicitly — an empty task
+    cell belongs to the previous task row), model scores as columns with
+    decimal commas. Score = mean chrF over the ``ogx_flores200-trans-*`` tasks
+    (FLORES' primary metric)."""
+    rows = list(csv.reader(io.StringIO(text)))
+    if len(rows) < 3 or len(rows[0]) < 3:
+        return {}
+    models = [m.strip() for m in rows[0][2:]]
+    sums: dict[str, list[float]] = {m: [] for m in models}
+    current_task = ""
+    for row in rows[2:]:
+        if len(row) < 3:
+            continue
+        task, metric = (row[0] or "").strip(), (row[1] or "").strip().lower()
+        if task:
+            current_task = task
+        if not current_task.startswith("ogx_flores200-trans") or metric != "chrf":
+            continue
+        for i, model in enumerate(models):
+            val = _float((row[2 + i] or "").replace(",", ".") if 2 + i < len(row) else None)
+            if val is not None:
+                sums[model].append(val)
+    records: dict[str, SourceRecord] = {}
+    for model, vals in sums.items():
+        if not vals:
+            continue
+        records[slugify(model)] = SourceRecord(
+            key=slugify(model), name=model, score=sum(vals) / len(vals), raw={"n_tasks": len(vals)}
+        )
+    return records
+
+
+class FloresSpeakleashSource(_BaseSource):
+    """FLORES-200 community leaderboard (HF space speakleash/leaderboard-flores,
+    ``results.csv`` in the space repo — research §2.1)."""
+
+    name = "flores_speakleash"
+    ttl_seconds = WEEK
+
+    def _fetch(self) -> dict[str, SourceRecord]:
+        text = _get_bytes(FLORES_CSV_URL).decode("utf-8", errors="replace")
+        return _parse_flores_csv(text)
+
+
 def _parse_manga_bench_table(html: str, score_col: int) -> dict[str, SourceRecord]:
     """MangaVQA project-site results table -> one board's scores.
 
@@ -1827,6 +1428,7 @@ def fetch_endpoint_stats(or_slug: str) -> dict[str, Any]:
 SOURCE_REGISTRY: dict[str, Source] = {
     "openrouter_models": OpenRouterModelsSource(),
     "artificial_analysis": ArtificialAnalysisSource(),
+    "livebench": LiveBenchSource(),
     "arena": ArenaSource(),
     "ugi": UGISource(),
     "mteb_classification": MtebClassificationSource(),
@@ -1837,11 +1439,6 @@ SOURCE_REGISTRY: dict[str, Source] = {
     "vals_index": ValsSource("vals_index", "vals_index"),
     "vals_medscribe": ValsSource("vals_medscribe", "medscribe"),
     "vals_cua_bench": ValsSource("vals_cua_bench", "cua_bench"),
-    # boards-v2 (2026-10-09): LegalBench proxy board — classification has no
-    # living specialized board (mteb_classification only joined embedding
-    # models); this is an explicitly-labeled proxy, not a chat-classification
-    # board.
-    "vals_legal_bench": ValsSource("vals_legal_bench", "legal_bench"),
     # meta-aggregator (markdown alternate, research §1)
     "benchlm": BenchLMSource(),
     # agentic (research §2.9)
@@ -1876,28 +1473,12 @@ SOURCE_REGISTRY: dict[str, Source] = {
         "overall_score_100",
     ),
     "eqbench4": EqBench4Source(),
-    # translation (research §2.1, boards-v2 2026-10-09): WMT24++ stays labeled
-    # self-reported; WMT25 General MT preliminary ranking is the annual
-    # closed-inclusive anchor. flores_speakleash was REMOVED (stale 9 months —
-    # space SLEEPING since 2026-01-13; research verdict "optional or drop").
-    "wmt24pp": LLMStatsSource("wmt24pp", "wmt24++"),
-    "wmt25_gmtr": Wmt25GmtrSource(),
-    # boards-v2 (2026-10-09): closed-inclusive embed/rerank boards, the
-    # LMArena agent arena, and OR real-world usage. Join names for these
-    # boards are versioned in board_aliases.py; unmapped rows are reported,
-    # never guessed.
-    "agentset_elo": AgentSetEmbedSource(),
-    "agentset_rerank": AgentSetRerankSource(),
-    "hindsight_reranker": HindsightSource("hindsight_reranker", "reranker", "reranker_id"),
-    "hindsight_embeddings": HindsightSource("hindsight_embeddings", "embeddings", "embedding_id"),
-    "arena_agent": ArenaAgentSource(),
-    # OR real-world usage (not a quality board): candidates() folds it into
-    # ModelCandidate.or_task_spend_share — quadrant tie-break ONLY. Primary
-    # feed needs OPENROUTER_API_KEY; the public frontend supplement is
-    # undocumented and fail-open. Absent both -> recorded missing.
-    "or_usage": OrUsageSource(),
+    # translation (research §2.1)
+    "flores_speakleash": FloresSpeakleashSource(),
     # translation/manga specialized boards (public, scan-only; 2026-10-08):
-    # Manga109-derived OCR + MangaVQA via the manga109 org project site.
+    # WMT24++ via the llm-stats mirror, Manga109-derived OCR + MangaVQA via
+    # the manga109 org project site.
+    "wmt24pp": LLMStatsSource("wmt24pp", "wmt24++"),
     "manga109_v2026": MangaBenchSource("manga109_v2026", score_col=1),  # MangaOCR Hmean %
     "mangavqa": MangaBenchSource("mangavqa", score_col=2),  # MangaVQA LLM score (/10)
     # in-house anchor sets (research §2.5/§2.8: self-run, not scraped boards)

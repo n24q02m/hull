@@ -26,6 +26,7 @@ from hull_core.model_selection.sources import (
     BridgeSource,
     EqBench4Source,
     EqBenchCsvSource,
+    FloresSpeakleashSource,
     GaiaSource,
     InHouseAnchorSource,
     LLMStatsSource,
@@ -38,6 +39,7 @@ from hull_core.model_selection.sources import (
     _parse_bfcl_csv,
     _parse_bridge_blob,
     _parse_benchlm_md,
+    _parse_flores_csv,
     _parse_llmstats_table,
     _parse_manga_bench_table,
     _parse_medhelm_group,
@@ -68,7 +70,7 @@ def test_every_profile_source_resolves_in_registry():
     """Zero silent skips: each TaskProfile source name has a registry entry."""
     missing = []
     for task_name, profile in TASKS.items():
-        for src in (*profile.specialized_sources, *profile.aggregate_sources, *profile.usage_sources):
+        for src in (*profile.specialized_sources, *profile.aggregate_sources):
             if src not in SOURCE_REGISTRY:
                 missing.append(f"{task_name}:{src}")
     assert not missing, missing
@@ -258,6 +260,20 @@ def test_eqbench4_fixture_parse():
     assert rec.score == 1385.0
     assert rec.score_ci == pytest.approx((1412.0 - 1362.4) / 2)
     assert rec.board_version == "2026-07-26"
+
+
+# --- FLORES (speakleash) ---------------------------------------------------------
+
+
+def test_flores_fixture_parse():
+    text = _fixture("flores_results.csv").decode("utf-8")
+    recs = _parse_flores_csv(text)
+    assert recs, "expected chrf means"
+    first = next(iter(recs.values()))
+    assert first.raw["n_tasks"] >= 1
+    assert first.score is not None and 0 < first.score <= 100  # chrF scale
+    with patch("hull_core.model_selection.sources.httpx.get", return_value=_resp(content=text.encode())):
+        assert set(FloresSpeakleashSource().fetch()) == set(recs)
 
 
 # --- BRIDGE ---------------------------------------------------------------------

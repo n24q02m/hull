@@ -136,18 +136,9 @@ def _record_status(
     row_count: int = 0,
     reason: str | None = None,
     fetched_at: str | None = None,
-    board_updated_at: str | None = None,
-    attribution: str | None = None,
 ) -> None:
     if status_out is not None:
-        status_out[name] = SourceStatus(
-            status,
-            fetched_at=fetched_at,
-            row_count=row_count,
-            reason=reason,
-            board_updated_at=board_updated_at,
-            attribution=attribution,
-        ).to_dict()
+        status_out[name] = SourceStatus(status, fetched_at=fetched_at, row_count=row_count, reason=reason).to_dict()
 
 
 def _fetch_source(
@@ -167,19 +158,12 @@ def _fetch_source(
     if cache is not None and not refresh:
         cached = cache.get(source.name, source.ttl_seconds)
         if cached is not None:
-            # boards-v2: same-process source singletons keep the metadata a
-            # fresh fetch captured earlier in this run, so a cache hit for a
-            # later profile still publishes board_updated_at/attribution; a
-            # cross-run cache hit (fresh process, no fetch yet) honestly
-            # records None - a stale cache cannot re-derive them.
             _record_status(
                 status_out,
                 source.name,
                 "ok",
                 row_count=len(cached),
                 fetched_at=_fetched_iso(cache.fetched_at(source.name)),
-                board_updated_at=getattr(source, "board_updated_at", None),
-                attribution=getattr(source, "attribution", None),
             )
             return {k: SourceRecord.from_dict(v) for k, v in cached.items()}
     try:
@@ -190,18 +174,7 @@ def _fetch_source(
     if records:
         if cache is not None:
             cache.set(source.name, {k: r.to_dict() for k, r in records.items()})
-        # boards-v2: sources may capture board_updated_at (API/commit metadata)
-        # and attribution (e.g. CC BY 4.0) at fetch time; recorded only on a
-        # fresh fetch — a stale-cache hit cannot re-derive them.
-        _record_status(
-            status_out,
-            source.name,
-            "ok",
-            row_count=len(records),
-            fetched_at=_now_iso(),
-            board_updated_at=getattr(source, "board_updated_at", None),
-            attribution=getattr(source, "attribution", None),
-        )
+        _record_status(status_out, source.name, "ok", row_count=len(records), fetched_at=_now_iso())
         return records
     reason = getattr(source, "missing_reason", None) or "empty_fetch"
     if cache is not None:
@@ -273,16 +246,6 @@ def candidates(
             continue  # source missing from an override map — fail-open
         source_records[name] = _fetch_source(source, use_cache, refresh, status_out)
 
-    # boards-v2 usage feeds (2026-10-09): fetched OUTSIDE the board map —
-    # they are not quality boards and must never enter scores/evidence.
-    usage_records: dict[str, SourceRecord] = {}
-    for name in profile.usage_sources:
-        source = registry.get(name)
-        if source is None:
-            continue
-        for key, rec in _fetch_source(source, use_cache, refresh, status_out).items():
-            usage_records[key] = rec
-
     cands = join_sources(or_records, source_records, task=profile, status_out=status_out)
     version_guard(cands)
     minmax_normalize(cands)
@@ -310,22 +273,6 @@ def candidates(
         logger.info("model_selection: %d $0-catalog rows treated as unpriced", unpriced_zero)
     cands = [c for c in cands if c not in free]
     cands = [c for c in cands if passes_constraints(c, profile.constraints)]
-
-    # OR usage -> or_task_spend_share (boards-v2 2026-10-09): share of this
-    # pool's OR spend (total tokens over the trailing window), used ONLY as
-    # the quadrant tie-break; absence stays None (neutral). Never a board or
-    # quality axis.
-    if usage_records:
-        pool_tokens: dict[int, float] = {}
-        for cand in cands:
-            rec = usage_records.get((cand.or_slug or "").split(":", 1)[0])
-            if rec is not None and rec.score is not None:
-                pool_tokens[id(cand)] = rec.score
-        total = sum(pool_tokens.values())
-        if total > 0:
-            for cand in cands:
-                if id(cand) in pool_tokens:
-                    cand.or_task_spend_share = pool_tokens[id(cand)] / total
 
     # Rank-aggregation picker (2026-10-07 directive), coverage-neutral
     # (2026-10-08 fix): board_rank orders by MEAN per-board normalized score

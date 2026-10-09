@@ -197,7 +197,7 @@ TASKS: dict[str, TaskProfile] = {
         # decision board stay weak_evidence until measured (watchlist:
         # JudgeArena, CodeJudgeBench). Weight law unchanged: specialized
         # quality_weight 0.7; OR usage stays a tie-break only.
-        specialized_sources=("jevals", "jevbench", "judgemark_v4"),
+        specialized_sources=("jevals", "jevbench", "jev_decision_index", "judgemark_v4"),
         aggregate_sources=(),
         usage_sources=("or_usage",),
         constraints=Constraints(),

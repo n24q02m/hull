@@ -28,6 +28,7 @@ from hull_core.model_selection.normalize import _alias_index, join_sources
 from hull_core.model_selection.sources import (
     SOURCE_REGISTRY,
     EqBenchCsvSource,
+    JevDecisionIndexSource,
     JevbenchSource,
     JevalsSource,
     OpenRouterModelsSource,
@@ -295,6 +296,61 @@ def test_jevbench_joins_api_routes_only_and_reports_selfhosted():
     assert any("Plumb-4B" in n for n in unmatched)
 
 
+# --- jev decision index board -------------------------------------------------------
+
+
+def test_jev_decision_index_parse(monkeypatch):
+    """Fixture is row-trimmed from the live 114-model response (2026-10-09):
+    the 4 OR-servable repros + 2 open-only repros, heavy per-benchmark result
+    arrays dropped (parser reads engine/name/scores only)."""
+    src = JevDecisionIndexSource()
+    monkeypatch.setattr(
+        "hull_core.model_selection.sources._get_json",
+        lambda url, **_kw: _json_fixture("jev_decision_index.json"),
+    )
+    records = src.fetch()
+    assert len(records) == 6
+    clef = records["clef"]
+    assert clef.score is not None and 0.0 < clef.score < 100.0
+    assert clef.name == "Cloudflare clef"
+    assert clef.board_version == "2026-10-07"
+    assert src.board_updated_at == "2026-10-07T18:25:58Z"
+    assert src.attribution and "jev-decision-index" in src.attribution
+    # honest attribution: no license asserted (none declared in the space)
+    assert "no license declared" in src.attribution
+
+
+def test_jev_decision_index_joins_survivors_reports_open_repros():
+    """Only the OR-servable open repros map (versioned alias table); the
+    open-only repros report unmatched — a thin board post-filter BY DESIGN."""
+    data = _json_fixture("jev_decision_index.json")
+    records = {
+        slugify(row["engine"]): SourceRecord(
+            key=slugify(row["engine"]),
+            name=row["name"],
+            score=row["scores"]["balanced_skill"],
+            raw=dict(row),
+        )
+        for row in data["models"]
+    }
+    or_rows = {
+        "cloudflare/clef": _or_rec("cloudflare/clef"),
+        "cloudflare/clef-flash": _or_rec("cloudflare/clef-flash"),
+        "jaredpalmer/kev-4b": _or_rec("jaredpalmer/kev-4b"),
+        "togethercomputer/tev1-4b-experimental": _or_rec("togethercomputer/tev1-4b-experimental"),
+    }
+    status: dict = {}
+    cands = join_sources(or_rows, {"jev_decision_index": records}, status_out=status)
+    by_slug = {c.or_slug: c for c in cands}
+    assert by_slug["cloudflare/clef"].scores["jev_decision_index"] == pytest.approx(records["clef"].score)
+    assert by_slug["togethercomputer/tev1-4b-experimental"].scores["jev_decision_index"] == pytest.approx(
+        records["tev1-4b"].score
+    )
+    unmatched = status["jev_decision_index"]["unmatched_names"]
+    # the 2 open-only repros report; nothing guessed onto OR routes
+    assert len(unmatched) == 2
+
+
 # --- aliases: jevals explicit entry + tilde alias_target rule ---------------------
 
 
@@ -378,7 +434,7 @@ def test_tilde_alias_target_resolves_to_canonical():
 
 def test_decision_profile_registered_and_sources_resolve():
     profile = TASKS["decision"]
-    assert profile.specialized_sources == ("jevals", "jevbench", "judgemark_v4")
+    assert profile.specialized_sources == ("jevals", "jevbench", "jev_decision_index", "judgemark_v4")
     assert profile.usage_sources == ("or_usage",)
     for name in profile.specialized_sources:
         assert name in SOURCE_REGISTRY, name

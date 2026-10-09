@@ -91,6 +91,13 @@ JEVALS_BENCHMARKS = ("banking77", "helpsteer2", "pubmedqa")
 # only ``api_flag == true`` systems are joinable (hosted routes) — self-hosted
 # open-weight systems have no OR route and report unmatched, never mapped.
 JEVBENCH_URL = "https://benchmarkheaven.com/api/jevbench/v1.6.1"
+# Jev Decision Index (profile `decision`, 2026-10-09, user-named source): HF
+# Space multimodalart/jev-decision-index (static SDK, HF-staff maintainer,
+# lastModified 2026-10-07) — the reference board for open-weight Jev repros.
+# Population is mostly NOT on OR: after the OR-servable hard filter only the
+# decisions-segment repros survive (clef, clef-flash, kev-4b, tev1-4b) — the
+# rest report unmatched. Thin post-filter by design; that is the honest state.
+JEV_DECISION_INDEX_URL = "https://huggingface.co/spaces/multimodalart/jev-decision-index/raw/main/data/index.json"
 # MangaVQA/MangaOCR project site (manga109 org GitHub Pages; the README's
 # atsumiyai.github.io link 404s — manga109.github.io is the live surface,
 # verified 2026-10-08).
@@ -1357,6 +1364,61 @@ class JevbenchSource(_BaseSource):
         return records
 
 
+class JevDecisionIndexSource(_BaseSource):
+    """Jev Decision Index (profile ``decision``, 2026-10-09, user-named): the
+    versioned JSON of HF Space ``multimodalart/jev-decision-index`` — the
+    reference board for open-weight Jev repros (114 models).
+
+    Score = ``scores.balanced_skill``: the board's 0-100 skill composite over
+    the balanced (public + held-out) item set, i.e. accuracy with calibration
+    gaps penalized. ``balanced_raw`` is the unpenalized twin (higher);
+    ``breadth_skill``/``public_skill`` are subset views. ``board_updated_at``
+    = the file's ``generated_utc``. JOIN CAVEAT: the population is mostly
+    open repros with no OR route — only the decisions-segment repros (clef,
+    clef-flash, kev-4b, tev1-4b; versioned alias table) survive the
+    OR-servable filter, everything else reports ``unmatched_names`` — a thin
+    board post-filter, by design. No license is declared in the space repo
+    (LICENSE file 404, card license unset — probed 2026-10-09): the
+    attribution line records space + generation date WITHOUT a license claim.
+    """
+
+    ttl_seconds = WEEK
+    name = "jev_decision_index"
+
+    def _fetch(self) -> dict[str, SourceRecord]:
+        data = _get_json(JEV_DECISION_INDEX_URL)
+        if not isinstance(data, dict):
+            self.missing_reason = "jev_decision_index_unexpected_shape"
+            return {}
+        records: dict[str, SourceRecord] = {}
+        for row in data.get("models") or []:
+            if not isinstance(row, dict):
+                continue
+            engine = str(row.get("engine") or "").strip()
+            scores = row.get("scores") if isinstance(row.get("scores"), dict) else {}
+            score = _float(scores.get("balanced_skill"))
+            if not engine or score is None:
+                continue
+            key = slugify(engine)
+            records[key] = SourceRecord(
+                key=key,
+                name=str(row.get("name") or engine),
+                score=score,
+                board_version=str(data.get("generated_utc") or "")[:10] or None,
+                raw=dict(row),
+            )
+        if not records:
+            self.missing_reason = "jev_decision_index_empty_models"
+            return {}
+        generated = str(data.get("generated_utc") or "")
+        self.board_updated_at = generated or None
+        self.attribution = (
+            "Source: Jev Decision Index (HF Space multimodalart/jev-decision-index),"
+            f" generated {generated or 'unknown'}; no license declared in the space repo (probed 2026-10-09)"
+        )
+        return records
+
+
 def _parse_benchlm_md(md: str) -> dict[str, SourceRecord]:
     """benchlm.ai markdown alternate: the ``## Overall rankings`` pipe table."""
     section = md.split("## Overall rankings", 1)
@@ -2125,6 +2187,10 @@ SOURCE_REGISTRY: dict[str, Source] = {
     # native-decision models with rows on BOTH jevals and jevbench now reach
     # strong evidence under the >=2-boards rule (Mercury Decide, Jev 1.13).
     "jevbench": JevbenchSource(),
+    # Jev Decision Index (2026-10-09, user-named): reference board for
+    # open-weight Jev repros; thin after the OR-servable filter (4 survivors)
+    # by design — still a live independent signal for those rows.
+    "jev_decision_index": JevDecisionIndexSource(),
     "judgemark_v4": EqBenchCsvSource(
         "judgemark_v4",
         "https://eqbench.com/judgemark-v4.js",

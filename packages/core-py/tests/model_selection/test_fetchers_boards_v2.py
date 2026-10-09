@@ -571,3 +571,57 @@ def test_registry_has_no_dead_v2_sources():
         "or_usage",
     ):
         assert name in SOURCE_REGISTRY, name
+
+
+def test_fetch_source_cache_hit_keeps_attribution(tmp_path):
+    # boards-v2: the attribution/board_updated_at a fresh fetch captured must
+    # survive same-process cache hits by later profiles sharing the source
+    # (11 profiles share or_usage; the CC BY 4.0 line must reach the snapshot).
+    from hull_core.model_selection import _fetch_source
+    from hull_core.model_selection.cache import FileCache
+
+    class _MetaStub:
+        name = "meta_board"
+        ttl_seconds = 3600
+        attribution = "Source: Example (example.test), as of 2026-10-09"
+        board_updated_at = "2026-10-09"
+
+        def fetch(self):
+            return {"m": SourceRecord(key="m", score=1.0)}
+
+    cache = FileCache(tmp_path / "cache")
+    src = _MetaStub()
+
+    status1: dict = {}
+    assert len(_fetch_source(src, cache, refresh=True, status_out=status1)) == 1
+    assert status1["meta_board"]["attribution"] == src.attribution
+
+    status2: dict = {}
+    assert len(_fetch_source(src, cache, refresh=False, status_out=status2)) == 1  # cache hit
+    assert status2["meta_board"]["status"] == "ok"
+    assert status2["meta_board"]["attribution"] == src.attribution
+    assert status2["meta_board"]["board_updated_at"] == src.board_updated_at
+
+
+def test_fetch_source_cross_run_cache_hit_records_null_attribution(tmp_path):
+    # a fresh process that never fetched honestly records None: a stale cache
+    # cannot re-derive board metadata.
+    from hull_core.model_selection import _fetch_source
+    from hull_core.model_selection.cache import FileCache
+
+    cache = FileCache(tmp_path / "cache")
+    cache.set("meta_board", {"m": SourceRecord(key="m", score=1.0).to_dict()})
+
+    class _ColdStub:
+        name = "meta_board"
+        ttl_seconds = 3600
+
+        def fetch(self):  # never called on a cache hit
+            raise AssertionError("fetch must not run on cache hit")
+
+    status: dict = {}
+    _fetch_source(_ColdStub(), cache, refresh=False, status_out=status)
+    assert status["meta_board"]["status"] == "ok"
+    # to_dict omits unset fields: absence is the honest "cannot re-derive".
+    assert "attribution" not in status["meta_board"]
+    assert "board_updated_at" not in status["meta_board"]

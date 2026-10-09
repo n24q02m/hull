@@ -119,6 +119,17 @@ BOARD_ALIASES: dict[str, dict[str, str]] = {
         "jev-1-13-0-typesafe-ai": "typesafe/jev-1.13",
         "mercury-decide-inception-system-one-decisions-api-served-free-on-openrouter-as-inception-mercury-decide-free": "inception/mercury-decide",
     },
+    # Jev Decision Index (2026-10-09, user-named): keys are slugified `engine`
+    # fields. Only the open repros that also exist as OR decisions-segment
+    # routes are mapped (verified against the live catalog 2026-10-09); the
+    # ~110 open-only repros report unmatched — a thin board post-filter BY
+    # DESIGN, never guessed onto chat routes.
+    "jev_decision_index": {
+        "clef": "cloudflare/clef",
+        "clef-flash": "cloudflare/clef-flash",
+        "kev-4b-r10": "jaredpalmer/kev-4b",
+        "tev1-4b": "togethercomputer/tev1-4b-experimental",
+    },
 }
 
 # Unmatched-name reports are capped so a fully renamed board cannot bloat the

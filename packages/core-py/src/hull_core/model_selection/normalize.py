@@ -60,6 +60,7 @@ class ModelCandidate:
 def _alias_index(or_records: dict[str, SourceRecord]) -> dict[str, str]:
     """Alias -> or_slug index: id, canonical_slug, hugging_face_id, slug(name)."""
     index: dict[str, str] = {}
+    tilde: list[tuple[str, str]] = []
     for slug, rec in or_records.items():
         row = rec.raw
         keys = {slug, slugify(slug)}
@@ -76,6 +77,23 @@ def _alias_index(or_records: dict[str, SourceRecord]) -> dict[str, str]:
             keys.add(slugify(name))
         for k in keys:
             index.setdefault(k, slug)
+        # Tilde-prefix alias routes (profile decision, 2026-10-09): OR lists
+        # redirect ids like "~typesafe/jev-latest" whose ``alias_target.slug``
+        # names the concrete route they resolve to. A second pass maps the
+        # alias id (and its target slug) onto the target catalog entry — only
+        # when the target really is in the catalog, never guessed.
+        if str(slug).startswith("~") and isinstance(row.get("alias_target"), dict):
+            target = str(row["alias_target"].get("slug") or "")
+            if target:
+                tilde.append((slug, target))
+    for tilde_slug, target in tilde:
+        if target in or_records:
+            # a tilde id is a pure redirect — it must resolve to the concrete
+            # target route, never to itself
+            index[tilde_slug] = target
+            index[slugify(tilde_slug)] = target
+            index.setdefault(target, target)
+            index.setdefault(slugify(target), target)
     return index
 
 

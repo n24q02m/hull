@@ -192,16 +192,12 @@ def _fetch_source(
             cache.set(source.name, {k: r.to_dict() for k, r in records.items()})
         # boards-v2: sources may capture board_updated_at (API/commit metadata)
         # and attribution (e.g. CC BY 4.0) at fetch time; recorded only on a
-        # fresh fetch — a stale-cache hit cannot re-derive them. A source may
-        # also flag ``degraded_reason`` while still serving rows (e.g. jevals
-        # static anchor): the board contributes evidence but is no longer live.
-        degraded = getattr(source, "degraded_reason", None)
+        # fresh fetch — a stale-cache hit cannot re-derive them.
         _record_status(
             status_out,
             source.name,
-            "degraded" if degraded else "ok",
+            "ok",
             row_count=len(records),
-            reason=degraded,
             fetched_at=_now_iso(),
             board_updated_at=getattr(source, "board_updated_at", None),
             attribution=getattr(source, "attribution", None),
@@ -269,26 +265,6 @@ def candidates(
             profile.name,
         )
         return []
-
-    # Modality gate (profile decision, 2026-10-09): rows that ONLY exist in
-    # OR's structured-decisions segment enter the candidate pool of the
-    # ``decision`` profile alone. Chat/embed/rerank profiles never see them,
-    # even if a board name would match. Records missing the segment tag
-    # (older cached rows) are treated as text and never gated.
-    if profile.name != "decision":
-        gated: dict[str, SourceRecord] = {}
-        for slug, rec in or_records.items():
-            segs = rec.raw.get("_or_segments")
-            if segs == ["decisions"]:
-                continue
-            gated[slug] = rec
-        if len(gated) != len(or_records):
-            logger.info(
-                "model_selection modality gate: dropped %d decisions-only catalog rows for task=%s",
-                len(or_records) - len(gated),
-                profile.name,
-            )
-        or_records = gated
 
     source_records: dict[str, dict[str, SourceRecord]] = {}
     for name in (*profile.specialized_sources, *profile.aggregate_sources):

@@ -45,11 +45,6 @@ OR_MODELS_URL = "https://openrouter.ai/api/v1/models"
 # same endpoint and must be fetched explicitly.
 OR_MODELS_EMBED_URL = OR_MODELS_URL + "?output_modalities=embeddings"
 OR_MODELS_RERANK_URL = OR_MODELS_URL + "?output_modalities=rerank"
-# Structured-decision segment (profile `decision`, 2026-10-09): System One
-# endpoints that return a typed choice/score/yes-no instead of chat text. Same
-# row shape as the other segments; rows are gated to the decision profile
-# (see ``candidates``) so they never leak into chat pools.
-OR_MODELS_DECISIONS_URL = OR_MODELS_URL + "?output_modalities=decisions"
 OR_ENDPOINTS_URL = "https://openrouter.ai/api/v1/models/{slug}/endpoints"
 OR_BENCH_URL = "https://openrouter.ai/benchmarks/{bench}"
 # Free-tier AA list endpoint: a Free-plan key gets 403 "Language models list
@@ -73,24 +68,6 @@ BENCHLM_MD_URL = "https://benchlm.ai/md/index.md"
 LLMSTATS_BENCH_URL = "https://llm-stats.com/benchmarks/{bench}"
 BFCL_CSV_URL = "https://gorilla.cs.berkeley.edu/data_overall.csv"
 EQBENCH4_DATA_URL = "https://eqbench.com/eqbench4/eqbench4_data.js"
-JEVALS_HOME_URL = "https://jevals.com/"
-# Release board: GET /data/releases/<release_id>/board.json (CC-BY-4.0). The
-# catalog root /data/ serves the SPA shell (no JSON index), so the newest
-# release_id is resolved from the server-rendered home page, which embeds
-# `release_id:"YYYY-MM-DD"` in its payload (mechanism verified live 2026-10-09;
-# /data/releases/latest/board.json is 404 — only dated releases exist).
-JEVALS_BOARD_URL = "https://jevals.com/data/releases/{release_id}/board.json"
-JEVALS_RELEASE_RE = re.compile(r'release_id\s*:\s*["\'](\d{4}-\d{2}-\d{2})["\']')
-# Decision profile staleness guard (ticket 2026-10-09): jevals ships dated
-# frozen releases; if the resolved release_id has not moved for 90 days the
-# board is no longer "live" evidence and reports degraded (static anchor).
-JEVALS_STATIC_ANCHOR_DAYS = 90
-JEVALS_BENCHMARKS = ("banking77", "helpsteer2", "pubmedqa")
-# JevBench (profile `decision`, 2026-10-09): independent second decision board
-# (board #2 for the >=2-independent-boards strong rule). Pure JSON, one call;
-# only ``api_flag == true`` systems are joinable (hosted routes) — self-hosted
-# open-weight systems have no OR route and report unmatched, never mapped.
-JEVBENCH_URL = "https://benchmarkheaven.com/api/jevbench/v1.6.1"
 # MangaVQA/MangaOCR project site (manga109 org GitHub Pages; the README's
 # atsumiyai.github.io link 404s — manga109.github.io is the live surface,
 # verified 2026-10-08).
@@ -367,18 +344,13 @@ class UnimplementedSource(_BaseSource):
 
 
 class OpenRouterModelsSource(_BaseSource):
-    """Mandatory backbone: GET /api/v1/models (+ embeddings/rerank/decisions
-    segments).
+    """Mandatory backbone: GET /api/v1/models (+ embeddings/rerank segments).
 
-    The base response lists only text chat models; embedding, rerank and
-    structured-decision candidates live in dedicated ``?output_modalities=``
-    segments of the same endpoint (2026-10-08 directive — embed/rerank picks
-    must be OR-servable; decisions segment added for profile ``decision``,
-    2026-10-09). All four segments are fetched and merged by id; a failing
-    category segment degrades to the remaining rows (never kills the text
-    backbone). Each merged record carries ``raw["_or_segments"]`` — the list
-    of segments the id appeared in — which ``candidates()`` uses as the
-    modality gate (decisions-only rows never leak into chat pools).
+    The base response lists only text chat models; embedding and rerank
+    candidates live in dedicated `?output_modalities=` segments of the same
+    endpoint (2026-10-08 directive — embed/rerank picks must be OR-servable).
+    All three segments are fetched and merged by id; a failing category
+    segment degrades to the remaining rows (never kills the text backbone).
 
     Each record keeps the raw JSON row in ``raw`` — pricing (USD/token,
     including tiered ``overrides`` by ``min_prompt_tokens``),
@@ -391,33 +363,20 @@ class OpenRouterModelsSource(_BaseSource):
     ttl_seconds = DAY
 
     def _fetch(self) -> dict[str, SourceRecord]:
-        segments = (
-            (OR_MODELS_URL, "text"),
-            (OR_MODELS_EMBED_URL, "embeddings"),
-            (OR_MODELS_RERANK_URL, "rerank"),
-            (OR_MODELS_DECISIONS_URL, "decisions"),
-        )
-        rows: list[tuple[dict, str]] = []
-        for url, segment in segments:
+        rows: list[dict] = []
+        for url in (OR_MODELS_URL, OR_MODELS_EMBED_URL, OR_MODELS_RERANK_URL):
             try:
                 data = _get_json(url)
             except Exception as exc:
                 logger.warning("model_selection: OR catalog segment failed url=%s error=%s", url, exc)
                 continue
-            segment_rows = data.get("data") if isinstance(data, dict) else data
-            rows.extend((row, segment) for row in segment_rows or [] if isinstance(row, dict))
+            segment = data.get("data") if isinstance(data, dict) else data
+            rows.extend(row for row in segment or [] if isinstance(row, dict))
         records: dict[str, SourceRecord] = {}
-        for row, segment in rows:
+        for row in rows:
             slug = row.get("id")
             if not slug:
                 continue
-            existing = records.get(slug)
-            if existing is not None:
-                segs = existing.raw.setdefault("_or_segments", [])
-                if segment not in segs:
-                    segs.append(segment)
-                continue
-            row["_or_segments"] = [segment]
             records[slug] = SourceRecord(key=slug, name=row.get("name") or slug, raw=row)
         return records
 
@@ -1193,170 +1152,6 @@ class ValsSource(_BaseSource):
         return _parse_vals_table(html)
 
 
-def _parse_jevals_board(data: dict[str, Any]) -> dict[str, SourceRecord]:
-    """jevals board.json -> one record per model, mean min-max decision score.
-
-    Per benchmark (banking77/helpsteer2/pubmedqa — one per primitive
-    choice/score/noul), the per-row ``decision_score`` (0-100, higher is
-    better; Brier-based, published with bootstrap CIs) is min-max normalized
-    across the listed models, then a model's score is the MEAN of its
-    normalized per-benchmark scores. ``interface == "baseline"`` rows (the
-    label prior, model_id null) are excluded — they are not models.
-    """
-    bench_rows: dict[str, list[dict]] = {b: [] for b in JEVALS_BENCHMARKS}
-    primitive_of: dict[str, str] = {}
-    for bench in data.get("benchmarks") or []:
-        if isinstance(bench, dict) and bench.get("id") in bench_rows:
-            primitive_of[str(bench["primitive"])] = str(bench["id"])
-    for row in data.get("rows") or []:
-        if not isinstance(row, dict):
-            continue
-        if row.get("interface") == "baseline" or row.get("model_id") is None:
-            continue  # label-prior baseline, not a model
-        bench_id = primitive_of.get(str(row.get("primitive")))
-        if bench_id:
-            bench_rows[bench_id].append(row)
-    # min-max per benchmark; a flat benchmark (all scores equal) is neutral 50
-    normalized: dict[str, dict[str, float]] = {b: {} for b in JEVALS_BENCHMARKS}
-    for bench_id, rows in bench_rows.items():
-        scores = [r.get("decision_score") for r in rows]
-        values = [s for s in scores if isinstance(s, (int, float))]
-        if not values:
-            continue
-        lo, hi = min(values), max(values)
-        for row in rows:
-            s = row.get("decision_score")
-            if not isinstance(s, (int, float)):
-                continue
-            normalized[bench_id][str(row["model_id"])] = 50.0 if hi <= lo else (s - lo) / (hi - lo) * 100.0
-    # per-model aggregation over the benchmarks the model was run on
-    per_model: dict[str, dict] = {}
-    for row in data.get("rows") or []:
-        if isinstance(row, dict) and row.get("model_id") is not None:
-            per_model[str(row["model_id"])] = row
-    records: dict[str, SourceRecord] = {}
-    for model_id, row in per_model.items():
-        parts = [normalized[b][model_id] for b in JEVALS_BENCHMARKS if model_id in normalized[b]]
-        if not parts:
-            continue
-        mean = sum(parts) / len(parts)
-        lo, hi = _float(row.get("ci_low")), _float(row.get("ci_high"))
-        records[slugify(model_id)] = SourceRecord(
-            key=slugify(model_id),
-            name=str(row.get("display_name") or model_id),
-            score=mean,
-            score_ci=(hi - lo) / 2 if lo is not None and hi is not None else None,
-            board_version=str(data.get("release_id") or "") or None,
-            raw=dict(row),
-        )
-    return records
-
-
-class JevalsSource(_BaseSource):
-    """jevals.com decision board (profile ``decision``, 2026-10-09).
-
-    Frozen dated releases: GET ``/data/releases/<release_id>/board.json``
-    (CC-BY-4.0). The SPA root serves no JSON index, so the newest release_id
-    is resolved from the server-rendered home page payload
-    (``release_id:"YYYY-MM-DD"``, verified live 2026-10-09); if that
-    resolution fails the fetch is empty (fail-open) — never guessed.
-
-    Staleness guard: when the resolved release has not changed for
-    ``JEVALS_STATIC_ANCHOR_DAYS`` days, rows are still served but the source
-    reports ``degraded`` (reason ``static_anchor``) — the board is then a
-    frozen anchor, not live evidence. ``board_version`` is the release_id,
-    ``board_updated_at`` the board's ``as_of``, and the CC-BY-4.0 citation
-    from board.json is recorded verbatim as ``attribution``.
-    """
-
-    ttl_seconds = WEEK
-    name = "jevals"
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.degraded_reason: str | None = None
-
-    def _fetch(self) -> dict[str, SourceRecord]:
-        self.degraded_reason = None
-        home = _get_bytes(JEVALS_HOME_URL).decode("utf-8", errors="replace")
-        m = JEVALS_RELEASE_RE.search(home)
-        if not m:
-            self.missing_reason = "jevals_release_unresolved"
-            return {}
-        release_id = m.group(1)
-        data = _get_json(JEVALS_BOARD_URL.format(release_id=release_id))
-        if not isinstance(data, dict):
-            self.missing_reason = "jevals_board_unexpected_shape"
-            return {}
-        as_of = str(data.get("as_of") or release_id)
-        self.board_updated_at = as_of
-        citation = str(data.get("citation") or "")
-        if citation:
-            self.attribution = f"Source: {citation}"
-        try:
-            age_days = (datetime.now(UTC).date() - datetime.fromisoformat(as_of).date()).days
-        except ValueError:
-            age_days = 0
-        if age_days > JEVALS_STATIC_ANCHOR_DAYS:
-            self.degraded_reason = (
-                f"static_anchor: release {release_id} unchanged for {age_days} days (> {JEVALS_STATIC_ANCHOR_DAYS})"
-            )
-        return _parse_jevals_board(data)
-
-
-class JevbenchSource(_BaseSource):
-    """JevBench decision board (profile ``decision``, 2026-10-09) — the
-    independent second decision-domain board that lets native-decision models
-    reach strong evidence (>= 2 boards) alongside jevals.
-
-    One JSON call; ``systems`` rows carry ``jevbench_score`` (the board's
-    composite, 0-100) with deep per-primitive calibration metrics in
-    ``calibration.parts``. ALL systems are parsed as records; joinability is
-    restricted by the versioned alias table to ``api_flag == true`` hosted
-    routes only (two mapped today: Jev 1.13.0 -> typesafe/jev-1.13, Mercury
-    Decide -> inception/mercury-decide). Self-hosted open-weight systems
-    (Gemma/Qwen merges without an OR route) report ``unmatched_names`` —
-    never mapped. ``board_version`` = revision, ``board_updated_at`` =
-    ``v16.release``.
-    """
-
-    ttl_seconds = WEEK
-    name = "jevbench"
-
-    def _fetch(self) -> dict[str, SourceRecord]:
-        data = _get_json(JEVBENCH_URL)
-        if not isinstance(data, dict):
-            self.missing_reason = "jevbench_unexpected_shape"
-            return {}
-        records: dict[str, SourceRecord] = {}
-        for row in data.get("systems") or []:
-            if not isinstance(row, dict):
-                continue
-            name = str(row.get("display") or "").strip()
-            score = _float(row.get("jevbench_score"))
-            if not name or score is None:
-                continue
-            key = slugify(name)
-            records[key] = SourceRecord(
-                key=key,
-                name=name,
-                score=score,
-                board_version=str(data.get("revision") or "") or None,
-                raw=dict(row),
-            )
-        if not records:
-            self.missing_reason = "jevbench_empty_systems"
-            return {}
-        v16 = data.get("v16") if isinstance(data.get("v16"), dict) else {}
-        release = str(v16.get("release") or "")
-        self.board_updated_at = release or None
-        revision = str(data.get("revision") or "")
-        self.attribution = (
-            f"Source: JevBench (benchmarkheaven.com), revision {revision}, release {release or 'unknown'}"
-        )
-        return records
-
-
 def _parse_benchlm_md(md: str) -> dict[str, SourceRecord]:
     """benchlm.ai markdown alternate: the ``## Overall rankings`` pipe table."""
     section = md.split("## Overall rankings", 1)
@@ -1623,21 +1418,12 @@ class EqBenchCsvSource(_BaseSource):
 
     ttl_seconds = WEEK
 
-    def __init__(
-        self,
-        name: str,
-        js_url: str,
-        var_name: str,
-        score_field: str,
-        *,
-        name_cols: tuple[str, ...] = ("model_name",),
-    ) -> None:
+    def __init__(self, name: str, js_url: str, var_name: str, score_field: str) -> None:
         super().__init__()
         self.name = name
         self.js_url = js_url
         self.var_name = var_name
         self.score_field = score_field
-        self.name_cols = name_cols
 
     def _fetch(self) -> dict[str, SourceRecord]:
         js = _get_bytes(self.js_url).decode("utf-8", errors="replace")
@@ -1646,7 +1432,7 @@ class EqBenchCsvSource(_BaseSource):
             return {}
         # the template literal opens with blank lines (and may carry CRLF)
         # before the CSV header — strip before handing to the CSV parser
-        return _parse_csv_records(m.group(1).strip(), name_cols=self.name_cols, score_cols=(self.score_field,))
+        return _parse_csv_records(m.group(1).strip(), name_cols=("model_name",), score_cols=(self.score_field,))
 
 
 class EqBench4Source(_BaseSource):
@@ -2116,20 +1902,4 @@ SOURCE_REGISTRY: dict[str, Source] = {
     "mangavqa": MangaBenchSource("mangavqa", score_col=2),  # MangaVQA LLM score (/10)
     # in-house anchor sets (research §2.5/§2.8: self-run, not scraped boards)
     "aiora_triage_eval": InHouseAnchorSource("aiora_triage_eval"),
-    # decision profile (2026-10-09): jevals decision board (CC-BY-4.0, frozen
-    # dated releases; join names versioned in board_aliases) + eqbench
-    # Judgemark V4 — a creative-writing JUDGING domain proxy that may only
-    # corroborate, never single-handedly rank a decision model (see TASKS).
-    "jevals": JevalsSource(),
-    # JevBench (2026-10-09): the independent second decision board —
-    # native-decision models with rows on BOTH jevals and jevbench now reach
-    # strong evidence under the >=2-boards rule (Mercury Decide, Jev 1.13).
-    "jevbench": JevbenchSource(),
-    "judgemark_v4": EqBenchCsvSource(
-        "judgemark_v4",
-        "https://eqbench.com/judgemark-v4.js",
-        "leaderboardDataJudgemarkV4",
-        "score",
-        name_cols=("model",),
-    ),
 }

@@ -167,12 +167,19 @@ def _fetch_source(
     if cache is not None and not refresh:
         cached = cache.get(source.name, source.ttl_seconds)
         if cached is not None:
+            # boards-v2: same-process source singletons keep the metadata a
+            # fresh fetch captured earlier in this run, so a cache hit for a
+            # later profile still publishes board_updated_at/attribution; a
+            # cross-run cache hit (fresh process, no fetch yet) honestly
+            # records None - a stale cache cannot re-derive them.
             _record_status(
                 status_out,
                 source.name,
                 "ok",
                 row_count=len(cached),
                 fetched_at=_fetched_iso(cache.fetched_at(source.name)),
+                board_updated_at=getattr(source, "board_updated_at", None),
+                attribution=getattr(source, "attribution", None),
             )
             return {k: SourceRecord.from_dict(v) for k, v in cached.items()}
     try:

@@ -7,7 +7,8 @@
  * KV) while stdio/VM deployments keep the on-disk layout via LocalFsBackend.
  */
 
-import { mkdir, readFile, unlink } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { chmod, mkdir, readFile, unlink } from 'node:fs/promises'
 import { dirname, join, resolve, sep } from 'node:path'
 import { atomicWriteFile } from './atomic-write.js'
 import { getHomeDir } from './home-dir.js'
@@ -78,6 +79,11 @@ function keyToPath(key: string): string {
 
 /** Stores blobs on local disk, preserving the per-plugin layout. */
 export class LocalFsBackend implements CredentialBackend {
+  // Directories already initialized in this process: mkdir+chmod run exactly
+  // once per directory so an existing overly-permissive directory is tightened
+  // (TOCTOU hardening) without re-chmodding on every hot-path write.
+  private readonly initDirs = new Set<string>()
+
   async get(key: string): Promise<Buffer | null> {
     const path = keyToPath(key)
     try {
@@ -90,7 +96,16 @@ export class LocalFsBackend implements CredentialBackend {
 
   async put(key: string, blob: Buffer): Promise<void> {
     const path = keyToPath(key)
-    await mkdir(dirname(path), { recursive: true, mode: 0o700 })
+    const dir = dirname(path)
+    if (!existsSync(dir)) {
+      await mkdir(dir, { recursive: true, mode: 0o700 })
+    }
+    if (!this.initDirs.has(dir)) {
+      if (process.platform !== 'win32') {
+        await chmod(dir, 0o700)
+      }
+      this.initDirs.add(dir)
+    }
     await atomicWriteFile(path, blob)
   }
 

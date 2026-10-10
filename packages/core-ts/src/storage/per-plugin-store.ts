@@ -16,6 +16,7 @@
  */
 
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:crypto'
+import { existsSync } from 'node:fs'
 import { chmod, mkdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { atomicWriteFile } from './atomic-write.js'
@@ -23,6 +24,11 @@ import { backendFromEnv, type CredentialBackend } from './backends.js'
 import { getHomeDir } from './home-dir.js'
 
 export { setHomeDirForTesting } from './home-dir.js'
+
+// Credential-store directories already initialized in this process. init runs
+// even when the secret already exists (read path) so a pre-existing
+// overly-permissive directory is tightened exactly once (TOCTOU hardening).
+const initDirs = new Set<string>()
 
 export function credPath(pluginName: string, sub: string | null): string {
   // Underscore is allowed because the OAuth AS mints sub = token_urlsafe(), whose
@@ -43,21 +49,25 @@ export function credPath(pluginName: string, sub: string | null): string {
 }
 
 async function loadOrGenMachineKey(pluginName: string): Promise<Buffer> {
-  const secretPath = join(getHomeDir(), `.${pluginName}-mcp`, '.secret')
+  const dir = join(getHomeDir(), `.${pluginName}-mcp`)
+  const secretPath = join(dir, '.secret')
+
+  if (!existsSync(dir)) {
+    await mkdir(dir, { recursive: true, mode: 0o700 })
+  }
+  if (!initDirs.has(dir)) {
+    // Explicitly chmod(0o700) to tighten an existing overly-permissive directory
+    // (TOCTOU hardening); runs once per directory even on the read path.
+    if (process.platform !== 'win32') {
+      await chmod(dir, 0o700)
+    }
+    initDirs.add(dir)
+  }
+
   try {
     return await readFile(secretPath)
   } catch {
     const key = randomBytes(32)
-    const dir = join(getHomeDir(), `.${pluginName}-mcp`)
-
-    // Explicitly chmod(0o700) after mkdir to guarantee the credential store directory
-    // is restricted to owner-only access, mitigating a TOCTOU race condition
-    // against permissive system default umasks or existing overly-permissive directories.
-    await mkdir(dir, { recursive: true, mode: 0o700 })
-    if (process.platform !== 'win32') {
-      await chmod(dir, 0o700)
-    }
-
     await atomicWriteFile(secretPath, key)
     return key
   }

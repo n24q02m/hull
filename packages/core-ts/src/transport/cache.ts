@@ -30,13 +30,23 @@ export function cacheFilename(serverName: string, port: number, srvVersion: stri
   const safeCoreVersion = coreVersion.replace(/[^a-zA-Z0-9.-]/g, '_').replace(/\.\./g, '__')
   return `${safeName}-${port}-${safeSrvVersion}-${safeCoreVersion}.tools.json`
 }
+// Cache directories already chmod-tightened in this process. The directory is
+// still re-created if missing (OS cleanup), but chmod runs once per directory
+// so a pre-existing overly-permissive directory is tightened without paying
+// the syscall on every hot-path write (TOCTOU hardening).
+const initDirs = new Set<string>()
 
 export function atomicWrite(path: string, content: string): void {
   const dir = dirname(path)
-  if (dir && !existsSync(dir)) {
-    mkdirSync(dir, { recursive: true, mode: 0o700 })
-    if (process.platform !== 'win32') {
-      chmodSync(dir, 0o700)
+  if (dir) {
+    if (!existsSync(dir)) {
+      mkdirSync(dir, { recursive: true, mode: 0o700 })
+    }
+    if (!initDirs.has(dir)) {
+      if (process.platform !== 'win32') {
+        chmodSync(dir, 0o700)
+      }
+      initDirs.add(dir)
     }
   }
   const tmp = `${path}.tmp`

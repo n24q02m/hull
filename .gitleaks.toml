@@ -1,0 +1,8 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Test fixtures containing cross-language crypto parity vectors (ported from mcp-core)"
+paths = [
+    '''packages/core-ts/tests/fixtures/crypto-vectors\.json''',
+]

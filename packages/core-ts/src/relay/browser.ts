@@ -1,0 +1,133 @@
+/**
+ * Cross-platform browser opening with WSL detection.
+ */
+
+import { execFile } from 'node:child_process'
+import { readFile } from 'node:fs/promises'
+import { promisify } from 'node:util'
+
+const execFileAsync = promisify(execFile)
+
+// Dedupe repeated tryOpenBrowser calls for the same URL. OAuth verification
+// URLs are stable so a retry loop would otherwise spawn a new tab per attempt.
+// Keep a 5-minute window per URL.
+const BROWSER_OPEN_DEDUPE_WINDOW_MS = 5 * 60 * 1000
+const recentBrowserOpens = new Map<string, number>()
+
+/**
+ * Read an on/off environment flag: set, and not `''` / `'false'` / `'0'`.
+ *
+ * One rule for all three variables the guard below reads, deliberately. `CI` has to
+ * follow this rule because it is a variable we READ from someone else's environment and
+ * `CI=false` is a real idiom for "do not apply CI behavior" (Create React App, Netlify) —
+ * the `ci-info` package uses the same rule. Our own two then follow it as well, for two
+ * reasons: a plain truthy-string check makes `MCP_NO_BROWSER=false` SUPPRESS the browser,
+ * which is wrong under every reading of a negative variable name (writing `=false` means
+ * "no, don't no-browser" — that person is asking for auto-open and would be blocked
+ * silently); and two rules inside one `if` is a trap for whoever reads it next.
+ */
+function envFlag(name: string): boolean {
+  const value = process.env[name]
+  return value !== undefined && value !== '' && value !== 'false' && value !== '0'
+}
+
+async function isWsl(): Promise<boolean> {
+  try {
+    const version = await readFile('/proc/version', 'utf-8')
+    const lower = version.toLowerCase()
+    return lower.includes('microsoft') || lower.includes('wsl')
+  } catch {
+    return false
+  }
+}
+
+function encodePowerShellCommand(command: string): string {
+  return Buffer.from(command, 'utf16le').toString('base64')
+}
+
+async function openInPowerShell(url: string): Promise<boolean> {
+  try {
+    const base64Url = Buffer.from(url, 'utf8').toString('base64')
+    const command = `$url = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('${base64Url}')); Start-Process $url`
+    const encodedCommand = encodePowerShellCommand(command)
+    await execFileAsync('powershell.exe', ['-NoProfile', '-EncodedCommand', encodedCommand])
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function openInWsl(url: string): Promise<boolean> {
+  // Try powershell.exe -EncodedCommand first (safer due to Base64 encoding)
+  const result = await openInPowerShell(url)
+  if (result) {
+    return true
+  }
+
+  // Fallback to wslview (from wslu package, commonly available)
+  try {
+    await execFileAsync('wslview', [url])
+    return true
+  } catch {
+    /* fall through */
+  }
+
+  return false
+}
+
+/**
+ * Try to open URL in default browser. Returns true if likely succeeded.
+ *
+ * Detection order:
+ * 1. win32: powershell.exe -EncodedCommand
+ * 2. darwin: `open` command
+ * 3. linux: check WSL then `xdg-open`
+ *
+ * Never throws. Returns false on failure.
+ */
+export async function tryOpenBrowser(url: string): Promise<boolean> {
+  try {
+    // Env-guard: suppress auto-open in headless / CI / autonomous-test contexts so a
+    // relay/clean-state server never hijacks the user's real browser with /authorize?nonce
+    // or 127.0.0.1 tabs. Set MCP_NO_BROWSER=1 or NO_BROWSER=1 to disable it explicitly;
+    // `CI` counts too because every CI provider sets it (GitHub Actions: CI=true) and a
+    // build agent has no browser to hijack.
+    if (envFlag('MCP_NO_BROWSER') || envFlag('NO_BROWSER') || envFlag('CI')) {
+      return false
+    }
+
+    // Validate URL
+    if (!/^https?:\/\/[a-zA-Z0-9-._~:/?#[\]@!&'*+,;=%]+$/i.test(url)) {
+      return false
+    }
+
+    const lastOpened = recentBrowserOpens.get(url)
+    if (lastOpened !== undefined && Date.now() - lastOpened < BROWSER_OPEN_DEDUPE_WINDOW_MS) {
+      return true
+    }
+    recentBrowserOpens.set(url, Date.now())
+
+    const platform = process.platform
+
+    if (platform === 'win32') {
+      return openInPowerShell(url)
+    }
+
+    if (platform === 'darwin') {
+      await execFileAsync('open', [url])
+      return true
+    }
+
+    // linux
+    if (await isWsl()) {
+      const result = await openInWsl(url)
+      if (result) return true
+      // Fall through to xdg-open
+    }
+
+    await execFileAsync('xdg-open', [url])
+    return true
+  } catch {
+    return false
+  }
+}

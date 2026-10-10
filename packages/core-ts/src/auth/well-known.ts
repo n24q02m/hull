@@ -1,0 +1,27 @@
+/** OAuth 2.1 well-known metadata generators (RFC 8414 + RFC 9728). */
+
+export function authorizationServerMetadata(issuerUrl: string): Record<string, unknown> {
+  return {
+    issuer: issuerUrl,
+    authorization_endpoint: `${issuerUrl}/authorize`,
+    token_endpoint: `${issuerUrl}/token`,
+    registration_endpoint: `${issuerUrl}/register`,
+    jwks_uri: `${issuerUrl}/.well-known/jwks.json`,
+    response_types_supported: ['code'],
+    grant_types_supported: ['authorization_code', 'refresh_token'],
+    code_challenge_methods_supported: ['S256'],
+    token_endpoint_auth_methods_supported: ['none'],
+    scopes_supported: ['offline_access'],
+    // RFC 9207 / SEP-2468: the AS returns the ``iss`` parameter in every
+    // authorization response so clients can defend against mix-up attacks.
+    authorization_response_iss_parameter_supported: true
+  }
+}
+
+export function protectedResourceMetadata(resource: string, authorizationServers: string[]): Record<string, unknown> {
+  return {
+    resource,
+    authorization_servers: authorizationServers,
+    bearer_methods_supported: ['header']
+  }
+}

@@ -161,7 +161,7 @@ def test_unknown_model_maps_to_400(client, monkeypatch: pytest.MonkeyPatch) -> N
 def test_missing_gguf_runtime_maps_to_503_with_hint(client, monkeypatch: pytest.MonkeyPatch) -> None:
     class _Bad:
         def rerank(self, query, docs, top_n):
-            raise ImportError('llama-cpp-python required. Install: pip install "hull-core[embedding-gguf]"')
+            raise ImportError('llama-cpp-python required. Install: pip install "n24q02m-hull[embedding-gguf]"')
 
     monkeypatch.setattr(registry, "get_backend", lambda r, k: _Bad())
     resp = client[0].post(

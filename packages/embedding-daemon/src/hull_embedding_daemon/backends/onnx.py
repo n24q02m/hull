@@ -15,4 +15,4 @@ from hull_embedding_daemon.backends._qwen3 import Qwen3BackendBase
 class ONNXBackend(Qwen3BackendBase):
     """ONNX embedding / rerank sessions over ``qwen3_embed`` models."""
 
-    _INSTALL_HINT = 'pip install "hull-core[embedding]"'
+    _INSTALL_HINT = 'pip install "n24q02m-hull[embedding]"'

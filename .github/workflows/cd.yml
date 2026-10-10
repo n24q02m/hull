@@ -23,6 +23,11 @@ on:
         required: false
         type: string
         default: ""
+      hull_core_final_note:
+        description: "One-time: also publish the FINAL hull-core release at the same version (rename note) before the old dist freezes. Set true only on the first n24q02m-hull release."
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -162,7 +167,7 @@ jobs:
         run: |
           gh api repos/n24q02m/n24q02m/dispatches \
             -f event_type=core-update \
-            -f 'client_payload[core]=hull-core' \
+            -f 'client_payload[core]=n24q02m-hull' \
             -f 'client_payload[version]=${{ needs.release.outputs.version }}' \
             -f 'client_payload[tag]=${{ needs.release.outputs.tag }}' \
             -f 'client_payload[release_url]=https://github.com/${{ github.repository }}/releases/tag/${{ needs.release.outputs.tag }}'
@@ -249,3 +254,54 @@ jobs:
             exit 0
           fi
           exit $rc
+
+  # ============================================================================
+  # One-time legacy final-note: publish the LAST hull-core release at the same
+  # version as the first n24q02m-hull release, with a rename note, then the old
+  # dist freezes. Rebuilds the dist under the old project name from the same
+  # tag (module names never changed, only [project].name). Gated by the
+  # hull_core_final_note dispatch input so it runs exactly once.
+  # ============================================================================
+  publish-pypi-legacy-final:
+    name: Publish hull-core final rename note
+    needs: [readme-sync, release]
+    if: >-
+      inputs.hull_core_final_note
+      && needs.release.outputs.released == 'true'
+      && vars.PUBLISH_PYPI == 'true'
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.release.outputs.tag }}
+
+      - name: Rewrite project name back to hull-core with rename note
+        run: |
+          python - <<'EOF'
+          import pathlib, re
+          p = pathlib.Path("pyproject.toml")
+          t = p.read_text(encoding="utf-8")
+          assert 'name = "n24q02m-hull"' in t, "expected renamed project"
+          t = t.replace('name = "n24q02m-hull"', 'name = "hull-core"', 1)
+          note = " [FINAL hull-core release: dist renamed to n24q02m-hull -- migrate with: pip install n24q02m-hull]"
+          t, n = re.subn(r'(description = ")(.*)(")', lambda m: m.group(1) + m.group(2) + note + m.group(3), t, count=1)
+          assert n == 1, "description line not found"
+          p.write_text(t, encoding="utf-8")
+          print("rewritten")
+          EOF
+          head -10 pyproject.toml
+
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      - run: uv build
+
+      - name: Publish final hull-core to PyPI
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1

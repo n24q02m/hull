@@ -1,7 +1,7 @@
-"""Import guard for the optional ``[embedding]`` extra of the ``hull-core`` dist.
+"""Import guard for the optional ``[embedding]`` extra of the ``n24q02m-hull`` dist.
 
-``hull_embedding_daemon`` ships inside the ``hull-core`` wheel, but its server
-stack is only installed by ``pip install "hull-core[embedding]"``. The API
+``hull_embedding_daemon`` ships inside the ``n24q02m-hull`` wheel, but its server
+stack is only installed by ``pip install "n24q02m-hull[embedding]"``. The API
 module and the CLI call ``require_embedding_extra()`` before touching that
 stack, so a base install fails with the install hint instead of a bare
 ``ModuleNotFoundError`` for ``fastapi``. The package ``__init__`` does not
@@ -25,7 +25,7 @@ EMBEDDING_EXTRA_MODULES: tuple[str, ...] = (
     "pydantic",
 )
 
-INSTALL_HINT = 'pip install "hull-core[embedding]"'
+INSTALL_HINT = 'pip install "n24q02m-hull[embedding]"'
 
 FindSpec = Callable[[str], Any]
 
@@ -40,7 +40,7 @@ def require_embedding_extra(find_spec: FindSpec = importlib.util.find_spec) -> N
     missing = missing_embedding_modules(find_spec)
     if missing:
         raise ImportError(
-            f"hull_embedding_daemon requires the optional 'embedding' extra of hull-core; missing module(s): "
+            f"hull_embedding_daemon requires the optional 'embedding' extra of n24q02m-hull; missing module(s): "
             f"{', '.join(missing)}. Install it with: {INSTALL_HINT}",
             name=missing[0],
         )

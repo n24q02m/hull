@@ -82,7 +82,7 @@ def test_build_identity_coherent_and_seeded(monkeypatch: pytest.MonkeyPatch) -> 
 
 def test_build_identity_missing_extra_raises_with_hint(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setitem(sys.modules, "invisible_core", None)  # forces ImportError
-    with pytest.raises(ImportError, match=r"hull-core\[identity\]"):
+    with pytest.raises(ImportError, match=r"n24q02m-hull\[identity\]"):
         build_identity(seed=1)
 
 

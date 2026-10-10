@@ -6,7 +6,7 @@
 [[exempt]]
 path = "Dockerfile"
 reason = """
-Not containerised yet. hull ships as one PyPI distribution (hull-core, with the
+Not containerised yet. hull ships as one PyPI distribution (n24q02m-hull, with the
 [web] and [embedding] extras) that wet, mnemo and crg install as a library. The
 template's image runs `python -m hull_core`, which is not an entrypoint here:
 the control plane is the `hull` console script (hull_core.cli) and the embedding

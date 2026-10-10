@@ -9,7 +9,7 @@ import pytest
 
 from hull_web import _extra
 
-INSTALL_HINT = 'pip install "hull-core[web]"'
+INSTALL_HINT = 'pip install "n24q02m-hull[web]"'
 
 
 def test_missing_web_modules_empty_when_all_present() -> None:

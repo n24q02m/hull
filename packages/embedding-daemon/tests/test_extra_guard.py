@@ -11,7 +11,7 @@ import pytest
 from hull_embedding_daemon import _extra
 from hull_embedding_daemon.__main__ import main
 
-INSTALL_HINT = 'pip install "hull-core[embedding]"'
+INSTALL_HINT = 'pip install "n24q02m-hull[embedding]"'
 
 
 def test_missing_embedding_modules_empty_when_all_present() -> None:

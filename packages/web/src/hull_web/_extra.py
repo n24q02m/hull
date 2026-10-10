@@ -1,7 +1,7 @@
-"""Import guard for the optional ``[web]`` extra of the ``hull-core`` dist.
+"""Import guard for the optional ``[web]`` extra of the ``n24q02m-hull`` dist.
 
-``hull_web`` ships inside the ``hull-core`` wheel, but its dependencies are
-only installed by ``pip install "hull-core[web]"``. Importing this module
+``hull_web`` ships inside the ``n24q02m-hull`` wheel, but its dependencies are
+only installed by ``pip install "n24q02m-hull[web]"``. Importing this module
 checks that every dependency of the extra is importable and raises an
 ``ImportError`` with the install hint otherwise, instead of a bare
 ``ModuleNotFoundError`` from deep inside a submodule.
@@ -27,7 +27,7 @@ WEB_EXTRA_MODULES: tuple[str, ...] = (
     "PIL",
 )
 
-INSTALL_HINT = 'pip install "hull-core[web]"'
+INSTALL_HINT = 'pip install "n24q02m-hull[web]"'
 
 FindSpec = Callable[[str], Any]
 
@@ -42,7 +42,7 @@ def require_web_extra(find_spec: FindSpec = importlib.util.find_spec) -> None:
     missing = missing_web_modules(find_spec)
     if missing:
         raise ImportError(
-            f"hull_web requires the optional 'web' extra of hull-core; missing module(s): "
+            f"hull_web requires the optional 'web' extra of n24q02m-hull; missing module(s): "
             f"{', '.join(missing)}. Install it with: {INSTALL_HINT}",
             name=missing[0],
         )

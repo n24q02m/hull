@@ -11,8 +11,8 @@ def test_version_exposed() -> None:
 
 
 def test_version_comes_from_hull_core_dist() -> None:
-    """The daemon ships inside the hull-core wheel; there is no separate dist."""
-    assert hull_embedding_daemon.__version__ == importlib.metadata.version("hull-core")
+    """The daemon ships inside the n24q02m-hull wheel; there is no separate dist."""
+    assert hull_embedding_daemon.__version__ == importlib.metadata.version("n24q02m-hull")
 
 
 def test_version_fallback() -> None:

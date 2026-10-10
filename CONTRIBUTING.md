@@ -1,4 +1,4 @@
-# Contributing to hull-core
+# Contributing to n24q02m-hull
 
 ## Development Setup
 

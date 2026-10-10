@@ -2,11 +2,11 @@
 
 Operational handover for [hull](https://github.com/n24q02m/hull) — the shared
 monorepo core for the wet / crg / mnemo self-hosted stack. Current stable
-line: **hull-core 0.3.x**.
+line: **n24q02m-hull 0.3.x**.
 
 ## Current operation
 
-- Package: `hull-core` (one PyPI dist). The wheel carries three import
+- Package: `n24q02m-hull` (one PyPI dist). The wheel carries three import
   packages; heavy stacks are opt-in extras:
   - `hull_core` (base) — token auth, per-task model cells, rate limiter,
     `~/.hull/` SQLite WAL storage, `server start` + `/mcp` endpoint, CLI,
@@ -26,11 +26,11 @@ line: **hull-core 0.3.x**.
 ## Install
 
 ```bash
-pip install hull-core               # hull_core only (crg, mnemo dependency)
-pip install "hull-core[web]"        # + hull_web scraping/browser stack (wet)
-pip install "hull-core[embedding]"  # + hull_embedding_daemon server stack
-pip install "hull-core[mteb]"       # + pyarrow for model_selection MTEB fetchers
-pip install "hull-core[embedding,embedding-gguf]"  # + llama.cpp runtime for *-GGUF models
+pip install n24q02m-hull               # hull_core only (crg, mnemo dependency)
+pip install "n24q02m-hull[web]"        # + hull_web scraping/browser stack (wet)
+pip install "n24q02m-hull[embedding]"  # + hull_embedding_daemon server stack
+pip install "n24q02m-hull[mteb]"       # + pyarrow for model_selection MTEB fetchers
+pip install "n24q02m-hull[embedding,embedding-gguf]"  # + llama.cpp runtime for *-GGUF models
 ```
 
 `import hull_web` without the `[web]` extra raises `ImportError` naming the

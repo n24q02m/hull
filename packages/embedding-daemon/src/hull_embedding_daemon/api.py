@@ -8,7 +8,7 @@ per-server.
 Models resolve to the ``n24q02m/Qwen3-*`` ONNX exports served by
 ``qwen3-embed``; artifacts download from Hugging Face into the user cache
 lazily on first use. ``*-GGUF`` names select the llama.cpp backend and need
-``hull-core[embedding-gguf]``.
+``n24q02m-hull[embedding-gguf]``.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ import logging
 from hull_embedding_daemon._extra import require_embedding_extra
 
 # Must run before the extra's own imports below: fail with the install hint
-# instead of a bare ModuleNotFoundError on a base `hull-core` install.
+# instead of a bare ModuleNotFoundError on a base `n24q02m-hull` install.
 require_embedding_extra()
 
 from fastapi import FastAPI, HTTPException, status  # noqa: E402

@@ -1,5 +1,5 @@
 # =============================================================================
-# CI Template: Public Python MCP Server (hull-core)
+# CI Template: Public Python MCP Server (n24q02m-hull)
 # Source: https://github.com/n24q02m/.github/templates/ci/public-python.yml
 #
 # Runner strategy: ubuntu-latest (GitHub-hosted) for every job, whatever the repo's

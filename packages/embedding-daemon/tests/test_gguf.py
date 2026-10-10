@@ -53,12 +53,12 @@ def test_embed_loads_gguf_model_lazily(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_missing_llama_cpp_gets_gguf_hint(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(qwen3_embed, "TextEmbedding", _MissingLlamaCpp)
     backend = GGUFBackend(MODEL)
-    with pytest.raises(ImportError, match=r"hull-core\[embedding-gguf\]"):
+    with pytest.raises(ImportError, match=r"n24q02m-hull\[embedding-gguf\]"):
         backend.embed(["x"])
 
 
 def test_missing_llama_cpp_rerank_hint(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(qwen3_embed, "TextCrossEncoder", _MissingLlamaCpp)
     backend = GGUFBackend("n24q02m/Qwen3-Reranker-0.6B-GGUF")
-    with pytest.raises(ImportError, match=r"hull-core\[embedding-gguf\]"):
+    with pytest.raises(ImportError, match=r"n24q02m-hull\[embedding-gguf\]"):
         backend.rerank("q", ["d"])

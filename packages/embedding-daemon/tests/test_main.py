@@ -17,7 +17,7 @@ def test_main_uvicorn_import_error() -> None:
                 assert result == 1
                 called_text = "".join(call.args[0] for call in mock_stderr.write.call_args_list)
                 assert "uvicorn" in called_text
-                assert 'pip install "hull-core[embedding]"' in called_text
+                assert 'pip install "n24q02m-hull[embedding]"' in called_text
 
 
 def test_main_success() -> None:

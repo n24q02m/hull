@@ -1,6 +1,6 @@
 """hull_web: shared web infrastructure for search, scraping, HTTP security, and browsers.
 
-Ships in the ``hull-core`` dist; needs the ``[web]`` extra (``pip install "hull-core[web]"``).
+Ships in the ``n24q02m-hull`` dist; needs the ``[web]`` extra (``pip install "n24q02m-hull[web]"``).
 """
 
 # Must stay the first import: raises ImportError with the install hint when the [web] extra is missing.

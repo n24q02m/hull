@@ -13,7 +13,7 @@ invisible_core samples the whole profile from a Bayesian network, so screen,
 GPU, fonts, audio and codec agree with each other by construction, and one
 integer seed reproduces the same machine everywhere.
 
-invisible_core is an OPTIONAL dependency (``hull-core[identity]``): every
+invisible_core is an OPTIONAL dependency (``n24q02m-hull[identity]``): every
 import of it is lazy, inside the functions that need it, so ``hull_web``
 imports fine without the extra installed.
 """
@@ -163,7 +163,7 @@ def build_identity(
     except ImportError as exc:
         raise ImportError(
             "build_identity requires the optional 'identity' extra (invisible-core). "
-            'Install it with: pip install "hull-core[identity]"',
+            'Install it with: pip install "n24q02m-hull[identity]"',
         ) from exc
 
     profile = generate_profile(seed)

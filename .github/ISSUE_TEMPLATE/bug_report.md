@@ -27,7 +27,7 @@ If applicable, add screenshots to help explain your problem.
 
 - OS: [e.g. macOS, Linux, Windows]
 - Go version: [output of `go version`]
-- hull-core version: [output of `hull-core --version`]
+- n24q02m-hull version: [output of `n24q02m-hull --version`]
 - Installation method: [e.g. go install, Docker, brew, scoop, apt, direct binary]
 
 **Additional context**

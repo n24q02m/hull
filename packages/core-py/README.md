@@ -1,7 +1,7 @@
 # hull_core
 
 Shared core for the wet / crg / mnemo self-hosted stack. Base install of the
-`hull-core` dist (`pip install hull-core`).
+`n24q02m-hull` dist (`pip install n24q02m-hull`).
 
 - **Auth** — one mechanism, three modes (`no-auth` / `token` / `multi`),
   `users.toml` (`uid → token_hash + enabled + namespace + allowed_roots +

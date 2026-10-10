@@ -1,6 +1,6 @@
 """Import guards must track the extras declared in pyproject.toml.
 
-Each optional extra of the ``hull-core`` dist has an import guard listing the
+Each optional extra of the ``n24q02m-hull`` dist has an import guard listing the
 import names of its dependencies. This test derives those names from the
 root pyproject.toml so adding or dropping a dependency without updating the
 guard (or vice versa) fails CI.

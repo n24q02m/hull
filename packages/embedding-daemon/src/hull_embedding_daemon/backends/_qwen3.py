@@ -63,7 +63,7 @@ class Qwen3BackendBase:
 
     #: Extra needed when the model class raises ImportError for a missing
     #: runtime (GGUF needs llama-cpp-python). Subclasses override the hint.
-    _INSTALL_HINT: str = 'pip install "hull-core[embedding]"'
+    _INSTALL_HINT: str = 'pip install "n24q02m-hull[embedding]"'
 
     def __init__(self, model_path: str, cache_dir: str | None = None, threads: int | None = None) -> None:
         self._model_path = model_path
@@ -98,7 +98,7 @@ class Qwen3BackendBase:
             msg = str(exc)
             if "pip install" in msg:
                 # Rewrite the library's own install hint to the hull extra.
-                raise ImportError(msg.replace("qwen3-embed[gguf]", "hull-core[embedding-gguf]")) from exc
+                raise ImportError(msg.replace("qwen3-embed[gguf]", "n24q02m-hull[embedding-gguf]")) from exc
             raise ImportError(f"{exc} Install it with: {self._INSTALL_HINT}") from exc
 
     # -- inference ------------------------------------------------------------

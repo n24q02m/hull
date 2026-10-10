@@ -1,7 +1,7 @@
 # hull_web
 
-Ships in the `hull-core` dist as the `[web]` extra:
-`pip install "hull-core[web]"`.
+Ships in the `n24q02m-hull` dist as the `[web]` extra:
+`pip install "n24q02m-hull[web]"`.
 
 Shared web infrastructure for hull consumers: search (SearXNG), scraping
 strategies (plain HTTP → TLS-spoof → headless → stealth browser → remote
@@ -19,7 +19,7 @@ peak RSS; every attempt flows through `StrategyCache` so the JSON also carries
 the cache-learned recommendation order per domain.
 
 ```bash
-uv sync --extra web --extra identity   # or: pip install "hull-core[web,identity]"
+uv sync --extra web --extra identity   # or: pip install "n24q02m-hull[web,identity]"
 uv run python packages/web/scripts/measure_identity_ab.py --reps 2 --out e1c-results.json
 ```
 

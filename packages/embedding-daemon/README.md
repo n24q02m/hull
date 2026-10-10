@@ -4,10 +4,10 @@ Shared local ONNX/GGUF embedding server for the wet / crg / mnemo products
 (via hull). One daemon serves embeddings over HTTP so every product shares a
 single model instance instead of loading its own.
 
-Ships in the `hull-core` dist; the server stack is the `[embedding]` extra:
+Ships in the `n24q02m-hull` dist; the server stack is the `[embedding]` extra:
 
 ```bash
-pip install "hull-core[embedding]"
+pip install "n24q02m-hull[embedding]"
 hull-embedding-daemon --help
 ```
 
@@ -57,7 +57,7 @@ GGUF: `*-GGUF` names run on llama.cpp via `llama-cpp-python`, which ships
 source-only on PyPI and needs a C++ toolchain — opt in with:
 
 ```bash
-pip install "hull-core[embedding,embedding-gguf]"
+pip install "n24q02m-hull[embedding,embedding-gguf]"
 ```
 
 Without it, GGUF requests fail `503` with the install hint; ONNX requests

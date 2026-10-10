@@ -15,15 +15,15 @@ for **wet** (search), **crg** (code graph) and **mnemo** (memory).
 
 ## Install
 
-hull ships as one PyPI dist, **`hull-core`**. The wheel carries all three
+hull ships as one PyPI dist, **`n24q02m-hull`**. The wheel carries all three
 import packages; the heavy stacks are opt-in extras:
 
 ```bash
-pip install hull-core               # hull_core only (crg, mnemo)
-pip install "hull-core[web]"        # + hull_web scraping/browser stack (wet)
-pip install "hull-core[embedding]"  # + hull_embedding_daemon server stack
-pip install "hull-core[mteb]"       # + pyarrow for model_selection MTEB fetchers
-pip install "hull-core[embedding,embedding-gguf]"  # + llama.cpp runtime for *-GGUF models
+pip install n24q02m-hull               # hull_core only (crg, mnemo)
+pip install "n24q02m-hull[web]"        # + hull_web scraping/browser stack (wet)
+pip install "n24q02m-hull[embedding]"  # + hull_embedding_daemon server stack
+pip install "n24q02m-hull[mteb]"       # + pyarrow for model_selection MTEB fetchers
+pip install "n24q02m-hull[embedding,embedding-gguf]"  # + llama.cpp runtime for *-GGUF models
 ```
 
 `import hull_web` without the `[web]` extra raises `ImportError` naming the

@@ -1,7 +1,7 @@
 """hull_core.llm: unified LLM transport (chat / embed / rerank / DSPy).
 
-Ships in the ``hull-core`` dist; needs the ``[llm]`` extra
-(``pip install "hull-core[llm]"``); ``dspy_lm`` additionally needs ``[dspy]``.
+Ships in the ``n24q02m-hull`` dist; needs the ``[llm]`` extra
+(``pip install "n24q02m-hull[llm]"``); ``dspy_lm`` additionally needs ``[dspy]``.
 """
 
 # Must stay the first import: raises ImportError with the install hint when the

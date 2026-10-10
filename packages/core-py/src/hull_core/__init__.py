@@ -1,9 +1,9 @@
-"""hull-core: shared auth, model config, limiter, storage, and MCP server core."""
+"""n24q02m-hull: shared auth, model config, limiter, storage, and MCP server core."""
 
 from importlib.metadata import PackageNotFoundError, version
 
 try:
-    __version__ = version("hull-core")
+    __version__ = version("n24q02m-hull")
 except PackageNotFoundError:  # package not installed (e.g. running from source tree)
     __version__ = "0.0.0+unknown"
 

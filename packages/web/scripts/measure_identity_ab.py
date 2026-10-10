@@ -10,7 +10,7 @@ Key metric (v2 section 6): deepest tier reached. If the identity-on arm pulls
 the deepest tier DOWN on most hosts (headless -> tls_spoof), the invisible
 engine tier is not buying anything and Tier B can be dropped.
 
-Run after the hull identity merge, in an env with ``hull-core[web,identity]``:
+Run after the hull identity merge, in an env with ``n24q02m-hull[web,identity]``:
     python scripts/measure_identity_ab.py --reps 2 --out e1c-results.json
 Stdout prints the markdown table; the JSON dump lands in --out.
 """

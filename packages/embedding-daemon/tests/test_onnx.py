@@ -128,5 +128,5 @@ def test_missing_runtime_gets_install_hint(monkeypatch: pytest.MonkeyPatch) -> N
 
     monkeypatch.setattr(qwen3_embed, "TextEmbedding", _Missing)
     backend = ONNXBackend(MODEL)
-    with pytest.raises(ImportError, match=r"hull-core\[embedding\]"):
+    with pytest.raises(ImportError, match=r"n24q02m-hull\[embedding\]"):
         backend.embed(["x"])

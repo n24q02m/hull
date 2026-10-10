@@ -1,9 +1,9 @@
-"""Packaging contract: hull ships as ONE dist, ``hull-core``, with extras.
+"""Packaging contract: hull ships as ONE dist, ``n24q02m-hull``, with extras.
 
 Spec v4 addendum 2026-09-30: a single wheel carries the three import packages
 (``hull_core``, ``hull_web``, ``hull_embedding_daemon``); the scraping/browser
-stack is only pulled in by ``hull-core[web]`` and the embedding server stack
-only by ``hull-core[embedding]``.
+stack is only pulled in by ``n24q02m-hull[web]`` and the embedding server stack
+only by ``n24q02m-hull[embedding]``.
 """
 
 from __future__ import annotations
@@ -88,8 +88,9 @@ def _unconditional(req: Requirement) -> bool:
     return req.marker is None
 
 
-def test_wheel_filename_is_hull_core(wheel: Path) -> None:
-    assert wheel.name.startswith("hull_core-")
+def test_wheel_filename_is_n24q02m_hull(wheel: Path) -> None:
+    # dist renamed hull-core -> n24q02m-hull (D6); wheel tag follows the dist name
+    assert wheel.name.startswith("n24q02m_hull-")
 
 
 @pytest.mark.parametrize("package", ["hull_core", "hull_web", "hull_embedding_daemon"])
@@ -105,8 +106,8 @@ def test_web_package_ships_py_typed(names: list[str]) -> None:
     assert "hull_web/py.typed" in names
 
 
-def test_metadata_name_is_hull_core(metadata) -> None:
-    assert metadata["Name"] == "hull-core"
+def test_metadata_name_is_n24q02m_hull(metadata) -> None:
+    assert metadata["Name"] == "n24q02m-hull"
 
 
 def test_metadata_declares_web_and_embedding_extras(metadata) -> None:

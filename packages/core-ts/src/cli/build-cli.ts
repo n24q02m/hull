@@ -14,8 +14,14 @@
  *   those would hang in stdio mode instead of printing the requested output.
  *
  * A leading *positional* argv[0] is treated as a subcommand name -- either one
- * of the reserved built-ins (`config`/`relay`/`doctor`/`token`) or a server-specific
- * one supplied via `extra` -- and is routed to its handler instead of `serve`.
+ * of the reserved built-ins (`config`/`doctor`/`logout`/`relay`/`status`/`token`)
+ * or a server-specific one supplied via `extra` -- and is routed to its handler
+ * instead of `serve`. `status` and `logout` are top-level aliases of
+ * `config status` and `config delete` (same output and exit codes).
+ *
+ * `auth` is deliberately NOT a built-in: signing in is domain-specific (OAuth
+ * device code, bot token, API key paste, relay form, ...), so each server that
+ * needs it supplies its own `auth` handler via `extra`.
  * STDOUT is the MCP protocol channel in stdio mode, so only this subcommand
  * path prints to stdout; the `serve` path never touches stdout here.
  *
@@ -28,12 +34,11 @@
  */
 
 import { accessSync, constants, existsSync } from 'node:fs'
-import { join } from 'node:path'
 import { createInterface } from 'node:readline'
 import { tryOpenBrowser } from '../relay/browser.js'
 import { backendFromEnv } from '../storage/backends.js'
 import { pluginNameForServer } from '../storage/credential-store.js'
-import { getHomeDir } from '../storage/home-dir.js'
+import { dataDir, legacyDataDirs } from '../storage/data-dir.js'
 import { clearMode, getMode } from '../storage/mode.js'
 import { PerPluginStore } from '../storage/per-plugin-store.js'
 import { acquireSessionLock, releaseSessionLock, type SessionInfo } from '../storage/session-lock.js'
@@ -60,8 +65,9 @@ export interface BuildCliOptions {
   serve: ServeFn
   /**
    * Server-specific subcommands. A name here overrides the reserved built-in
-   * of the same name (`config`/`relay`/`doctor`/`token`), so a server can supply its
-   * own handler.
+   * of the same name (`config`/`doctor`/`logout`/`relay`/`status`/`token`), so a
+   * server can supply its own handler. This is also where a server provides
+   * `auth`, which is not a built-in because sign-in is domain-specific.
    */
   extra?: Record<string, CliHandler>
   /** Powers `--version`/`-V`. When unset, those flags fall through to serve. */
@@ -199,19 +205,21 @@ async function runDoctor(serverName: string, pluginName: string): Promise<number
     ok = false
   }
 
+  let backendOk = true
   try {
     backendFromEnv()
     console.log('[ok] credential backend initializes')
   } catch (err) {
     console.log(`[fail] credential backend: ${(err as Error).message}`)
+    backendOk = false
     ok = false
   }
 
   // Only check writability if the dir already exists -- doctor must not create
   // it as a side effect (mkdir-probing would leave stray dirs for servers that
   // were never configured). The dir is keyed by the plugin slug (matching
-  // PerPluginStore's on-disk layout), not the console name.
-  const storeDir = join(getHomeDir(), `.${pluginName}-mcp`)
+  // PerPluginStore's on-disk layout `~/.<plugin>/`), not the console name.
+  const storeDir = dataDir(pluginName)
   if (existsSync(storeDir)) {
     try {
       accessSync(storeDir, constants.W_OK)
@@ -221,17 +229,30 @@ async function runDoctor(serverName: string, pluginName: string): Promise<number
       ok = false
     }
   } else {
-    console.log(`[warn] store dir does not exist yet: ${storeDir}`)
+    // Credentials from an older layout are still read, but only the next save
+    // moves them into the current dir -- surface that instead of "not yet".
+    const legacy = legacyDataDirs(pluginName).find((loc) => existsSync(loc.dir))
+    if (legacy !== undefined) {
+      console.log(`[warn] only legacy store dir found: ${legacy.dir} (credentials move to ${storeDir} on next save)`)
+    } else {
+      console.log(`[warn] store dir does not exist yet: ${storeDir}`)
+    }
   }
 
-  const store = new PerPluginStore(pluginName)
-  if ((await store.load()) !== null) {
-    console.log('[ok] config: configured')
-  } else if (await store.hasStoredBlob()) {
-    console.log('[fail] config: corrupt')
-    ok = false
+  // PerPluginStore builds its backend from the same env, so it would throw the
+  // error already reported above and abort the remaining checks.
+  if (!backendOk) {
+    console.log('[warn] config: not checked (credential backend unavailable)')
   } else {
-    console.log('[warn] config: not configured')
+    const store = new PerPluginStore(pluginName)
+    if ((await store.load()) !== null) {
+      console.log('[ok] config: configured')
+    } else if (await store.hasStoredBlob()) {
+      console.log('[fail] config: corrupt')
+      ok = false
+    } else {
+      console.log('[warn] config: not configured')
+    }
   }
 
   const info = await acquireSessionLock(serverName)
@@ -265,8 +286,14 @@ function doctorHandler(serverName: string, pluginName: string): CliHandler {
  * mnemo/crg convention; pass it explicitly when the slug differs (telegram
  * saves under `"telegram"` though its console name is `"better-telegram-mcp"`).
  *
+ * Reserved built-ins: `config` (`status`/`delete`), `status` (= `config
+ * status`), `logout` (= `config delete`; non-interactive use needs `--yes`,
+ * otherwise exit 1), `relay`, `doctor` and `token`. `auth` is not a built-in:
+ * sign-in is domain-specific, so a server that needs it passes an `auth`
+ * handler in `extra`.
+ *
  * `extra` subcommand names take precedence over the reserved built-ins, so a
- * server (or a test) can supply its own `doctor`/`config`/`relay`/`token` handler.
+ * server (or a test) can supply its own handler for any of them.
  * `version`, when set, powers `--version`/`-V` (handled before `serve` or any
  * subcommand runs); when unset, `--version`/`-V` falls through to `serve` like
  * any other flag.
@@ -278,6 +305,8 @@ export function buildCli(serverName: string, options: BuildCliOptions): (argv?: 
   const { serve, extra, version, pluginName = pluginNameForServer(serverName) } = options
   const handlers: Record<string, CliHandler> = {
     config: configHandler(serverName, pluginName),
+    status: () => configStatus(serverName, pluginName),
+    logout: (argv) => configDelete(serverName, pluginName, argv.includes('--yes')),
     relay: relayHandler(serverName),
     doctor: doctorHandler(serverName, pluginName),
     token: tokenCliHandler(),

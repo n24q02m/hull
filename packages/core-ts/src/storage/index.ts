@@ -4,7 +4,8 @@ export {
   CfKvBackend,
   type CredentialBackend,
   InMemoryBackend,
-  LocalFsBackend
+  LocalFsBackend,
+  type LocalFsBackendOptions
 } from './backends.js'
 export { exportConfig, importConfig, listConfigs, setConfigPath } from './config-file.js'
 // Single-user credential read/write/delete route through the unified
@@ -15,6 +16,7 @@ export {
   readStoredConfig as readConfig,
   writeStoredConfig as writeConfig
 } from './credential-store.js'
+export { type DataDirLocation, dataDir, dataDirCandidates, legacyDataDirs } from './data-dir.js'
 export { decryptData, deriveFileKey, derivePassphraseKey, encryptData } from './encryption.js'
 export { getMachineId, getUsername } from './machine-id.js'
 export { clearMode, getMode, type ServerMode, setLocalMode } from './mode.js'

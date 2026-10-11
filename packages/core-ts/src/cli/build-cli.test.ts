@@ -1,4 +1,5 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { createCipheriv, randomBytes } from 'node:crypto'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -9,6 +10,39 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // run -- stronger than an env var that whoever runs the tests could clear.
 const { tryOpenBrowserMock } = vi.hoisted(() => ({ tryOpenBrowserMock: vi.fn(async () => true) }))
 vi.mock('../relay/browser.js', () => ({ tryOpenBrowser: tryOpenBrowserMock }))
+
+// Interactive `[y/N]` prompt: when `answer` is set, createInterface returns a
+// stub that emits that line once; otherwise the real readline is used.
+const { promptAnswer } = vi.hoisted(() => ({ promptAnswer: { value: null as string | null } }))
+vi.mock('node:readline', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:readline')>()
+  return {
+    ...actual,
+    createInterface: vi.fn((...args: unknown[]) => {
+      const answer = promptAnswer.value
+      if (answer === null) return (actual.createInterface as (...a: unknown[]) => unknown)(...args)
+      return {
+        once: (_event: string, cb: (line: string) => void) => queueMicrotask(() => cb(answer)),
+        close: vi.fn()
+      }
+    })
+  }
+})
+
+// Doctor's writability probe: a store dir whose path contains this trigger is
+// reported unwritable (portable; Windows ignores POSIX dir modes).
+vi.mock('node:fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs')>()
+  return {
+    ...actual,
+    accessSync: vi.fn((path: Parameters<typeof actual.accessSync>[0], mode?: number) => {
+      if (typeof path === 'string' && path.includes('unwritable-trigger')) {
+        throw Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES' })
+      }
+      return actual.accessSync(path, mode)
+    })
+  }
+})
 
 import {
   LocalFsBackend,
@@ -26,6 +60,22 @@ const SERVER = 'w51-test'
 let tmp: string
 let logs: string[]
 let errs: string[]
+
+/**
+ * Plant a single-user credential the way the pre-migration writer did, in a
+ * legacy dir under the test home: its own `.secret` + an AES-256-GCM blob.
+ */
+function plantLegacy(dirName: string, payload: Record<string, unknown>): string {
+  const dir = join(tmp, dirName)
+  mkdirSync(dir, { recursive: true })
+  const secret = randomBytes(32)
+  const iv = randomBytes(12)
+  const cipher = createCipheriv('aes-256-gcm', secret, iv, { authTagLength: 16 })
+  const ct = Buffer.concat([cipher.update(Buffer.from(JSON.stringify(payload), 'utf-8')), cipher.final()])
+  writeFileSync(join(dir, '.secret'), secret)
+  writeFileSync(join(dir, 'config.json'), Buffer.concat([iv, ct, cipher.getAuthTag()]))
+  return dir
+}
 
 function capture(): void {
   logs = []
@@ -85,6 +135,23 @@ describe('buildCli — serve dispatch', () => {
     const run = buildCli(SERVER, { serve: () => 3 })
     expect(await run([])).toBe(3)
   })
+
+  it('propagates a numeric return code from serve on the flag path', async () => {
+    const run = buildCli(SERVER, { serve: () => 4 })
+    expect(await run(['--http'])).toBe(4)
+  })
+
+  it('reads process.argv when called without an argv', async () => {
+    const saved = process.argv
+    process.argv = ['node', SERVER, 'status']
+    try {
+      const run = buildCli(SERVER, { serve: () => 0 })
+      expect(await run()).toBe(0)
+      expect(logs[0]).toBe(`${SERVER}: not configured`)
+    } finally {
+      process.argv = saved
+    }
+  })
 })
 
 describe('buildCli — help and version', () => {
@@ -99,7 +166,7 @@ describe('buildCli — help and version', () => {
     expect(rc).toBe(0)
     expect(served).toBe(false)
     expect(logs[0]).toBe(`usage: ${SERVER} [-h] [--version] [<subcommand> ...]`)
-    expect(logs).toContain('subcommands: config, doctor, relay, token')
+    expect(logs).toContain('subcommands: config, doctor, logout, relay, status, token')
   })
 
   it('prints help on --help', async () => {
@@ -111,7 +178,13 @@ describe('buildCli — help and version', () => {
   it('lists extra subcommands sorted in help', async () => {
     const run = buildCli(SERVER, { serve: () => 0, extra: { auth: () => 0 } })
     await run(['-h'])
-    expect(logs).toContain('subcommands: auth, config, doctor, relay, token')
+    expect(logs).toContain('subcommands: auth, config, doctor, logout, relay, status, token')
+  })
+
+  it('does not reserve auth as a built-in', async () => {
+    const run = buildCli(SERVER, { serve: () => 0 })
+    expect(await run(['auth'])).toBe(2)
+    expect(errs.join('\n')).toContain(`${SERVER}: unknown subcommand 'auth'`)
   })
 
   it('prints "<name> <version>" on --version when version is set', async () => {
@@ -144,7 +217,7 @@ describe('buildCli — unknown subcommand', () => {
     const rc = await run(['bogus'])
     expect(rc).toBe(2)
     expect(errs.join('\n')).toContain(`${SERVER}: unknown subcommand 'bogus'`)
-    expect(errs.join('\n')).toContain('expected one of: config, doctor, relay, token)')
+    expect(errs.join('\n')).toContain('expected one of: config, doctor, logout, relay, status, token)')
   })
 })
 
@@ -220,6 +293,110 @@ describe('buildCli — config subcommand', () => {
     const run = buildCli(SERVER, { serve: () => 0 })
     expect(await run(['config'])).toBe(2)
     expect(await run(['config', 'bogus'])).toBe(2)
+  })
+})
+
+describe('buildCli — status subcommand (same semantics as config status)', () => {
+  it('reports not configured with rc 0', async () => {
+    const run = buildCli(SERVER, { serve: () => 0 })
+    expect(await run(['status'])).toBe(0)
+    expect(logs[0]).toBe(`${SERVER}: not configured`)
+  })
+
+  it('reports configured with rc 0 and never prints a value', async () => {
+    await new PerPluginStore(SERVER).save({ token: 'secret' })
+    const run = buildCli(SERVER, { serve: () => 0 })
+    expect(await run(['status'])).toBe(0)
+    expect(logs[0]).toBe(`${SERVER}: configured (source: file)`)
+    expect(logs.join('\n')).not.toContain('secret')
+  })
+
+  it('reports a corrupt config with rc 1', async () => {
+    await new LocalFsBackend().put(`${SERVER}/config`, Buffer.from('too-short'))
+    const run = buildCli(SERVER, { serve: () => 0 })
+    expect(await run(['status'])).toBe(1)
+    expect(errs.join('\n')).toContain('config is corrupt')
+  })
+
+  it('reports configured for a credential that only exists in a legacy dir', async () => {
+    plantLegacy(`.${SERVER}-mcp`, { token: 'secret' })
+    const run = buildCli(SERVER, { serve: () => 0 })
+    expect(await run(['status'])).toBe(0)
+    expect(logs[0]).toBe(`${SERVER}: configured (source: file)`)
+  })
+
+  it('can be overridden through extra', async () => {
+    const run = buildCli(SERVER, { serve: () => 0, extra: { status: () => 9 } })
+    expect(await run(['status'])).toBe(9)
+  })
+})
+
+describe('buildCli — logout subcommand (same semantics as config delete)', () => {
+  it('deletes the stored credential with --yes (rc 0), legacy copies included', async () => {
+    const legacyDir = plantLegacy(`.better-${SERVER}-mcp`, { token: 'old' })
+    const store = new PerPluginStore(SERVER)
+    await store.save({ token: 'secret' })
+    const run = buildCli(SERVER, { serve: () => 0 })
+    expect(await run(['logout', '--yes'])).toBe(0)
+    expect(logs[0]).toBe(`${SERVER}: config deleted`)
+    expect(await store.load()).toBeNull()
+    expect(await store.hasStoredBlob()).toBe(false)
+    expect(existsSync(join(legacyDir, 'config.json'))).toBe(false)
+  })
+
+  it('refuses without --yes in non-interactive mode (rc 1) and keeps the credential', async () => {
+    const store = new PerPluginStore(SERVER)
+    await store.save({ token: 'secret' })
+    const run = buildCli(SERVER, { serve: () => 0 })
+    expect(await run(['logout'])).toBe(1)
+    expect(errs.join('\n')).toContain('refusing to delete without --yes')
+    expect(await store.load()).toEqual({ token: 'secret' })
+  })
+
+  it('succeeds with --yes even when nothing is stored', async () => {
+    const run = buildCli(SERVER, { serve: () => 0 })
+    expect(await run(['logout', '--yes'])).toBe(0)
+  })
+})
+
+describe('buildCli — interactive delete confirmation (TTY)', () => {
+  let ttyDescriptor: PropertyDescriptor | undefined
+  let prompts: string[]
+
+  beforeEach(() => {
+    ttyDescriptor = Object.getOwnPropertyDescriptor(process.stdin, 'isTTY')
+    Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true })
+    prompts = []
+    vi.spyOn(process.stderr, 'write').mockImplementation((chunk: string | Uint8Array) => {
+      prompts.push(String(chunk))
+      return true
+    })
+  })
+
+  afterEach(() => {
+    promptAnswer.value = null
+    if (ttyDescriptor) Object.defineProperty(process.stdin, 'isTTY', ttyDescriptor)
+    else delete (process.stdin as { isTTY?: boolean }).isTTY
+  })
+
+  it('logout deletes after a "yes" answer (rc 0)', async () => {
+    promptAnswer.value = ' YES '
+    const store = new PerPluginStore(SERVER)
+    await store.save({ token: 'secret' })
+    const run = buildCli(SERVER, { serve: () => 0 })
+    expect(await run(['logout'])).toBe(0)
+    expect(prompts.join('')).toContain(`Delete stored config for ${SERVER}? [y/N]`)
+    expect(await store.hasStoredBlob()).toBe(false)
+  })
+
+  it('config delete aborts on any other answer (rc 1) and keeps the credential', async () => {
+    promptAnswer.value = 'n'
+    const store = new PerPluginStore(SERVER)
+    await store.save({ token: 'secret' })
+    const run = buildCli(SERVER, { serve: () => 0 })
+    expect(await run(['config', 'delete'])).toBe(1)
+    expect(errs.join('\n')).toContain(`${SERVER}: aborted`)
+    expect(await store.load()).toEqual({ token: 'secret' })
   })
 })
 
@@ -320,6 +497,86 @@ describe('buildCli — doctor subcommand', () => {
     expect(await run(['doctor'])).toBe(1)
     expect(logs.join('\n')).toContain('[fail] config: corrupt')
   })
+
+  it('warns that the store dir does not exist yet when nothing is on disk', async () => {
+    const run = buildCli(SERVER, { serve: () => 0 })
+    await run(['doctor'])
+    expect(logs.join('\n')).toContain(`[warn] store dir does not exist yet: ${join(tmp, `.${SERVER}`)}`)
+  })
+
+  it('reports the new store dir as writable once it exists', async () => {
+    await new PerPluginStore(SERVER).save({ token: 'secret' })
+    const run = buildCli(SERVER, { serve: () => 0 })
+    await run(['doctor'])
+    const all = logs.join('\n')
+    expect(all).toContain(`[ok] store dir writable: ${join(tmp, `.${SERVER}`)}`)
+    expect(all).not.toContain('legacy store dir')
+  })
+
+  it('warns when only a legacy store dir exists, naming both dirs', async () => {
+    const legacyDir = plantLegacy(`.${SERVER}-mcp`, { token: 'secret' })
+    const run = buildCli(SERVER, { serve: () => 0 })
+    await run(['doctor'])
+    const all = logs.join('\n')
+    expect(all).toContain(`[warn] only legacy store dir found: ${legacyDir}`)
+    expect(all).toContain(join(tmp, `.${SERVER}`))
+    expect(all).not.toContain('store dir does not exist yet')
+    // The legacy credential still decrypts, so config itself is healthy.
+    expect(all).toContain('[ok] config: configured')
+  })
+
+  it('warns about a better-<plugin>-mcp legacy dir too', async () => {
+    const legacyDir = plantLegacy(`.better-${SERVER}-mcp`, { token: 'secret' })
+    const run = buildCli(SERVER, { serve: () => 0 })
+    await run(['doctor'])
+    expect(logs.join('\n')).toContain(`[warn] only legacy store dir found: ${legacyDir}`)
+  })
+
+  it('fails when the store dir exists but is not writable', async () => {
+    const dir = join(tmp, '.unwritable-trigger')
+    mkdirSync(dir, { recursive: true })
+    const run = buildCli(SERVER, { serve: () => 0, pluginName: 'unwritable-trigger' })
+    expect(await run(['doctor'])).toBe(1)
+    expect(logs.join('\n')).toContain(`[fail] store dir not writable: ${dir}`)
+  })
+
+  it('fails on a runtime below the supported Node floor', async () => {
+    const descriptor = Object.getOwnPropertyDescriptor(process.versions, 'node') as PropertyDescriptor
+    Object.defineProperty(process.versions, 'node', { ...descriptor, value: '18.0.0' })
+    try {
+      const run = buildCli(SERVER, { serve: () => 0 })
+      expect(await run(['doctor'])).toBe(1)
+      expect(logs.join('\n')).toContain('[fail] node 18.0.0 (expected >=24)')
+    } finally {
+      Object.defineProperty(process.versions, 'node', descriptor)
+    }
+  })
+
+  it('reports a broken credential backend without crashing the remaining checks', async () => {
+    process.env.MCP_STORAGE_BACKEND = 'bogus'
+    try {
+      const run = buildCli(SERVER, { serve: () => 0 })
+      expect(await run(['doctor'])).toBe(1)
+      const all = logs.join('\n')
+      expect(all).toContain('[fail] credential backend: Unknown MCP_STORAGE_BACKEND: bogus')
+      expect(all).toContain('[warn] config: not checked (credential backend unavailable)')
+      // Later checks still run.
+      expect(all).toContain('[ok] mode: unset')
+    } finally {
+      delete process.env.MCP_STORAGE_BACKEND
+    }
+  })
+
+  it('reports an active relay session', async () => {
+    await writeSessionLock(SERVER, {
+      sessionId: 'abcd1234ef',
+      relayUrl: 'https://relay.example/s/abcd1234',
+      createdAt: Date.now()
+    })
+    const run = buildCli(SERVER, { serve: () => 0 })
+    await run(['doctor'])
+    expect(logs.join('\n')).toContain('[ok] relay session active (abcd1234)')
+  })
 })
 
 describe('buildCli — pluginName / serverName separation (store key vs display)', () => {
@@ -360,16 +617,16 @@ describe('buildCli — pluginName / serverName separation (store key vs display)
     expect(logs.join('\n')).toContain('[ok] config: configured')
   })
 
-  it('doctor probes the store dir under the plugin slug, not a doubled -mcp suffix', async () => {
-    // Saving creates <home>/.w51-mcp/. doctor's store-dir probe must point at
-    // that path (plugin slug), not the doubled <home>/.w51-mcp-mcp/. Assert on
-    // that line only, not the aggregate rc (see comment above).
+  it('doctor probes the store dir under the plugin slug, not the console name', async () => {
+    // Saving creates <home>/.w51/. doctor's store-dir probe must point at that
+    // path (plugin slug), not <home>/.w51-mcp/ (console name). Assert on that
+    // line only, not the aggregate rc (see comment above).
     await new PerPluginStore('w51').save({ token: 'secret' })
     const run = buildCli('w51-mcp', { serve: () => 0 })
     await run(['doctor'])
     const all = logs.join('\n')
-    expect(all).toContain('store dir writable')
-    expect(all).not.toContain('.w51-mcp-mcp')
+    expect(all).toContain(`store dir writable: ${join(tmp, '.w51')}`)
+    expect(all).not.toContain('.w51-mcp')
   })
 
   it('keeps relay state keyed by serverName, not the derived plugin slug', async () => {

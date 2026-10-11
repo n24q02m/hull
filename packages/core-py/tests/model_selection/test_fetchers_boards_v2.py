@@ -286,7 +286,13 @@ def test_hindsight_empty_listing_records_reason():
 
 
 def test_arena_agent_parquet_fixture_parse():
-    recs = ArenaAgentSource().fetch()
+    # Hermetic: without this patch the fetch goes to the live HF parquet and the
+    # asserted scores drift every weekly publish.
+    with patch(
+        "hull_core.model_selection.sources.httpx.get",
+        return_value=_resp(content=_fixture("arena_agent.parquet")),
+    ):
+        recs = ArenaAgentSource().fetch()
     # tier variants collapse to one key with the best score
     assert recs["claude-opus-5"].score == pytest.approx(0.0867117, rel=1e-4)
     # snapshot marker (0813) strips after the tier suffix

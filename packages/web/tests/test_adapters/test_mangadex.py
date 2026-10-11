@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ipaddress
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -14,6 +15,23 @@ from hull_web.adapters.mangadex import (
     MangaInfo,
     _extract_cover_url,
 )
+
+
+@pytest.fixture(autouse=True)
+def _public_dns():
+    # Hermetic: the SSRF guard resolves the host before the (mocked) HTTP call, so a
+    # resolver that sinkholes api.mangadex.org to loopback made every adapter test fail.
+    def resolve(host, port, *args, **kwargs):
+        try:
+            ipaddress.ip_address(host)
+            ip = host  # IP literals resolve to themselves, so the guard still blocks them
+        except ValueError:
+            ip = "93.184.216.34"
+        return [(2, 1, 6, "", (ip, 0))]
+
+    with patch("hull_web.http.client._original_getaddrinfo", side_effect=resolve):
+        yield
+
 
 # ---------------------------------------------------------------------------
 # Pydantic model tests

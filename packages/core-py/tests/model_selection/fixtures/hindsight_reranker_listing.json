@@ -1,0 +1,162 @@
+[
+ {
+  "name": "cohere-rerank-english-v3.json",
+  "path": "results/leaderboard/reranker/cohere-rerank-english-v3.json",
+  "sha": "b91d5a1c2ae3452f469eea91c2cb174b1f3753dc",
+  "size": 274,
+  "url": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/contents/results/leaderboard/reranker/cohere-rerank-english-v3.json?ref=main",
+  "html_url": "https://github.com/vectorize-io/hindsight-benchmarks/blob/main/results/leaderboard/reranker/cohere-rerank-english-v3.json",
+  "git_url": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/git/blobs/b91d5a1c2ae3452f469eea91c2cb174b1f3753dc",
+  "download_url": "https://raw.githubusercontent.com/vectorize-io/hindsight-benchmarks/main/results/leaderboard/reranker/cohere-rerank-english-v3.json",
+  "type": "file",
+  "_links": {
+   "self": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/contents/results/leaderboard/reranker/cohere-rerank-english-v3.json?ref=main",
+   "git": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/git/blobs/b91d5a1c2ae3452f469eea91c2cb174b1f3753dc",
+   "html": "https://github.com/vectorize-io/hindsight-benchmarks/blob/main/results/leaderboard/reranker/cohere-rerank-english-v3.json"
+  }
+ },
+ {
+  "name": "cohere-rerank-multilingual-v3.json",
+  "path": "results/leaderboard/reranker/cohere-rerank-multilingual-v3.json",
+  "sha": "38f1d912a8777d6a42a7d6b7639279670119ba3d",
+  "size": 284,
+  "url": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/contents/results/leaderboard/reranker/cohere-rerank-multilingual-v3.json?ref=main",
+  "html_url": "https://github.com/vectorize-io/hindsight-benchmarks/blob/main/results/leaderboard/reranker/cohere-rerank-multilingual-v3.json",
+  "git_url": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/git/blobs/38f1d912a8777d6a42a7d6b7639279670119ba3d",
+  "download_url": "https://raw.githubusercontent.com/vectorize-io/hindsight-benchmarks/main/results/leaderboard/reranker/cohere-rerank-multilingual-v3.json",
+  "type": "file",
+  "_links": {
+   "self": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/contents/results/leaderboard/reranker/cohere-rerank-multilingual-v3.json?ref=main",
+   "git": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/git/blobs/38f1d912a8777d6a42a7d6b7639279670119ba3d",
+   "html": "https://github.com/vectorize-io/hindsight-benchmarks/blob/main/results/leaderboard/reranker/cohere-rerank-multilingual-v3.json"
+  }
+ },
+ {
+  "name": "cohere-rerank-v4-fast.json",
+  "path": "results/leaderboard/reranker/cohere-rerank-v4-fast.json",
+  "sha": "83f23e4d13f45e2d2094c84700628a4098016bb0",
+  "size": 268,
+  "url": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/contents/results/leaderboard/reranker/cohere-rerank-v4-fast.json?ref=main",
+  "html_url": "https://github.com/vectorize-io/hindsight-benchmarks/blob/main/results/leaderboard/reranker/cohere-rerank-v4-fast.json",
+  "git_url": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/git/blobs/83f23e4d13f45e2d2094c84700628a4098016bb0",
+  "download_url": "https://raw.githubusercontent.com/vectorize-io/hindsight-benchmarks/main/results/leaderboard/reranker/cohere-rerank-v4-fast.json",
+  "type": "file",
+  "_links": {
+   "self": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/contents/results/leaderboard/reranker/cohere-rerank-v4-fast.json?ref=main",
+   "git": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/git/blobs/83f23e4d13f45e2d2094c84700628a4098016bb0",
+   "html": "https://github.com/vectorize-io/hindsight-benchmarks/blob/main/results/leaderboard/reranker/cohere-rerank-v4-fast.json"
+  }
+ },
+ {
+  "name": "cohere-rerank-v4-pro.json",
+  "path": "results/leaderboard/reranker/cohere-rerank-v4-pro.json",
+  "sha": "174ac86f61c9ad2d7aed62c26180704e70a1047d",
+  "size": 264,
+  "url": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/contents/results/leaderboard/reranker/cohere-rerank-v4-pro.json?ref=main",
+  "html_url": "https://github.com/vectorize-io/hindsight-benchmarks/blob/main/results/leaderboard/reranker/cohere-rerank-v4-pro.json",
+  "git_url": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/git/blobs/174ac86f61c9ad2d7aed62c26180704e70a1047d",
+  "download_url": "https://raw.githubusercontent.com/vectorize-io/hindsight-benchmarks/main/results/leaderboard/reranker/cohere-rerank-v4-pro.json",
+  "type": "file",
+  "_links": {
+   "self": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/contents/results/leaderboard/reranker/cohere-rerank-v4-pro.json?ref=main",
+   "git": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/git/blobs/174ac86f61c9ad2d7aed62c26180704e70a1047d",
+   "html": "https://github.com/vectorize-io/hindsight-benchmarks/blob/main/results/leaderboard/reranker/cohere-rerank-v4-pro.json"
+  }
+ },
+ {
+  "name": "flashrank.json",
+  "path": "results/leaderboard/reranker/flashrank.json",
+  "sha": "d5c3bf947fd04bb1dbdd10269adc8abce22b6130",
+  "size": 267,
+  "url": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/contents/results/leaderboard/reranker/flashrank.json?ref=main",
+  "html_url": "https://github.com/vectorize-io/hindsight-benchmarks/blob/main/results/leaderboard/reranker/flashrank.json",
+  "git_url": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/git/blobs/d5c3bf947fd04bb1dbdd10269adc8abce22b6130",
+  "download_url": "https://raw.githubusercontent.com/vectorize-io/hindsight-benchmarks/main/results/leaderboard/reranker/flashrank.json",
+  "type": "file",
+  "_links": {
+   "self": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/contents/results/leaderboard/reranker/flashrank.json?ref=main",
+   "git": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/git/blobs/d5c3bf947fd04bb1dbdd10269adc8abce22b6130",
+   "html": "https://github.com/vectorize-io/hindsight-benchmarks/blob/main/results/leaderboard/reranker/flashrank.json"
+  }
+ },
+ {
+  "name": "jina-reranker-v2-multilingual.json",
+  "path": "results/leaderboard/reranker/jina-reranker-v2-multilingual.json",
+  "sha": "b80dd452b745fc5c6cfa8d1077791c9ca7f9250d",
+  "size": 308,
+  "url": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/contents/results/leaderboard/reranker/jina-reranker-v2-multilingual.json?ref=main",
+  "html_url": "https://github.com/vectorize-io/hindsight-benchmarks/blob/main/results/leaderboard/reranker/jina-reranker-v2-multilingual.json",
+  "git_url": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/git/blobs/b80dd452b745fc5c6cfa8d1077791c9ca7f9250d",
+  "download_url": "https://raw.githubusercontent.com/vectorize-io/hindsight-benchmarks/main/results/leaderboard/reranker/jina-reranker-v2-multilingual.json",
+  "type": "file",
+  "_links": {
+   "self": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/contents/results/leaderboard/reranker/jina-reranker-v2-multilingual.json?ref=main",
+   "git": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/git/blobs/b80dd452b745fc5c6cfa8d1077791c9ca7f9250d",
+   "html": "https://github.com/vectorize-io/hindsight-benchmarks/blob/main/results/leaderboard/reranker/jina-reranker-v2-multilingual.json"
+  }
+ },
+ {
+  "name": "local-minilm-l6.json",
+  "path": "results/leaderboard/reranker/local-minilm-l6.json",
+  "sha": "e51de01523f9d167abba8733d4bd30bc8de2482d",
+  "size": 280,
+  "url": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/contents/results/leaderboard/reranker/local-minilm-l6.json?ref=main",
+  "html_url": "https://github.com/vectorize-io/hindsight-benchmarks/blob/main/results/leaderboard/reranker/local-minilm-l6.json",
+  "git_url": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/git/blobs/e51de01523f9d167abba8733d4bd30bc8de2482d",
+  "download_url": "https://raw.githubusercontent.com/vectorize-io/hindsight-benchmarks/main/results/leaderboard/reranker/local-minilm-l6.json",
+  "type": "file",
+  "_links": {
+   "self": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/contents/results/leaderboard/reranker/local-minilm-l6.json?ref=main",
+   "git": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/git/blobs/e51de01523f9d167abba8733d4bd30bc8de2482d",
+   "html": "https://github.com/vectorize-io/hindsight-benchmarks/blob/main/results/leaderboard/reranker/local-minilm-l6.json"
+  }
+ },
+ {
+  "name": "rrf.json",
+  "path": "results/leaderboard/reranker/rrf.json",
+  "sha": "66b11f6172e3980ec55b4fb6e16d20b994f38c15",
+  "size": 232,
+  "url": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/contents/results/leaderboard/reranker/rrf.json?ref=main",
+  "html_url": "https://github.com/vectorize-io/hindsight-benchmarks/blob/main/results/leaderboard/reranker/rrf.json",
+  "git_url": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/git/blobs/66b11f6172e3980ec55b4fb6e16d20b994f38c15",
+  "download_url": "https://raw.githubusercontent.com/vectorize-io/hindsight-benchmarks/main/results/leaderboard/reranker/rrf.json",
+  "type": "file",
+  "_links": {
+   "self": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/contents/results/leaderboard/reranker/rrf.json?ref=main",
+   "git": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/git/blobs/66b11f6172e3980ec55b4fb6e16d20b994f38c15",
+   "html": "https://github.com/vectorize-io/hindsight-benchmarks/blob/main/results/leaderboard/reranker/rrf.json"
+  }
+ },
+ {
+  "name": "voyage-rerank-2-lite.json",
+  "path": "results/leaderboard/reranker/voyage-rerank-2-lite.json",
+  "sha": "3e1b109a6027edb8b5051a43ccbae2ddfc8739fd",
+  "size": 277,
+  "url": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/contents/results/leaderboard/reranker/voyage-rerank-2-lite.json?ref=main",
+  "html_url": "https://github.com/vectorize-io/hindsight-benchmarks/blob/main/results/leaderboard/reranker/voyage-rerank-2-lite.json",
+  "git_url": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/git/blobs/3e1b109a6027edb8b5051a43ccbae2ddfc8739fd",
+  "download_url": "https://raw.githubusercontent.com/vectorize-io/hindsight-benchmarks/main/results/leaderboard/reranker/voyage-rerank-2-lite.json",
+  "type": "file",
+  "_links": {
+   "self": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/contents/results/leaderboard/reranker/voyage-rerank-2-lite.json?ref=main",
+   "git": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/git/blobs/3e1b109a6027edb8b5051a43ccbae2ddfc8739fd",
+   "html": "https://github.com/vectorize-io/hindsight-benchmarks/blob/main/results/leaderboard/reranker/voyage-rerank-2-lite.json"
+  }
+ },
+ {
+  "name": "voyage-rerank-2.json",
+  "path": "results/leaderboard/reranker/voyage-rerank-2.json",
+  "sha": "53075d60e49d5014907f02e08fa578ef8b007905",
+  "size": 264,
+  "url": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/contents/results/leaderboard/reranker/voyage-rerank-2.json?ref=main",
+  "html_url": "https://github.com/vectorize-io/hindsight-benchmarks/blob/main/results/leaderboard/reranker/voyage-rerank-2.json",
+  "git_url": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/git/blobs/53075d60e49d5014907f02e08fa578ef8b007905",
+  "download_url": "https://raw.githubusercontent.com/vectorize-io/hindsight-benchmarks/main/results/leaderboard/reranker/voyage-rerank-2.json",
+  "type": "file",
+  "_links": {
+   "self": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/contents/results/leaderboard/reranker/voyage-rerank-2.json?ref=main",
+   "git": "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/git/blobs/53075d60e49d5014907f02e08fa578ef8b007905",
+   "html": "https://github.com/vectorize-io/hindsight-benchmarks/blob/main/results/leaderboard/reranker/voyage-rerank-2.json"
+  }
+ }
+]

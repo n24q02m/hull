@@ -21,7 +21,9 @@ from packaging.utils import canonicalize_name
 
 ROOT = Path(__file__).resolve().parents[1]
 
-BASE_DEPS = {"fastmcp", "starlette", "uvicorn", "httpx", "httpcore", "pydantic"}
+# cryptography + platformdirs back hull_core.storage (credential blobs, legacy
+# config.enc lookup); both were already in the base install via fastmcp.
+BASE_DEPS = {"fastmcp", "starlette", "uvicorn", "httpx", "httpcore", "pydantic", "cryptography", "platformdirs"}
 WEB_DEPS = {
     "httpx",
     "curl-cffi",

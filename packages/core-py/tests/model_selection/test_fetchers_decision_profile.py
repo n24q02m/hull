@@ -434,15 +434,66 @@ def test_tilde_alias_target_resolves_to_canonical():
 
 def test_decision_profile_registered_and_sources_resolve():
     profile = TASKS["decision"]
-    assert profile.specialized_sources == ("jevals", "jevbench", "jev_decision_index", "judgemark_v4")
+    # A-W3.2a option P3: decision/judging boards specialized, independent
+    # agentic boards as the aggregate proxy layer.
+    assert profile.specialized_sources == ("jevals", "jevbench", "judgemark_v4")
+    assert profile.aggregate_sources == ("tau2_bench_or", "bfcl", "arena_agent")
     assert profile.usage_sources == ("or_usage",)
-    for name in profile.specialized_sources:
+    for name in (*profile.specialized_sources, *profile.aggregate_sources, *profile.usage_sources):
         assert name in SOURCE_REGISTRY, name
     # corroborate-only law is encoded in the profile comment/shape: judgemark
     # is one of >=2 boards required for a strong (rank-capable) candidate — a
     # judgemark-only model stays weak_evidence (enforced by candidates()).
     assert "judgemark_v4" in profile.specialized_sources
     assert "jevals" in profile.specialized_sources
+
+
+def test_decision_profile_excludes_unlicensed_and_dependent_boards():
+    """jev_decision_index (no declared license) and aa_agentic_index (not
+    provably independent from tau2_bench_or) stay registered but out of the
+    profile, so they can never mint a fake second board."""
+    profile = TASKS["decision"]
+    in_profile = {*profile.specialized_sources, *profile.aggregate_sources}
+    assert "jev_decision_index" not in in_profile
+    assert "aa_agentic_index" not in in_profile
+    assert "jev_decision_index" in SOURCE_REGISTRY
+    assert "aa_agentic_index" in SOURCE_REGISTRY
+
+
+def test_decision_profile_strong_needs_two_independent_boards():
+    """Strong (rank-capable) evidence needs >=2 contributing boards. Excluded
+    boards present in the source map contribute nothing."""
+    slugs = ["a/dual", "b/judge-only", "c/jev-only", "d/excluded-only", "e/agentic-pair"]
+    or_rows = {s: _or_rec(s, segments=["text"]) for s in slugs}
+
+    def board(name: str, *keys: str) -> _StaticSource:
+        return _StaticSource(name, {k: SourceRecord(key=k, score=70.0 + i) for i, k in enumerate(keys)})
+
+    sources = {
+        "openrouter_models": _StaticSource("openrouter_models", or_rows),
+        "jevals": board("jevals", "a-dual", "c-jev-only"),
+        "jevbench": board("jevbench"),
+        "judgemark_v4": board("judgemark_v4", "a-dual", "b-judge-only"),
+        "tau2_bench_or": board("tau2_bench_or", "e-agentic-pair"),
+        "bfcl": board("bfcl", "e-agentic-pair"),
+        "arena_agent": board("arena_agent"),
+        # present in the map, absent from the profile -> must be ignored
+        "jev_decision_index": board("jev_decision_index", "d-excluded-only", "c-jev-only"),
+        "aa_agentic_index": board("aa_agentic_index", "d-excluded-only", "b-judge-only"),
+    }
+    by_slug = {c.or_slug: c for c in candidates(TASKS["decision"], sources=sources)}
+
+    assert by_slug["a/dual"].evidence == ("jevals", "judgemark_v4")
+    assert by_slug["a/dual"].weak_evidence is False
+    assert by_slug["e/agentic-pair"].evidence == ("bfcl", "tau2_bench_or")
+    assert by_slug["e/agentic-pair"].weak_evidence is False
+    # judgemark-only and jevals-only models remain honestly weak
+    assert by_slug["b/judge-only"].evidence == ("judgemark_v4",)
+    assert by_slug["b/judge-only"].weak_evidence is True
+    assert by_slug["c/jev-only"].evidence == ("jevals",)
+    assert by_slug["c/jev-only"].weak_evidence is True
+    # excluded boards alone give no score at all -> dropped from the pool
+    assert "d/excluded-only" not in by_slug
 
 
 def test_existing_profiles_unchanged_by_decision_wave():

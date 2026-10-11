@@ -1,0 +1,991 @@
+{
+ "generated_utc": "2026-10-07T18:25:58Z",
+ "suite": {
+  "requests": 110201,
+  "scoreable": 109759,
+  "benchmarks": 42,
+  "jev_benchmarks": 53,
+  "panel": 37,
+  "panel_full": 37,
+  "categories": 5,
+  "dropped": [
+   "MiniWoB++",
+   "Boxoban",
+   "RTFM",
+   "ScienceWorld",
+   "Hanabi",
+   "Codenames"
+  ],
+  "hardware": "1 x NVIDIA RTX PRO 6000",
+  "jev_version": "jev-1.13.0",
+  "panel_id": "decision-index-0.3",
+  "calibration_note": "32 benchmarks with a per-field right or wrong answer (ToolRet, BRIGHT and RouterBench excluded), each weighted equally; a 1-in-6 sample of requests; confidence is the probability placed on the chosen option. Rows an entrant trained on count as wrong here too.",
+  "formulas": [
+   {
+    "id": "balanced_raw",
+    "normalization": "raw",
+    "formula": "100*sum_c(0.2*category[c])",
+    "label": "Public index, raw accuracy"
+   },
+   {
+    "id": "balanced_skill",
+    "normalization": "skill",
+    "formula": "0.20*public + 0.50*private_same_skills + 0.30*private_new_domains, private parts mapped onto the public scale with untuned stock models",
+    "label": "Full score"
+   },
+   {
+    "id": "breadth_skill",
+    "normalization": "skill",
+    "shift": 0.1,
+    "formula": "100*(product_c((0.1+0.9*category[c])**0.2)-0.1)/0.9",
+    "label": "Public index, breadth"
+   }
+  ],
+  "edition": "release-v3",
+  "label": "Decision Index 0.3",
+  "corpus_sha256": "b2b56d6fb636837ca469e689087bdbf373dda8de7638aa2da6793e6eda0792d5",
+  "base_edition": "release-v2.1",
+  "note": null,
+  "areas": {
+   "knowledge": [
+    25,
+    30,
+    31,
+    32,
+    33,
+    43,
+    44,
+    45,
+    57,
+    58,
+    28
+   ],
+   "language": [
+    11,
+    12,
+    29,
+    38,
+    39,
+    40,
+    41,
+    42,
+    59
+   ],
+   "retrieval": [
+    4,
+    5,
+    36,
+    37,
+    56,
+    61
+   ],
+   "tools": [
+    1,
+    2,
+    3,
+    9,
+    62
+   ],
+   "arts": [
+    20,
+    21,
+    22,
+    23,
+    50,
+    64
+   ]
+  },
+  "not_in_index": [
+   {
+    "id": 6,
+    "name": "RouterBench"
+   },
+   {
+    "id": 10,
+    "name": "SGD"
+   },
+   {
+    "id": 24,
+    "name": "MMLU"
+   },
+   {
+    "id": 26,
+    "name": "ARC-Easy"
+   },
+   {
+    "id": 27,
+    "name": "ARC-Challenge"
+   }
+  ],
+  "lower_rules": [],
+  "headline": "balanced_skill",
+  "chance_levels": [
+   {
+    "id": 25,
+    "name": "GPQA Diamond",
+    "area": "knowledge",
+    "chance": 0.25,
+    "label": "Uniform random choice",
+    "method": "expected score of uniform random choice over each question's options"
+   },
+   {
+    "id": 30,
+    "name": "GSM8K",
+    "area": "knowledge",
+    "chance": 0.175,
+    "label": "Uniform random choice",
+    "method": "per track: 4-choice and 10-choice versions corrected separately, then averaged"
+   },
+   {
+    "id": 31,
+    "name": "ChessBench",
+    "area": "knowledge",
+    "chance": 0.0819,
+    "label": "Uniform random choice",
+    "method": "expected score of uniform random choice over each question's options"
+   },
+   {
+    "id": 32,
+    "name": "MuSR",
+    "area": "knowledge",
+    "chance": 0.371,
+    "label": "Uniform random choice",
+    "method": "expected score of uniform random choice over each question's options"
+   },
+   {
+    "id": 33,
+    "name": "SATA-Bench",
+    "area": "knowledge",
+    "chance": 0.0131,
+    "label": "Random whole-case guesses",
+    "method": "expected score of uniform random choice over each question's options"
+   },
+   {
+    "id": 43,
+    "name": "CRUXEval",
+    "area": "knowledge",
+    "chance": 0.3697,
+    "label": "Uniform random choice",
+    "method": "expected score of uniform random choice over each question's options"
+   },
+   {
+    "id": 44,
+    "name": "CLadder",
+    "area": "knowledge",
+    "chance": 0.5,
+    "label": "Uniform random choice",
+    "method": "expected score of uniform random choice over each question's options"
+   },
+   {
+    "id": 45,
+    "name": "HLE",
+    "area": "knowledge",
+    "chance": 0.1641,
+    "label": "Uniform random choice",
+    "method": "expected score of uniform random choice over each question's options"
+   },
+   {
+    "id": 57,
+    "name": "MMLU-Pro",
+    "area": "knowledge",
+    "chance": 0.1109,
+    "label": "uniform random choice, mean of 1/options",
+    "method": "expected score of uniform random choice over each question's options"
+   },
+   {
+    "id": 58,
+    "name": "BBH",
+    "area": "knowledge",
+    "chance": 0.3101,
+    "label": "uniform random choice, mean of 1/options",
+    "method": "expected score of uniform random choice over each question's options"
+   },
+   {
+    "id": 11,
+    "name": "ContractNLI",
+    "area": "language",
+    "chance": 0.3085,
+    "label": "Random choices \u00b7 F1",
+    "method": "F1 of random guessing over the fixed label set"
+   },
+   {
+    "id": 12,
+    "name": "ANLI",
+    "area": "language",
+    "chance": 0.3324,
+    "label": "Random choices \u00b7 F1",
+    "method": "expected score of uniform random choice over each question's options"
+   },
+   {
+    "id": 28,
+    "name": "WinoGrande",
+    "area": "language",
+    "chance": 0.5,
+    "label": "Uniform random choice",
+    "method": "expected score of uniform random choice over each question's options"
+   },
+   {
+    "id": 29,
+    "name": "HellaSwag",
+    "area": "language",
+    "chance": 0.25,
+    "label": "Uniform random choice",
+    "method": "expected score of uniform random choice over each question's options"
+   },
+   {
+    "id": 38,
+    "name": "ACOS",
+    "area": "language",
+    "chance": 0.031,
+    "label": "Always yes \u00b7 per-review F1",
+    "method": "per-review F1 of answering yes to every aspect-and-sentiment pair (a fair coin scores lower)"
+   },
+   {
+    "id": 39,
+    "name": "FinEntity",
+    "area": "language",
+    "chance": 0.3201,
+    "label": "Random choices \u00b7 F1",
+    "method": "expected score of uniform random choice over each question's options"
+   },
+   {
+    "id": 40,
+    "name": "iSarcasmEval",
+    "area": "language",
+    "chance": 0.2227,
+    "label": "Random choices \u00b7 F1",
+    "method": "track A English: F1 of random guessing on the sarcastic class"
+   },
+   {
+    "id": 41,
+    "name": "VAST",
+    "area": "language",
+    "chance": 0.3333,
+    "label": "Random choices \u00b7 F1",
+    "method": "F1 of random guessing over the fixed label set"
+   },
+   {
+    "id": 42,
+    "name": "NLI4CT",
+    "area": "language",
+    "chance": 0.486,
+    "label": "Random choices \u00b7 F1",
+    "method": "expected score of uniform random choice over each question's options"
+   },
+   {
+    "id": 59,
+    "name": "RAGTruth",
+    "area": "language",
+    "chance": 0.5177,
+    "label": "Always \"hallucinated\" \u00b7 F1",
+    "method": "F1 of always answering \"hallucinated\" (a fair coin scores lower)"
+   },
+   {
+    "id": 4,
+    "name": "BANKING77",
+    "area": "retrieval",
+    "chance": 0.0127,
+    "label": "Random choices \u00b7 F1",
+    "method": "expected score of uniform random choice over each question's options"
+   },
+   {
+    "id": 5,
+    "name": "CLINC150",
+    "area": "retrieval",
+    "chance": 0.006,
+    "label": "Random choices \u00b7 F1",
+    "method": "expected score of uniform random choice over each question's options"
+   },
+   {
+    "id": 36,
+    "name": "BRIGHT",
+    "area": "retrieval",
+    "chance": 0.116,
+    "label": "Random ranking, answerable queries",
+    "method": "per query: expected nDCG@10 of a random ranking of that query's candidates, answerable queries only"
+   },
+   {
+    "id": 37,
+    "name": "Amazon ESCI",
+    "area": "retrieval",
+    "chance": 0.2027,
+    "label": "Random choices \u00b7 F1",
+    "method": "F1 of random guessing over the fixed label set"
+   },
+   {
+    "id": 56,
+    "name": "PhishNChips",
+    "area": "retrieval",
+    "chance": 0.5,
+    "label": "uniform random choice, mean of 1/options",
+    "method": "expected score of uniform random choice over each question's options"
+   },
+   {
+    "id": 61,
+    "name": "HoVer",
+    "area": "retrieval",
+    "chance": 0.5,
+    "label": "uniform random choice, mean of 1/options",
+    "method": "expected score of uniform random choice over each question's options"
+   },
+   {
+    "id": 1,
+    "name": "BFCL",
+    "area": "tools",
+    "chance": 0.2592,
+    "label": "Random whole-case guesses",
+    "method": "all fields of a case right by chance"
+   },
+   {
+    "id": 2,
+    "name": "ToolRet",
+    "area": "tools",
+    "chance": 0.1341,
+    "label": "Random ranking, answerable queries",
+    "method": "per query: expected nDCG@10 of a random ranking of that query's candidates, answerable queries only"
+   },
+   {
+    "id": 3,
+    "name": "API-Bank",
+    "area": "tools",
+    "chance": 0.0189,
+    "label": "Uniform random choice",
+    "method": "expected score of uniform random choice over each question's options"
+   },
+   {
+    "id": 9,
+    "name": "Home appliances",
+    "area": "tools",
+    "chance": 0,
+    "label": "Random whole-case guesses",
+    "method": "all fields of a case right by chance, on the kept rows"
+   },
+   {
+    "id": 62,
+    "name": "When2Call",
+    "area": "tools",
+    "chance": 0.25,
+    "label": "uniform random choice, mean of 1/options",
+    "method": "expected score of uniform random choice over each question's options"
+   },
+   {
+    "id": 20,
+    "name": "BPoMP",
+    "area": "arts",
+    "chance": 0.5,
+    "label": "Uniform random choice",
+    "method": "expected score of uniform random choice over each question's options"
+   },
+   {
+    "id": 21,
+    "name": "Humicroedit",
+    "area": "arts",
+    "chance": 0.5,
+    "label": "Uniform random choice",
+    "method": "expected score of uniform random choice over each question's options"
+   },
+   {
+    "id": 22,
+    "name": "POP909",
+    "area": "arts",
+    "chance": 0.0078,
+    "label": "Uniform random choice",
+    "method": "expected score of uniform random choice over each question's options"
+   },
+   {
+    "id": 23,
+    "name": "cfcolor",
+    "area": "arts",
+    "chance": 0.5,
+    "label": "Uniform random choice",
+    "method": "expected score of uniform random choice over each question's options"
+   },
+   {
+    "id": 50,
+    "name": "Habermas",
+    "area": "arts",
+    "chance": 0.311,
+    "label": "Uniform random choice",
+    "method": "expected score of uniform random choice over each question's options"
+   },
+   {
+    "id": 64,
+    "name": "New Yorker",
+    "area": "arts",
+    "chance": 0.2,
+    "label": "uniform random choice, mean of 1/options",
+    "method": "expected score of uniform random choice over each question's options"
+   }
+  ],
+  "index_note": "The public index averages the 37 benchmarks of the 0.2.1 panel in five areas, with GSM8K rebuilt and ForecastBench retired. Each benchmark is chance-corrected first, (score - chance) / (1 - chance) clipped to 0-1, so 0 means random guessing and 100 means perfect. Every score is coverage-adjusted, so an unanswered or unsupported request counts as wrong. The headline Full score blends this public index with private tests; benchmarks marked + also show each model's score on the private benchmark of the same competency.",
+  "changes": [
+   "The main ranking is the Full score: 20% public benchmarks, 50% private tests of the same skills and 30% private tasks from new domains, each put on the public scale using untuned stock models. Most of the score comes from tests nobody can train on, so a public-only advantage counts for little.",
+   "GSM8K is rebuilt, ForecastBench is retired from the public index, and WinoGrande now counts under Knowledge & Reasoning."
+  ],
+  "area_weights": {
+   "knowledge": 0.258494,
+   "language": 0.258494,
+   "retrieval": 0.200229,
+   "tools": 0.182783,
+   "arts": 0.1
+  },
+  "area_sizing": "sqrt",
+  "gold": {
+   "1": 1.2,
+   "3": 1.2,
+   "4": 1.2,
+   "5": 1.2,
+   "12": 1.2,
+   "25": 1.2,
+   "28": 1.2,
+   "29": 1.2,
+   "36": 1.2,
+   "45": 1.2,
+   "48": 1.2,
+   "57": 1.2,
+   "58": 1.2
+  },
+  "index_notes": [
+   {
+    "id": 6,
+    "name": "RouterBench",
+    "note": "Not in the index: the prompt reveals that GPT-4 is the best route, so the top models all pick GPT-4 and score within a fraction of a point of each other. Scores stay visible."
+   },
+   {
+    "id": 10,
+    "name": "SGD",
+    "note": "Not in the index: build bug, pending re-run. The builder gave every SGD row the whole dialogue, including the turns after the one being classified. Scores stay visible; SGD returns to the index once re-run with the fixed builder."
+   }
+  ]
+ },
+ "benchmarks": {
+  "_note": "row-trimmed from the live 53-entry map (2026-10-09); parser reads models[] only"
+ },
+ "models": [
+  {
+   "engine": "clef",
+   "name": "Cloudflare clef",
+   "long_name": "Cloudflare clef",
+   "variant": null,
+   "meta": {
+    "kind": "full fine-tune",
+    "technique": "autoregressive",
+    "technique_name": "autoregressive",
+    "served_params": 27800000000,
+    "params_estimated": false,
+    "params_from_name": false,
+    "trained_bytes": null,
+    "model_url": "https://huggingface.co/Cloudflare/clef",
+    "code_url": null,
+    "base_model": "Qwen/Qwen3.8-27B",
+    "base_url": "https://huggingface.co/Qwen/Qwen3.8-27B",
+    "weights_repo": null,
+    "served_checkpoint": null,
+    "org": {
+     "id": "Cloudflare",
+     "name": "Cloudflare",
+     "logo": "data/orgs/Cloudflare.png"
+    }
+   },
+   "completed": 110201,
+   "calibration": {
+    "acc": 0.7783,
+    "conf": 0.8096,
+    "ece": 0.0395,
+    "brier": 0.306,
+    "over95": 0.0233,
+    "n": 35088,
+    "benchmarks": 32,
+    "rel": [
+     {
+      "lo": 0,
+      "w": 0.0311,
+      "conf": 0.0637,
+      "acc": 0.1167
+     },
+     {
+      "lo": 0.1,
+      "w": 0.0208,
+      "conf": 0.1418,
+      "acc": 0.241
+     }
+    ],
+    "areas": {
+     "knowledge": {
+      "ece": 0.0417,
+      "acc": 0.7354,
+      "conf": 0.7721
+     },
+     "language": {
+      "ece": 0.0222,
+      "acc": 0.8652,
+      "conf": 0.8874
+     },
+     "retrieval": {
+      "ece": 0.1393,
+      "acc": 0.7431,
+      "conf": 0.8765
+     },
+     "tools": {
+      "ece": 0.0263,
+      "acc": 0.9648,
+      "conf": 0.9487
+     },
+     "arts": {
+      "ece": 0.0464,
+      "acc": 0.6323,
+      "conf": 0.6151
+     }
+    }
+   },
+   "coverage": 1,
+   "scores": {
+    "balanced_raw": 71.07,
+    "balanced_skill": 53.08,
+    "breadth_skill": 61.04,
+    "public_skill": 61.71
+   },
+   "frozen_scores": {
+    "balanced_raw": 71.07,
+    "balanced_skill": 61.71,
+    "breadth_skill": 61.04
+   }
+  },
+  {
+   "engine": "clef-flash",
+   "name": "Cloudflare clef-flash",
+   "long_name": "Cloudflare clef-flash",
+   "variant": null,
+   "meta": {
+    "kind": "full fine-tune",
+    "technique": "autoregressive",
+    "technique_name": "autoregressive",
+    "served_params": 9650000000,
+    "params_estimated": false,
+    "params_from_name": false,
+    "trained_bytes": null,
+    "model_url": "https://huggingface.co/Cloudflare/clef-flash",
+    "code_url": null,
+    "base_model": "Qwen/Qwen3.5-9B",
+    "base_url": "https://huggingface.co/Qwen/Qwen3.5-9B",
+    "weights_repo": null,
+    "served_checkpoint": null,
+    "org": {
+     "id": "Cloudflare",
+     "name": "Cloudflare",
+     "logo": "data/orgs/Cloudflare.png"
+    }
+   },
+   "completed": 110201,
+   "calibration": {
+    "acc": 0.7563,
+    "conf": 0.7764,
+    "ece": 0.0249,
+    "brier": 0.3333,
+    "over95": 0.0088,
+    "n": 35088,
+    "benchmarks": 32,
+    "rel": [
+     {
+      "lo": 0,
+      "w": 0.0383,
+      "conf": 0.0325,
+      "acc": 0.0405
+     },
+     {
+      "lo": 0.1,
+      "w": 0.0174,
+      "conf": 0.1504,
+      "acc": 0.201
+     }
+    ],
+    "areas": {
+     "knowledge": {
+      "ece": 0.0411,
+      "acc": 0.7332,
+      "conf": 0.7528
+     },
+     "language": {
+      "ece": 0.0393,
+      "acc": 0.8467,
+      "conf": 0.886
+     },
+     "retrieval": {
+      "ece": 0.196,
+      "acc": 0.6304,
+      "conf": 0.6984
+     },
+     "tools": {
+      "ece": 0.0578,
+      "acc": 0.9709,
+      "conf": 0.9193
+     },
+     "arts": {
+      "ece": 0.0221,
+      "acc": 0.6162,
+      "conf": 0.6076
+     }
+    }
+   },
+   "coverage": 1,
+   "scores": {
+    "balanced_raw": 66.53,
+    "balanced_skill": 47.61,
+    "breadth_skill": 55.17,
+    "public_skill": 56.15
+   },
+   "frozen_scores": {
+    "balanced_raw": 66.53,
+    "balanced_skill": 56.15,
+    "breadth_skill": 55.17
+   }
+  },
+  {
+   "engine": "kev-4b-r10",
+   "name": "Kev 4B r10",
+   "long_name": "Kev 4B r10",
+   "variant": null,
+   "meta": {
+    "kind": "LoRA + head",
+    "technique": "autoregressive",
+    "technique_name": "autoregressive",
+    "served_params": 4660000000,
+    "params_estimated": false,
+    "params_from_name": false,
+    "trained_bytes": null,
+    "model_url": "https://huggingface.co/jaredpalmer/kev-4b",
+    "code_url": null,
+    "base_model": "Qwen/Qwen3.5-4B-Base",
+    "base_url": "https://huggingface.co/Qwen/Qwen3.5-4B-Base",
+    "weights_repo": null,
+    "served_checkpoint": null
+   },
+   "completed": 110201,
+   "calibration": {
+    "acc": 0.6252,
+    "conf": 0.6268,
+    "ece": 0.032,
+    "brier": 0.4847,
+    "over95": 0.0078,
+    "n": 35088,
+    "benchmarks": 32,
+    "rel": [
+     {
+      "lo": 0,
+      "w": 0.0624,
+      "conf": 0.0463,
+      "acc": 0.0657
+     },
+     {
+      "lo": 0.1,
+      "w": 0.026,
+      "conf": 0.1555,
+      "acc": 0.465
+     }
+    ],
+    "areas": {
+     "knowledge": {
+      "ece": 0.024,
+      "acc": 0.579,
+      "conf": 0.5915
+     },
+     "language": {
+      "ece": 0.0479,
+      "acc": 0.7181,
+      "conf": 0.7465
+     },
+     "retrieval": {
+      "ece": 0.1671,
+      "acc": 0.6646,
+      "conf": 0.515
+     },
+     "tools": {
+      "ece": 0.0652,
+      "acc": 0.7633,
+      "conf": 0.8043
+     },
+     "arts": {
+      "ece": 0.0273,
+      "acc": 0.445,
+      "conf": 0.4716
+     }
+    }
+   },
+   "coverage": 1,
+   "scores": {
+    "balanced_raw": 53.8,
+    "balanced_skill": 39.5,
+    "breadth_skill": 36.46,
+    "public_skill": 37.95
+   },
+   "frozen_scores": {
+    "balanced_raw": 53.8,
+    "balanced_skill": 37.95,
+    "breadth_skill": 36.46
+   }
+  },
+  {
+   "engine": "tev1-4b",
+   "name": "Tev1-4B-experimental",
+   "long_name": "Together Tev1 Qwen3.5-4B",
+   "variant": null,
+   "meta": {
+    "kind": "full fine-tune",
+    "technique": "autoregressive",
+    "technique_name": "autoregressive",
+    "served_params": 4659865088,
+    "params_estimated": false,
+    "params_from_name": false,
+    "trained_bytes": 9319828096,
+    "model_url": "https://huggingface.co/togethercomputer/Tev1-4B-experimental",
+    "code_url": "https://github.com/togethercomputer/tev1",
+    "base_model": "Qwen/Qwen3.5-4B-Base",
+    "base_url": "https://huggingface.co/Qwen/Qwen3.5-4B-Base",
+    "weights_repo": "togethercomputer/Tev1-4B-experimental",
+    "served_checkpoint": null,
+    "org": {
+     "id": "togethercomputer",
+     "name": "Together",
+     "logo": "data/orgs/togethercomputer.png"
+    }
+   },
+   "completed": 95027,
+   "calibration": {
+    "acc": 0.6345,
+    "conf": 0.7386,
+    "ece": 0.104,
+    "brier": 0.4763,
+    "over95": 0.0174,
+    "n": 32652,
+    "benchmarks": 28,
+    "rel": [
+     {
+      "lo": 0,
+      "w": 0.0002,
+      "conf": 0.0919,
+      "acc": 0
+     },
+     {
+      "lo": 0.1,
+      "w": 0.0124,
+      "conf": 0.1624,
+      "acc": 0.11
+     }
+    ],
+    "areas": {
+     "knowledge": {
+      "ece": 0.1215,
+      "acc": 0.5575,
+      "conf": 0.6791
+     },
+     "language": {
+      "ece": 0.0705,
+      "acc": 0.7148,
+      "conf": 0.785
+     },
+     "retrieval": {
+      "ece": 0.2745,
+      "acc": 0.4965,
+      "conf": 0.7693
+     },
+     "tools": {
+      "ece": 0.0258,
+      "acc": 0.9313,
+      "conf": 0.9228
+     },
+     "arts": {
+      "ece": 0.1059,
+      "acc": 0.5864,
+      "conf": 0.6903
+     }
+    }
+   },
+   "scores": {
+    "balanced_raw": 45.39,
+    "balanced_skill": 34.14,
+    "breadth_skill": 28.21,
+    "public_skill": 29.51
+   },
+   "frozen_scores": {
+    "balanced_raw": 45.39,
+    "balanced_skill": 29.51,
+    "breadth_skill": 28.21
+   },
+   "coverage": 0.6909
+  },
+  {
+   "engine": "decision-27b-ckpt-nothink",
+   "name": "Fastino GLiDE no-thinking (28B)",
+   "long_name": "Fastino GLiDE no-thinking (28B)",
+   "variant": null,
+   "meta": {
+    "kind": "full fine-tune",
+    "technique": "autoregressive",
+    "technique_name": "autoregressive",
+    "served_params": 27800000000,
+    "params_estimated": false,
+    "params_from_name": false,
+    "trained_bytes": null,
+    "model_url": null,
+    "code_url": null,
+    "base_model": null,
+    "base_url": null,
+    "weights_repo": null,
+    "served_checkpoint": null,
+    "weights_note": "Open weights coming soon",
+    "org": {
+     "id": "fastino",
+     "name": "Fastino",
+     "logo": "data/orgs/fastino.png"
+    }
+   },
+   "completed": 110201,
+   "calibration": {
+    "acc": 0.7493,
+    "conf": 0.789,
+    "ece": 0.0398,
+    "brier": 0.34,
+    "over95": 0.0109,
+    "n": 35088,
+    "benchmarks": 32,
+    "rel": [
+     {
+      "lo": 0,
+      "w": 0.0012,
+      "conf": 0.0467,
+      "acc": 0.086
+     },
+     {
+      "lo": 0.1,
+      "w": 0.0083,
+      "conf": 0.1625,
+      "acc": 0.1322
+     }
+    ],
+    "areas": {
+     "knowledge": {
+      "ece": 0.0409,
+      "acc": 0.6797,
+      "conf": 0.717
+     },
+     "language": {
+      "ece": 0.0166,
+      "acc": 0.8163,
+      "conf": 0.8134
+     },
+     "retrieval": {
+      "ece": 0.103,
+      "acc": 0.7583,
+      "conf": 0.8592
+     },
+     "tools": {
+      "ece": 0.0382,
+      "acc": 0.9429,
+      "conf": 0.9634
+     },
+     "arts": {
+      "ece": 0.0876,
+      "acc": 0.6586,
+      "conf": 0.7429
+     }
+    }
+   },
+   "coverage": 1,
+   "scores": {
+    "balanced_raw": 69.61,
+    "balanced_skill": 60.21,
+    "breadth_skill": 57.96,
+    "public_skill": 59.06
+   },
+   "frozen_scores": {
+    "balanced_raw": 69.61,
+    "balanced_skill": 59.06,
+    "breadth_skill": 57.96
+   }
+  },
+  {
+   "engine": "decider-chat-gemma4-31b",
+   "name": "Decider chat \u00b7 Gemma-4-31B",
+   "long_name": "Decider chat \u00b7 Gemma-4-31B",
+   "variant": null,
+   "meta": {
+    "kind": "inference technique",
+    "technique": "autoregressive",
+    "technique_name": "autoregressive",
+    "served_params": 32682372656,
+    "params_estimated": false,
+    "params_from_name": false,
+    "trained_bytes": null,
+    "model_url": null,
+    "code_url": "https://github.com/Mapika/decider",
+    "base_model": "google/gemma-4-31B",
+    "base_url": "https://huggingface.co/google/gemma-4-31B",
+    "weights_repo": null,
+    "served_checkpoint": "google/gemma-4-31B-it"
+   },
+   "completed": 109749,
+   "calibration": {
+    "acc": 0.724,
+    "conf": 0.7711,
+    "ece": 0.0471,
+    "brier": 0.3928,
+    "over95": 0.0049,
+    "n": 35088,
+    "benchmarks": 32,
+    "rel": [
+     {
+      "lo": 0,
+      "w": 0.0007,
+      "conf": 0.0908,
+      "acc": 0.0511
+     },
+     {
+      "lo": 0.1,
+      "w": 0.0074,
+      "conf": 0.1552,
+      "acc": 0.1275
+     }
+    ],
+    "areas": {
+     "knowledge": {
+      "ece": 0.0515,
+      "acc": 0.6931,
+      "conf": 0.6804
+     },
+     "language": {
+      "ece": 0.0254,
+      "acc": 0.8154,
+      "conf": 0.8204
+     },
+     "retrieval": {
+      "ece": 0.2449,
+      "acc": 0.6096,
+      "conf": 0.8545
+     },
+     "tools": {
+      "ece": 0.0472,
+      "acc": 0.9386,
+      "conf": 0.8952
+     },
+     "arts": {
+      "ece": 0.1508,
+      "acc": 0.59,
+      "conf": 0.7408
+     }
+    }
+   },
+   "scores": {
+    "balanced_raw": 68.01,
+    "balanced_skill": 57.62,
+    "breadth_skill": 56.86,
+    "public_skill": 57.79
+   },
+   "frozen_scores": {
+    "balanced_raw": 68.01,
+    "balanced_skill": 57.79,
+    "breadth_skill": 56.86
+   },
+   "coverage": 0.76
+  }
+ ]
+}

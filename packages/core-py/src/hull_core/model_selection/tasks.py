@@ -180,6 +180,45 @@ TASKS: dict[str, TaskProfile] = {
         quality_weight=0.8,  # UGI is the signal that matters for this profile
         token_mix=(0.5, 0.5, 0.0),  # generation-shaped, like story-gen
     ),
+    "decision": TaskProfile(
+        name="decision",
+        # Profile `decision` (2026-10-09, board set re-chosen 2026-10-11 by
+        # the A-W3.2a rule): cheap gate/judge ("System One") models that
+        # return a typed choice/score/yes-no. Pool = (a) OR's
+        # structured-decisions catalog segment (gated to this profile in
+        # candidates()) union (b) OR-servable models measured by a board
+        # below — evidence-driven, never hand-picked.
+        #
+        # Specialized (decision/judging boards, each with a declared license
+        # and an independent methodology):
+        #   - ``jevals`` (CC-BY-4.0) and ``jevbench``: native-decision boards.
+        #   - ``judgemark_v4``: creative-writing JUDGING domain proxy. It only
+        #     CORROBORATES a model also measured elsewhere; the
+        #     >=2-independent-boards strong rule keeps a judgemark-only model
+        #     weak_evidence, unable to take rank 0 on its own.
+        # Aggregate (agentic-capability PROXIES, not decision boards — they
+        # exist so that a model measured by a single decision board can still
+        # reach strong evidence through an independent second signal):
+        #   - ``tau2_bench_or`` (tool-use), ``bfcl`` (function calling),
+        #     ``arena_agent`` (human-preference agent arena).
+        #
+        # Deliberately NOT in the profile (fetchers stay registered):
+        #   - ``jev_decision_index``: no license declared on the board, so
+        #     its rows cannot be redistributed in data/model-candidates.json.
+        #   - ``aa_agentic_index``: not provably independent from
+        #     ``tau2_bench_or`` (AA's agent index composition is not publicly
+        #     documented), so counting both would fake a second board.
+        #
+        # Honest state: models measured by NO board stay weak_evidence until
+        # measured (watchlist: JudgeArena, CodeJudgeBench). Weight law
+        # unchanged: specialized quality_weight 0.7 (falls back to 0.5 when
+        # specialized coverage < 80%); OR usage stays a tie-break only.
+        specialized_sources=("jevals", "jevbench", "judgemark_v4"),
+        aggregate_sources=("tau2_bench_or", "bfcl", "arena_agent"),
+        usage_sources=("or_usage",),
+        constraints=Constraints(),
+        token_mix=(0.9, 0.1, 0.0),  # short prompt, tiny typed output
+    ),
 }
 
 

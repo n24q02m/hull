@@ -29,10 +29,63 @@ subpath:
 | `@n24q02m/hull/oauth` | `OAuthProvider` (OAuth 2.1 authorization server), `JWTIssuer`, `verifyPKCE`, `InMemoryAuthCache`, `SqliteUserStore` |
 | `@n24q02m/hull/auth` | `createLocalOAuthApp` and `createDelegatedOAuthApp` (credential-form and upstream-OAuth flows), `renderCredentialForm`, `createSessionStore`, `deriveStableSub`, `authorizationServerMetadata` / `protectedResourceMetadata` (well-known documents) |
 | `@n24q02m/hull/crypto` | AES `encrypt` / `decrypt`, ECDH `generateKeyPair` / `deriveSharedSecret` / `exportPublicKey` / `importPublicKey`, key derivation `deriveAesKey` / `deriveJwtSigningSeed` |
-| `@n24q02m/hull/storage` | `atomicWriteFile`, credential backends (`LocalFsBackend`, `InMemoryBackend`, `CfKvBackend`, `backendFromEnv`), encrypted credential read/write/delete and config import/export, `PerPluginStore`, `resolveConfig` (environment variables, then stored config, then defaults), server mode state, session lock, machine identity helpers |
+| `@n24q02m/hull/storage` | `atomicWriteFile`, credential backends (`LocalFsBackend`, `InMemoryBackend`, `CfKvBackend`, `backendFromEnv`), encrypted credential read/write/delete and config import/export, `PerPluginStore`, data dir helpers (`dataDir`, `dataDirCandidates`, `legacyDataDirs`), `resolveConfig` (environment variables, then stored config, then defaults), server mode state, session lock, machine identity helpers |
 | `@n24q02m/hull/relay` | Relay client: `createSession`, `generatePassphrase`, `pollForResult`, `sendMessage`, `pollForResponses`, `notifyComplete` |
 | `@n24q02m/hull/schema` | Type-only config schema: `ConfigField`, `ConfigMode`, `RelayConfigSchema` and related form layout types |
 | `@n24q02m/hull/token-auth` | Token-table HTTP auth: `Authenticator`, `hashToken` / `verifyToken`, `loadUsers`, `currentUser`, `ensurePathAllowed`, `guardRequest`, `SlidingWindowLimiter`, `tokenCliHandler` |
+
+## Credential storage layout
+
+`PerPluginStore` keeps one AES-256-GCM encrypted blob per plugin slug (for
+example `wet`) under a short, machine-bound data dir:
+
+```text
+~/.<plugin>/config.json              single-user credentials
+~/.<plugin>/.secret                  single-user machine key (32 bytes, 0600)
+~/.<plugin>/subs/<sub>/config.json   HTTP multi-user credentials, one per sub
+```
+
+Multi-user blobs use a key derived with scrypt from the `CREDENTIAL_SECRET`
+environment variable (salt `<plugin>:<sub>`) instead of `.secret`.
+Environment variables take precedence over stored values through
+`resolveConfig`, which is how containers override the store.
+
+Credentials written by earlier releases stay readable, so upgrading does not
+require signing in again. With the default `LocalFsBackend`, `load()` checks
+these dirs in order, and the first one holding a blob decides the result:
+
+1. `~/.<plugin>/` (current)
+2. `~/.<plugin>-mcp/`
+3. `~/.better-<plugin>-mcp/`
+
+A legacy blob is decrypted with that legacy dir's own key material (its
+`.secret`, or the salt `better-<plugin>:<sub>` for the third layout). Legacy
+dirs are only read, never written. The next `save()` writes to `~/.<plugin>/`,
+and from then on the new copy takes precedence. `clear()` removes the blob
+from every location. A corrupt blob is reported as corrupt; the store does
+not fall back to an older copy behind it. Injected backends (`InMemoryBackend`,
+`CfKvBackend`, a `LocalFsBackend` with a custom `baseDir`) are used as the
+only source.
+
+## CLI built-ins
+
+`buildCli(serverName, { serve, extra, version, pluginName })` routes a leading
+positional argument to a subcommand. Bare or flag-prefixed argv (for example
+`--http`) still starts the server. The built-in subcommands are:
+
+| Subcommand | Behaviour |
+|---|---|
+| `status` | Same as `config status`: prints configured / not configured (exit 0), or reports a corrupt blob (exit 1). Legacy dirs count. |
+| `logout [--yes]` | Same as `config delete`: removes the stored credential from the current and every legacy dir. Without `--yes` it prompts on a TTY; non-interactive use without `--yes` exits 1. |
+| `config status` / `config delete [--yes]` | The long forms of the two commands above. |
+| `doctor` | Runtime, backend, store dir and config checks. Warns `only legacy store dir found` when credentials still sit in a legacy dir. |
+| `relay status` / `relay open` / `relay reset` | Relay session state. |
+| `token hash` | Mint a token-table hash (see below). |
+
+`auth` is not a built-in. Signing in depends on the server (OAuth device code,
+bot token, API key, relay form), so each server provides its own `auth`
+handler through `extra`. Entries in `extra` also override a built-in of the
+same name.
 
 ## Token-table HTTP auth
 

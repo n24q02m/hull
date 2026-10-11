@@ -1,6 +1,6 @@
 {
   "name": "@n24q02m/hull",
-  "version": "0.1.0",
+  "version": "0.4.0-beta.6",
   "description": "hull TypeScript core: MCP Streamable HTTP 2025-11-25 transport, OAuth 2.1 AS, lifecycle, install",
   "keywords": [
     "mcp",

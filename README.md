@@ -29,6 +29,13 @@ pip install "n24q02m-hull[embedding,embedding-gguf]"  # + llama.cpp runtime for 
 `import hull_web` without the `[web]` extra raises `ImportError` naming the
 missing modules and the install command.
 
+The TypeScript core ships to npm as **`@n24q02m/hull`**, at the same version as
+the PyPI dist (see [packages/core-ts](packages/core-ts/README.md)):
+
+```bash
+npm install @n24q02m/hull
+```
+
 ## Packages
 
 | Source dir | Import package | Extra | Purpose |
@@ -36,6 +43,7 @@ missing modules and the install command.
 | `packages/core-py` | `hull_core` | (base; MTEB boards need `[mteb]`) | Auth (3 modes), per-task model cells, limiter, `~/.hull/` SQLite WAL storage, `server start` + `/mcp` endpoint, CLI, SSRF-safe HTTP, lifecycle lock, `model_selection` leaderboard picker + runtime registry (refresh → eval-on-change → promote) |
 | `packages/embedding-daemon` | `hull_embedding_daemon` | `[embedding]` | Local ONNX/GGUF embedding server (FastAPI) |
 | `packages/web` | `hull_web` | `[web]` | Search (SearXNG), scraping strategies, stealth browsers, fingerprinting, HTTP/SSRF security |
+| `packages/core-ts` | `@n24q02m/hull` (npm) | n/a | TypeScript core: MCP Streamable HTTP transport, OAuth 2.1 authorization server, credential storage, relay client |
 
 ## Runtime model
 

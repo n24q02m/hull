@@ -63,6 +63,9 @@ jobs:
           python-version: "3.14"
       - name: Verify README registry metadata
         run: python scripts/repo-bootstrap/verify_readme_sync.py --repo-root=.
+      # packages/core-ts publishes its own README to npm (@n24q02m/hull).
+      - name: Verify README registry metadata (npm @n24q02m/hull)
+        run: python scripts/repo-bootstrap/verify_readme_sync.py --repo-root=packages/core-ts
 
   # ============================================================================
   # Lint & Test (Python)

@@ -183,7 +183,8 @@ def test_jevals_source_resolution_attribution_staleness(monkeypatch):
     assert src.board_updated_at == "2026-09-18"
     assert src.attribution and "CC-BY-4.0" in src.attribution
     # exact token match (not a substring test): the citation names the board host
-    assert "jevals.com" in re.findall(r"[\w.-]+", src.attribution)
+    tokens = re.findall(r"[\w.-]+", src.attribution)
+    assert any(token == "jevals.com" for token in tokens)
     # fresh release (17 days old at fixture date) — not a static anchor
     assert src.degraded_reason is None
     status: dict = {}

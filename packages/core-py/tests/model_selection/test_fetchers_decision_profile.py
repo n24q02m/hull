@@ -8,13 +8,16 @@ Live-fixture provenance:
 - jevals_home.html — SSR home trimmed around the embedded `release_id`
   payload token (the exact string the fetcher regex resolves), verbatim
 - jevals_board.json — verbatim release 2026-09-18 board.json (24 rows)
-- judgemark_v4.js — verbatim (leaderboardDataJudgemarkV4 CSV template)
+- judgemark_v4.js.txt — verbatim third-party JS (leaderboardDataJudgemarkV4 CSV
+  template), stored as .txt: it is parsed as text and never executed, and a .js
+  extension makes CodeQL scan someone else's DOM code as ours
 - or_decisions.json — verbatim ?output_modalities=decisions response (16 rows)
 """
 
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
@@ -178,7 +181,9 @@ def test_jevals_source_resolution_attribution_staleness(monkeypatch):
     records = src.fetch()
     assert len(records) == 7
     assert src.board_updated_at == "2026-09-18"
-    assert src.attribution and "CC-BY-4.0" in src.attribution and "jevals.com" in src.attribution
+    assert src.attribution and "CC-BY-4.0" in src.attribution
+    # exact token match (not a substring test): the citation names the board host
+    assert "jevals.com" in re.findall(r"[\w.-]+", src.attribution)
     # fresh release (17 days old at fixture date) — not a static anchor
     assert src.degraded_reason is None
     status: dict = {}
@@ -233,7 +238,7 @@ def test_judgemark_v4_parse(monkeypatch):
         "score",
         name_cols=("model",),
     )
-    js = _fixture("judgemark_v4.js").decode("utf-8")
+    js = _fixture("judgemark_v4.js.txt").decode("utf-8")
     monkeypatch.setattr("hull_core.model_selection.sources._get_bytes", lambda url, **_kw: js.encode("utf-8"))
     records = src.fetch()
     assert len(records) > 5

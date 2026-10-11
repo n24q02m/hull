@@ -1,0 +1,97 @@
+{
+  "_comment": "TS-minted scrypt token hashes (@n24q02m/hull token-auth) that core-py must verify; regenerate with `bun scripts/gen-token-hash-vectors.ts` in packages/core-ts. Test tokens only.",
+  "valid": [
+    {
+      "name": "ascii",
+      "token": "s3cret-token",
+      "encoded": "scrypt$32768$8$1$db194d69c47a434521853f51e133e608$9648797ad1ec201e600a37d289b09676db52d785833c604a4153bdbbe89fc123"
+    },
+    {
+      "name": "empty",
+      "token": "",
+      "encoded": "scrypt$32768$8$1$21954dc6493be016cf655d5d2d494aa3$3e624a78e33446298d8490aa5314c9dd53d28be6f639da9ac27d3ef04c944709"
+    },
+    {
+      "name": "inner-spaces",
+      "token": "two words here",
+      "encoded": "scrypt$32768$8$1$695ed962956ece080dae5e8df640b9cd$180059dc44d16d0558a63483f79dd06e4b5b4bebb7d066d097b1bbace002314d"
+    },
+    {
+      "name": "unicode",
+      "token": "m\u1eadt-kh\u1ea9u-Vi\u1ec7t-\ud83d\udd11",
+      "encoded": "scrypt$32768$8$1$1f905b164286c44bfab82c283767c6c0$67e6178429b9aa7367e5774f0c20fbb5784d3b77978723dda78802cfe42c44ec"
+    },
+    {
+      "name": "long",
+      "token": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+      "encoded": "scrypt$32768$8$1$857e73f2854eec57e6f520916a1ffcbe$14813d3854d98769834346e18f2738ca64982a9f1e96dd4046de6b9bc6d8f256"
+    },
+    {
+      "name": "n16384-r8-p1",
+      "token": "custom-a",
+      "encoded": "scrypt$16384$8$1$11111111111111111111111111111111$d9a1edd298187c1c9d018d40e396dd1babddacc8eaf87750818f2e00ae37e93f"
+    },
+    {
+      "name": "n1024-r4-p2",
+      "token": "custom-b",
+      "encoded": "scrypt$1024$4$2$5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a$c22299d4faaffa277ee731614c19b3fc18f23f9697d8129a1f85f10a9def4e13"
+    },
+    {
+      "name": "dklen16",
+      "token": "custom-c",
+      "encoded": "scrypt$2048$8$1$e1e1e1e1e1e1e1e1$1e083cac93ca740f16a2504e45feceeb"
+    },
+    {
+      "name": "dklen64",
+      "token": "custom-d",
+      "encoded": "scrypt$2048$8$1$1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e$9bab15b021b6969860196d7a35a3f1e269ef830e619c7cbfd4053c2f7a8d609ada3cbeb5202c463102164f61b039f69fd8aa6c9c2eb635693ec9fb2035986ef9"
+    }
+  ],
+  "wrong_token": [
+    {
+      "name": "ascii",
+      "token": "s3cret-token-wrong",
+      "encoded": "scrypt$32768$8$1$db194d69c47a434521853f51e133e608$9648797ad1ec201e600a37d289b09676db52d785833c604a4153bdbbe89fc123"
+    },
+    {
+      "name": "empty",
+      "token": "-wrong",
+      "encoded": "scrypt$32768$8$1$21954dc6493be016cf655d5d2d494aa3$3e624a78e33446298d8490aa5314c9dd53d28be6f639da9ac27d3ef04c944709"
+    },
+    {
+      "name": "inner-spaces",
+      "token": "two words here-wrong",
+      "encoded": "scrypt$32768$8$1$695ed962956ece080dae5e8df640b9cd$180059dc44d16d0558a63483f79dd06e4b5b4bebb7d066d097b1bbace002314d"
+    },
+    {
+      "name": "unicode",
+      "token": "m\u1eadt-kh\u1ea9u-Vi\u1ec7t-\ud83d\udd11-wrong",
+      "encoded": "scrypt$32768$8$1$1f905b164286c44bfab82c283767c6c0$67e6178429b9aa7367e5774f0c20fbb5784d3b77978723dda78802cfe42c44ec"
+    },
+    {
+      "name": "long",
+      "token": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy-wrong",
+      "encoded": "scrypt$32768$8$1$857e73f2854eec57e6f520916a1ffcbe$14813d3854d98769834346e18f2738ca64982a9f1e96dd4046de6b9bc6d8f256"
+    },
+    {
+      "name": "n16384-r8-p1",
+      "token": "custom-a-wrong",
+      "encoded": "scrypt$16384$8$1$11111111111111111111111111111111$d9a1edd298187c1c9d018d40e396dd1babddacc8eaf87750818f2e00ae37e93f"
+    },
+    {
+      "name": "n1024-r4-p2",
+      "token": "custom-b-wrong",
+      "encoded": "scrypt$1024$4$2$5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a$c22299d4faaffa277ee731614c19b3fc18f23f9697d8129a1f85f10a9def4e13"
+    },
+    {
+      "name": "dklen16",
+      "token": "custom-c-wrong",
+      "encoded": "scrypt$2048$8$1$e1e1e1e1e1e1e1e1$1e083cac93ca740f16a2504e45feceeb"
+    },
+    {
+      "name": "dklen64",
+      "token": "custom-d-wrong",
+      "encoded": "scrypt$2048$8$1$1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e$9bab15b021b6969860196d7a35a3f1e269ef830e619c7cbfd4053c2f7a8d609ada3cbeb5202c463102164f61b039f69fd8aa6c9c2eb635693ec9fb2035986ef9"
+    }
+  ]
+}

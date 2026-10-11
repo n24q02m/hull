@@ -32,6 +32,65 @@ subpath:
 | `@n24q02m/hull/storage` | `atomicWriteFile`, credential backends (`LocalFsBackend`, `InMemoryBackend`, `CfKvBackend`, `backendFromEnv`), encrypted credential read/write/delete and config import/export, `PerPluginStore`, `resolveConfig` (environment variables, then stored config, then defaults), server mode state, session lock, machine identity helpers |
 | `@n24q02m/hull/relay` | Relay client: `createSession`, `generatePassphrase`, `pollForResult`, `sendMessage`, `pollForResponses`, `notifyComplete` |
 | `@n24q02m/hull/schema` | Type-only config schema: `ConfigField`, `ConfigMode`, `RelayConfigSchema` and related form layout types |
+| `@n24q02m/hull/token-auth` | Token-table HTTP auth: `Authenticator`, `hashToken` / `verifyToken`, `loadUsers`, `currentUser`, `ensurePathAllowed`, `guardRequest`, `SlidingWindowLimiter`, `tokenCliHandler` |
+
+## Token-table HTTP auth
+
+`runHttpServer` accepts an `auth` option with the three modes of core-py
+`[server] auth`. It replaces the OAuth/relay stack for that server: `auth` is
+mutually exclusive with `relaySchema`, `delegatedOAuth`, `jwtIssuer`,
+`authDisabled` and `authScope`, and needs neither a relay nor an OAuth
+issuer.
+
+| Mode | Config | Behaviour |
+|---|---|---|
+| `no-auth` | `{ mode: 'no-auth' }` | No Authorization header. Every request runs as `localAuthContext()` (`uid: 'local'`). Refuses to start on a non-loopback `host`. |
+| `token` | `{ mode: 'token', tokenHash, rpm? }` | One shared bearer token checked against a `scrypt$...` hash. Caller `uid: 'shared'`, namespace `default`; optional shared per-minute cap. |
+| `multi` | `{ mode: 'multi', usersFile?, users? }` | A users.toml table (default `~/.hull/users.toml`). Token maps to a user and namespace; 401 wrong token, 403 disabled user, 429 over the user's `limits.rpm`. |
+
+```ts
+import { runHttpServer } from '@n24q02m/hull/transport'
+import { currentUser, ensurePathAllowed } from '@n24q02m/hull/token-auth'
+
+await runHttpServer(makeServer, {
+  serverName: 'my-mcp',
+  host: '0.0.0.0',
+  auth: { mode: 'multi', usersFile: '~/.hull/users.toml' }
+})
+
+// Inside a tool handler:
+const user = currentUser() // { uid, namespace, mode, allowedRoots, rpm, ... }
+ensurePathAllowed(user, requestedPath) // throws PathNotAllowedError outside allowed_roots
+```
+
+```toml
+# users.toml
+[users.alice]
+token_hash = "scrypt$32768$8$1$<salt-hex>$<dk-hex>"
+namespace = "alice"
+enabled = true                  # optional, default true
+allowed_roots = ["/data/alice"] # optional, default [] (grants no paths)
+
+[users.alice.limits]
+rpm = 60                        # optional, default unlimited
+```
+
+The guard runs before routing on every path except `/health`, so `/mcp` and
+`extraRoutes` handlers both see the caller through `currentUser()`.
+Rejections use the core-py JSON body (`{"error": "unauthorized", "detail":
+"invalid token"}`) and add `WWW-Authenticate: Bearer` on 401. The config is
+validated before the port is bound, so a malformed hash or users.toml fails
+at startup. Hashes are interchangeable with core-py (`scrypt`, N=2^15, r=8,
+p=1, 16-byte salt, 32-byte key).
+
+Mint a hash with the built-in `token hash` subcommand of any `buildCli`
+entry point. It reads the token from piped stdin or a hidden, confirmed
+prompt (never from argv) and prints only the hash:
+
+```bash
+my-mcp token hash                     # interactive hidden prompt
+printf '%s' "$TOKEN" | my-mcp token hash
+```
 
 ## Example
 

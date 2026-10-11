@@ -73,6 +73,9 @@ export {
   type SessionInfo,
   writeSessionLock
 } from './storage/session-lock.js'
+// HTTP token-table auth (no-auth / token / multi users.toml), the TS port of
+// core-py hull_core.auth; wired into runHttpServer via its `auth` option.
+export * from './token-auth/index.js'
 // HTTP MCP server entry point (OAuth AS + /mcp transport on 127.0.0.1)
 export {
   type HttpRoute,

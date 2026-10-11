@@ -99,7 +99,7 @@ describe('buildCli — help and version', () => {
     expect(rc).toBe(0)
     expect(served).toBe(false)
     expect(logs[0]).toBe(`usage: ${SERVER} [-h] [--version] [<subcommand> ...]`)
-    expect(logs.join('\n')).toContain('subcommands: config, doctor, relay')
+    expect(logs).toContain('subcommands: config, doctor, relay, token')
   })
 
   it('prints help on --help', async () => {
@@ -111,7 +111,7 @@ describe('buildCli — help and version', () => {
   it('lists extra subcommands sorted in help', async () => {
     const run = buildCli(SERVER, { serve: () => 0, extra: { auth: () => 0 } })
     await run(['-h'])
-    expect(logs.join('\n')).toContain('subcommands: auth, config, doctor, relay')
+    expect(logs).toContain('subcommands: auth, config, doctor, relay, token')
   })
 
   it('prints "<name> <version>" on --version when version is set', async () => {
@@ -144,7 +144,23 @@ describe('buildCli — unknown subcommand', () => {
     const rc = await run(['bogus'])
     expect(rc).toBe(2)
     expect(errs.join('\n')).toContain(`${SERVER}: unknown subcommand 'bogus'`)
-    expect(errs.join('\n')).toContain('expected one of: config, doctor, relay')
+    expect(errs.join('\n')).toContain('expected one of: config, doctor, relay, token)')
+  })
+})
+
+describe('buildCli — token subcommand', () => {
+  it('is a reserved built-in that refuses a token on argv', async () => {
+    const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+    const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
+    const run = buildCli(SERVER, { serve: () => 0 })
+    expect(await run(['token', 'hash', 'plaintext'])).toBe(2)
+    expect(stdout).not.toHaveBeenCalled()
+    expect(stderr.mock.calls.map((c) => String(c[0])).join('')).toContain('refusing a token on argv')
+  })
+
+  it('can be overridden through extra', async () => {
+    const run = buildCli(SERVER, { serve: () => 0, extra: { token: () => 7 } })
+    expect(await run(['token', 'hash'])).toBe(7)
   })
 })
 

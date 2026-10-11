@@ -2338,9 +2338,11 @@ name = "n24q02m-hull"
 version = "0.4.0b6"
 source = { editable = "." }
 dependencies = [
+    { name = "cryptography" },
     { name = "fastmcp" },
     { name = "httpcore" },
     { name = "httpx" },
+    { name = "platformdirs" },
     { name = "pydantic" },
     { name = "starlette" },
     { name = "uvicorn" },
@@ -2406,6 +2408,7 @@ requires-dist = [
     { name = "browserforge", marker = "extra == 'web'", specifier = ">=1.2.4" },
     { name = "capsolver", marker = "extra == 'web'", specifier = ">=1.0.7" },
     { name = "crawl4ai", marker = "extra == 'web'", specifier = ">=0.9.3" },
+    { name = "cryptography", specifier = ">=44" },
     { name = "curl-cffi", marker = "extra == 'web'", specifier = ">=0.16.3" },
     { name = "dspy", marker = "extra == 'dspy'", specifier = ">=3.2.1,<3.3.0" },
     { name = "fastapi", marker = "extra == 'embedding'", specifier = ">=0.141.1" },
@@ -2425,6 +2428,7 @@ requires-dist = [
     { name = "onnxruntime", marker = "extra == 'embedding'", specifier = ">=1.30.0" },
     { name = "patchright", marker = "extra == 'web'", specifier = ">=1.63.0" },
     { name = "pillow", marker = "extra == 'web'", specifier = ">=12.3.0" },
+    { name = "platformdirs", specifier = ">=4" },
     { name = "pyarrow", marker = "extra == 'mteb'", specifier = ">=15.0.0" },
     { name = "pydantic", specifier = ">=2.12.5,<3" },
     { name = "pydantic", marker = "extra == 'embedding'", specifier = ">=2.12.5,<3" },

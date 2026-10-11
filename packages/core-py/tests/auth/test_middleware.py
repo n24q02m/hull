@@ -79,3 +79,40 @@ def test_ok_without_context_fails_closed(tmp_path: Path) -> None:
     assert resp.status_code == 500
     assert resp.json()["error"] == "server misconfiguration"
     assert current_user() == before, "no identity may be bound for a rejected request"
+
+
+async def _public(request):  # noqa: ANN001
+    from starlette.responses import JSONResponse
+
+    return JSONResponse({"public": True})
+
+
+def _client_with_public(settings: HullSettings) -> TestClient:
+    star = Starlette(
+        routes=[
+            Route("/whoami", _endpoint, methods=["GET"]),
+            Route("/health", _public, methods=["GET"]),
+            Route("/health/deep", _public, methods=["GET"]),
+        ]
+    )
+    return TestClient(HullAuthMiddleware(star, Authenticator(settings), public_paths=("/health",)))
+
+
+def test_public_path_skips_auth(tmp_path: Path) -> None:
+    resp = _client_with_public(_token_settings(tmp_path)).get("/health")
+    assert resp.status_code == 200
+    assert resp.json() == {"public": True}
+
+
+def test_public_paths_are_exact_match(tmp_path: Path) -> None:
+    client = _client_with_public(_token_settings(tmp_path))
+    assert client.get("/health/deep").status_code == 401, "a prefix is not an allow-list entry"
+    assert client.get("/whoami").status_code == 401
+    assert client.get("/whoami", headers={"Authorization": "Bearer real"}).status_code == 200
+
+
+def test_public_paths_default_empty(tmp_path: Path) -> None:
+    star = Starlette(routes=[Route("/health", _public, methods=["GET"])])
+    middleware = HullAuthMiddleware(star, Authenticator(_token_settings(tmp_path)))
+    assert middleware.public_paths == frozenset()
+    assert TestClient(middleware).get("/health").status_code == 401

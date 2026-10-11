@@ -1,0 +1,173 @@
+{
+  "_comment": "Python-minted scrypt token hashes (hull_core.auth.tokens) that core-ts must verify; regenerate with `uv run python scripts/gen_token_hash_vectors.py`. Test tokens only.",
+  "valid": [
+    {
+      "name": "ascii",
+      "token": "s3cret-token",
+      "encoded": "scrypt$32768$8$1$6374cfa98ee18c271231501fc7f39985$738094e7518d959f93e7409a9dbc80d00a12224fe0c992791deb4caf801cfe41"
+    },
+    {
+      "name": "empty",
+      "token": "",
+      "encoded": "scrypt$32768$8$1$fe909a97b959ba331c5038ec8a16e588$0744cde9d98ccf17985b7c01a8011a3b1cc38fcdbaa5f48f8a98db3975d51268"
+    },
+    {
+      "name": "inner-spaces",
+      "token": "two words here",
+      "encoded": "scrypt$32768$8$1$8af6a825f6e70a09be03273b0f834f53$1d43d12fe206d67e5b3876741317f80fe1a4231b52c8fcdc9b791e000bb1b71e"
+    },
+    {
+      "name": "unicode",
+      "token": "m\u1eadt-kh\u1ea9u-Vi\u1ec7t-\ud83d\udd11",
+      "encoded": "scrypt$32768$8$1$e6cd2859a529fa6bf7ffcfdbcfca9e42$904f8900223d2973840c8220edfff58b94836d0a31c1c766b86f997f2e7929ee"
+    },
+    {
+      "name": "long",
+      "token": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "encoded": "scrypt$32768$8$1$9ad4a3969ac61a68c8dd59a6eebcea27$2c8966f669f25f2a7752699d7d34cd6c765cfbeab928d065ff765ec95287232c"
+    },
+    {
+      "name": "n16384-r8-p1",
+      "token": "custom-a",
+      "encoded": "scrypt$16384$8$1$00000000000000000000000000000000$5b675d46f184464a36e9b020b27f7651d177a237849fdd8d2e1fd881e5145f3b"
+    },
+    {
+      "name": "n1024-r4-p2",
+      "token": "custom-b",
+      "encoded": "scrypt$1024$4$2$a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5$12f82b20f60fd7a182a87d68698b5e9e45f038ad01c7468bd8baf48a6af2e1e5"
+    },
+    {
+      "name": "dklen16",
+      "token": "custom-c",
+      "encoded": "scrypt$2048$8$1$0f0f0f0f0f0f0f0f$0b9d2c2f48319236a99e4e927322fd91"
+    },
+    {
+      "name": "dklen64",
+      "token": "custom-d",
+      "encoded": "scrypt$2048$8$1$f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0$6c808d955d74d03b32ee2386f17f0c21658b73adf88172a03d43dd53cebf52c3a961d32e6be50ef7d1145b04855f750b8a70542dcb2bdbe4f6ca8e0d81210a40"
+    },
+    {
+      "name": "uppercase-hex",
+      "token": "s3cret-token",
+      "encoded": "scrypt$32768$8$1$6374CFA98EE18C271231501FC7F39985$738094E7518D959F93E7409A9DBC80D00A12224FE0C992791DEB4CAF801CFE41"
+    }
+  ],
+  "wrong_token": [
+    {
+      "name": "ascii",
+      "token": "s3cret-token-wrong",
+      "encoded": "scrypt$32768$8$1$6374cfa98ee18c271231501fc7f39985$738094e7518d959f93e7409a9dbc80d00a12224fe0c992791deb4caf801cfe41"
+    },
+    {
+      "name": "empty",
+      "token": "-wrong",
+      "encoded": "scrypt$32768$8$1$fe909a97b959ba331c5038ec8a16e588$0744cde9d98ccf17985b7c01a8011a3b1cc38fcdbaa5f48f8a98db3975d51268"
+    },
+    {
+      "name": "inner-spaces",
+      "token": "two words here-wrong",
+      "encoded": "scrypt$32768$8$1$8af6a825f6e70a09be03273b0f834f53$1d43d12fe206d67e5b3876741317f80fe1a4231b52c8fcdc9b791e000bb1b71e"
+    },
+    {
+      "name": "unicode",
+      "token": "m\u1eadt-kh\u1ea9u-Vi\u1ec7t-\ud83d\udd11-wrong",
+      "encoded": "scrypt$32768$8$1$e6cd2859a529fa6bf7ffcfdbcfca9e42$904f8900223d2973840c8220edfff58b94836d0a31c1c766b86f997f2e7929ee"
+    },
+    {
+      "name": "long",
+      "token": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-wrong",
+      "encoded": "scrypt$32768$8$1$9ad4a3969ac61a68c8dd59a6eebcea27$2c8966f669f25f2a7752699d7d34cd6c765cfbeab928d065ff765ec95287232c"
+    },
+    {
+      "name": "n16384-r8-p1",
+      "token": "custom-a-wrong",
+      "encoded": "scrypt$16384$8$1$00000000000000000000000000000000$5b675d46f184464a36e9b020b27f7651d177a237849fdd8d2e1fd881e5145f3b"
+    },
+    {
+      "name": "n1024-r4-p2",
+      "token": "custom-b-wrong",
+      "encoded": "scrypt$1024$4$2$a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5$12f82b20f60fd7a182a87d68698b5e9e45f038ad01c7468bd8baf48a6af2e1e5"
+    },
+    {
+      "name": "dklen16",
+      "token": "custom-c-wrong",
+      "encoded": "scrypt$2048$8$1$0f0f0f0f0f0f0f0f$0b9d2c2f48319236a99e4e927322fd91"
+    },
+    {
+      "name": "dklen64",
+      "token": "custom-d-wrong",
+      "encoded": "scrypt$2048$8$1$f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0$6c808d955d74d03b32ee2386f17f0c21658b73adf88172a03d43dd53cebf52c3a961d32e6be50ef7d1145b04855f750b8a70542dcb2bdbe4f6ca8e0d81210a40"
+    },
+    {
+      "name": "uppercase-hex",
+      "token": "s3cret-token-wrong",
+      "encoded": "scrypt$32768$8$1$6374CFA98EE18C271231501FC7F39985$738094E7518D959F93E7409A9DBC80D00A12224FE0C992791DEB4CAF801CFE41"
+    }
+  ],
+  "malformed": [
+    {
+      "encoded": "",
+      "message": "malformed token hash encoding: ''"
+    },
+    {
+      "encoded": "not-a-hash",
+      "message": "malformed token hash encoding: 'not-a-hash'"
+    },
+    {
+      "encoded": "scrypt$bad$bits",
+      "message": "malformed token hash encoding: 'scrypt$bad$bits'"
+    },
+    {
+      "encoded": "scrypt$x$8$1$00112233445566778899aabbccddeeff$00112233445566778899aabbccddeeff",
+      "message": "malformed token hash encoding: 'scrypt$x$8$1$00112233445'"
+    },
+    {
+      "encoded": "scrypt$32768$y$1$00112233445566778899aabbccddeeff$00112233445566778899aabbccddeeff",
+      "message": "malformed token hash encoding: 'scrypt$32768$y$1$0011223'"
+    },
+    {
+      "encoded": "scrypt$32768$8$z$00112233445566778899aabbccddeeff$00112233445566778899aabbccddeeff",
+      "message": "malformed token hash encoding: 'scrypt$32768$8$z$0011223'"
+    },
+    {
+      "encoded": "bcrypt$32768$8$1$00112233445566778899aabbccddeeff$00112233445566778899aabbccddeeff",
+      "message": "malformed token hash encoding: 'bcrypt$32768$8$1$0011223'"
+    },
+    {
+      "encoded": "scrypt$32768$8$1$$00112233445566778899aabbccddeeff",
+      "message": "malformed token hash encoding: 'scrypt$32768$8$1$$001122'"
+    },
+    {
+      "encoded": "scrypt$32768$8$1$00112233445566778899aabbccddeeff$",
+      "message": "malformed token hash encoding: 'scrypt$32768$8$1$0011223'"
+    },
+    {
+      "encoded": "scrypt$32768$8$1$zz$00112233445566778899aabbccddeeff",
+      "message": "malformed token hash encoding: 'scrypt$32768$8$1$zz$0011'"
+    },
+    {
+      "encoded": "scrypt$32768$8$1$abc$00112233445566778899aabbccddeeff",
+      "message": "malformed token hash encoding: 'scrypt$32768$8$1$abc$001'"
+    },
+    {
+      "encoded": "scrypt$32768$8$1$00112233445566778899aabbccddeeff$00112233445566778899aabbccddeeff$extra",
+      "message": "malformed token hash encoding: 'scrypt$32768$8$1$0011223'"
+    },
+    {
+      "encoded": "it's a \"quoted\" token",
+      "message": "malformed token hash encoding: 'it\\'s a \"quoted\" token'"
+    },
+    {
+      "encoded": "tab\there\nnewline",
+      "message": "malformed token hash encoding: 'tab\\there\\nnewline'"
+    },
+    {
+      "encoded": "only'single",
+      "message": "malformed token hash encoding: \"only'single\""
+    },
+    {
+      "encoded": "na\u00efve-\u1ec7-\ud83d\udd11-value-longer-than-24",
+      "message": "malformed token hash encoding: 'na\u00efve-\u1ec7-\ud83d\udd11-value-longer-t'"
+    }
+  ]
+}

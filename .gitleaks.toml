@@ -5,4 +5,7 @@ useDefault = true
 description = "Test fixtures containing cross-language crypto parity vectors (ported from mcp-core)"
 paths = [
     '''packages/core-ts/tests/fixtures/crypto-vectors\.json''',
+    # scrypt token-hash parity vectors (test tokens only, both directions)
+    '''packages/core-ts/tests/fixtures/token-hash-vectors\.json''',
+    '''packages/core-py/tests/auth/fixtures/ts_token_hash_vectors\.json''',
 ]

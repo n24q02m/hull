@@ -14,7 +14,7 @@
  *   those would hang in stdio mode instead of printing the requested output.
  *
  * A leading *positional* argv[0] is treated as a subcommand name -- either one
- * of the reserved built-ins (`config`/`relay`/`doctor`) or a server-specific
+ * of the reserved built-ins (`config`/`relay`/`doctor`/`token`) or a server-specific
  * one supplied via `extra` -- and is routed to its handler instead of `serve`.
  * STDOUT is the MCP protocol channel in stdio mode, so only this subcommand
  * path prints to stdout; the `serve` path never touches stdout here.
@@ -37,6 +37,7 @@ import { getHomeDir } from '../storage/home-dir.js'
 import { clearMode, getMode } from '../storage/mode.js'
 import { PerPluginStore } from '../storage/per-plugin-store.js'
 import { acquireSessionLock, releaseSessionLock, type SessionInfo } from '../storage/session-lock.js'
+import { tokenCliHandler } from '../token-auth/cli.js'
 
 // Minimum Node major the stack supports (mcp-core package.json `engines`
 // pins `>=24.18.0`). Doctor's runtime check is the TS analogue of core-py's
@@ -59,7 +60,7 @@ export interface BuildCliOptions {
   serve: ServeFn
   /**
    * Server-specific subcommands. A name here overrides the reserved built-in
-   * of the same name (`config`/`relay`/`doctor`), so a server can supply its
+   * of the same name (`config`/`relay`/`doctor`/`token`), so a server can supply its
    * own handler.
    */
   extra?: Record<string, CliHandler>
@@ -265,7 +266,7 @@ function doctorHandler(serverName: string, pluginName: string): CliHandler {
  * saves under `"telegram"` though its console name is `"better-telegram-mcp"`).
  *
  * `extra` subcommand names take precedence over the reserved built-ins, so a
- * server (or a test) can supply its own `doctor`/`config`/`relay` handler.
+ * server (or a test) can supply its own `doctor`/`config`/`relay`/`token` handler.
  * `version`, when set, powers `--version`/`-V` (handled before `serve` or any
  * subcommand runs); when unset, `--version`/`-V` falls through to `serve` like
  * any other flag.
@@ -279,6 +280,7 @@ export function buildCli(serverName: string, options: BuildCliOptions): (argv?: 
     config: configHandler(serverName, pluginName),
     relay: relayHandler(serverName),
     doctor: doctorHandler(serverName, pluginName),
+    token: tokenCliHandler(),
     ...extra
   }
 

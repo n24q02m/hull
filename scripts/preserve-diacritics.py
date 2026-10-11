@@ -50,21 +50,23 @@ UNICODE_REPLACEMENTS: dict[str, list[str]] = {
 _VN_BASE = "àảãáạâấầẩẫậăắằẳẵặèẻẽéẹêếềểễệìỉĩíịòỏõóọôốồổỗộơớờởỡợùủũúụưứừửữựỳỷỹýỵđ"
 VIETNAMESE_DIACRITIC_CHARS: set[str] = set(_VN_BASE + _VN_BASE.upper())
 
-# Emoji detection: any codepoint in common emoji blocks.
+# Emoji detection: any codepoint in common emoji blocks. Raw strings keep the
+# \U escapes for the regex engine instead of embedding astral code points in
+# the pattern source, so the class reads the same to every regex parser.
 _EMOJI_RE = re.compile(
-    "["
-    "\U0001f300-\U0001f5ff"  # Misc symbols & pictographs
-    "\U0001f600-\U0001f64f"  # Emoticons
-    "\U0001f680-\U0001f6ff"  # Transport & map
-    "\U0001f700-\U0001f77f"  # Alchemical
-    "\U0001f780-\U0001f7ff"  # Geometric shapes extended
-    "\U0001f800-\U0001f8ff"  # Supplemental arrows-C
-    "\U0001f900-\U0001f9ff"  # Supplemental symbols & pictographs
-    "\U0001fa00-\U0001fa6f"  # Chess / symbols
-    "\U0001fa70-\U0001faff"  # Symbols & pictographs extended-A
-    "\U00002600-\U000026ff"  # Misc symbols
-    "\U00002700-\U000027bf"  # Dingbats
-    "]",
+    r"["
+    r"\U0001f300-\U0001f5ff"  # Misc symbols & pictographs
+    r"\U0001f600-\U0001f64f"  # Emoticons
+    r"\U0001f680-\U0001f6ff"  # Transport & map
+    r"\U0001f700-\U0001f77f"  # Alchemical
+    r"\U0001f780-\U0001f7ff"  # Geometric shapes extended
+    r"\U0001f800-\U0001f8ff"  # Supplemental arrows-C
+    r"\U0001f900-\U0001f9ff"  # Supplemental symbols & pictographs
+    r"\U0001fa00-\U0001fa6f"  # Chess / symbols
+    r"\U0001fa70-\U0001faff"  # Symbols & pictographs extended-A
+    r"\U00002600-\U000026ff"  # Misc symbols
+    r"\U00002700-\U000027bf"  # Dingbats
+    r"]",
     flags=re.UNICODE,
 )
 

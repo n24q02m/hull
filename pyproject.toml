@@ -190,6 +190,13 @@ commit_message = "feat(release): v{version} [skip ci]"
 major_on_zero = false
 allow_zero_version = true
 version_toml = ["pyproject.toml:project.version"]
+# The npm package @n24q02m/hull (packages/core-ts) ships in lockstep with the
+# PyPI dist: one tag vX publishes the same version to both registries. PSR stamps
+# the single top-level "version" key of package.json and git-adds the file into
+# the release commit, so the tag the publish-npm job checks out already carries
+# the matching version. bun.lock does not record the root package version, so
+# the stamp never invalidates `bun install --frozen-lockfile`.
+version_variables = ["packages/core-ts/package.json:version"]
 # uv.lock records this package's own version and version_toml only stamps
 # pyproject, so without a relock every release leaves the lock a version behind.
 # v0.2.0-beta.1 did exactly that: the release commit is [skip ci], so nothing

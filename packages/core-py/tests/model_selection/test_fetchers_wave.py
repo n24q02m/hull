@@ -91,7 +91,7 @@ def test_vals_fixture_parse(fixture, source_name, board):
     first = next(iter(recs.values()))
     assert first.name and isinstance(first.score, float) and 0 < first.score <= 100
     with patch(
-        "hull_core.model_selection.sources.httpx.get",
+        "httpx.Client.get",
         return_value=_resp(content=_fixture(fixture)),
     ):
         got = ValsSource(source_name, board).fetch()
@@ -106,7 +106,7 @@ def test_benchlm_md_fixture_parse():
     assert len(recs) >= 4
     assert recs["claude-opus-5-5"].score == 86.39
     with patch(
-        "hull_core.model_selection.sources.httpx.get",
+        "httpx.Client.get",
         return_value=_resp(content=_fixture("benchlm_index.md")),
     ):
         assert set(BenchLMSource().fetch()) == set(recs)
@@ -159,7 +159,7 @@ def test_llmstats_fixture_parse(fixture, name, board):
     first = next(iter(recs.values()))
     assert first.name and first.score is not None and 0 < first.score <= 1  # 0-1 scale
     with patch(
-        "hull_core.model_selection.sources.httpx.get",
+        "httpx.Client.get",
         return_value=_resp(content=_fixture(fixture)),
     ):
         assert set(LLMStatsSource(name, board).fetch()) == set(recs)
@@ -208,7 +208,7 @@ def test_bfcl_fixture_parse():
     top = recs["claude-opus-4-5-20251101"]
     assert top.score == 77.47
     assert top.raw["mode"] == "FC"
-    with patch("hull_core.model_selection.sources.httpx.get", return_value=_resp(content=text.encode())):
+    with patch("httpx.Client.get", return_value=_resp(content=text.encode())):
         assert set(BFCLSource().fetch()) == set(recs)
 
 
@@ -223,7 +223,7 @@ def test_eqbench_creative_v3_fixture_parse():
         "elo_score",
     )
     with patch(
-        "hull_core.model_selection.sources.httpx.get",
+        "httpx.Client.get",
         return_value=_resp(content=_fixture("eqbench_creative_v3.js")),
     ):
         recs = src.fetch()
@@ -239,7 +239,7 @@ def test_eqbench_longform_fixture_parse():
         "overall_score_100",
     )
     with patch(
-        "hull_core.model_selection.sources.httpx.get",
+        "httpx.Client.get",
         return_value=_resp(content=_fixture("eqbench_longform.js")),
     ):
         recs = src.fetch()
@@ -249,7 +249,7 @@ def test_eqbench_longform_fixture_parse():
 
 def test_eqbench4_fixture_parse():
     with patch(
-        "hull_core.model_selection.sources.httpx.get",
+        "httpx.Client.get",
         return_value=_resp(content=_fixture("eqbench4_data.js")),
     ):
         recs = EqBench4Source().fetch()
@@ -303,7 +303,7 @@ def _gaia_parquet_blob():
 
 
 def test_gaia_best_score_per_model():
-    with patch("hull_core.model_selection.sources.httpx.get", return_value=_resp(content=_gaia_parquet_blob())):
+    with patch("httpx.Client.get", return_value=_resp(content=_gaia_parquet_blob())):
         recs = GaiaSource().fetch()
     assert recs["alphaagent-v0-1"].score == 0.051  # best run wins
     assert recs["autogpt4"].score == 0.049
@@ -321,7 +321,7 @@ def test_open_medical_tree_and_results():
     mock_client.get.return_value = _resp(result)
     with (
         patch("hull_core.model_selection.sources._get_json", return_value=tree),
-        patch("hull_core.model_selection.sources.httpx.Client", return_value=mock_client),
+        patch("hull_core.model_selection.sources.get_ssrf_safe_sync_client", return_value=mock_client),
     ):
         recs = OpenMedicalLLMSource().fetch()
     assert recs["01-ai-yi-1-5-9b-32k"].score == pytest.approx((0.716 + 0.7095588235294118 + 0.78) / 3)
@@ -360,7 +360,7 @@ def test_aa_capability_parses_docs_field_names(monkeypatch):
             {"slug": "Null-Cap", "evaluations": {"artificial_analysis_healthcare_and_medical_index": None}},
         ]
     }
-    with patch("hull_core.model_selection.sources.httpx.get", return_value=_resp(payload)) as get:
+    with patch("httpx.Client.get", return_value=_resp(payload)) as get:
         recs = AaCapabilitySource("aa_healthcare_index", "healthcare_and_medical", api_key="k").fetch()
     assert get.call_args.kwargs["headers"]["x-api-key"] == "k"
     assert recs["GPT-6"].score == 51.2
@@ -371,7 +371,7 @@ def test_aa_capability_parses_docs_field_names(monkeypatch):
 def test_aa_agentic_without_key_never_reads_or_embedded(monkeypatch):
     """No AA_API_KEY -> honest missing gap; the OR-embedded copy is NOT fetched as evidence."""
     monkeypatch.delenv("AA_API_KEY", raising=False)
-    with patch("hull_core.model_selection.sources.httpx.get") as get:
+    with patch("httpx.Client.get") as get:
         recs = AaAgenticIndexSource().fetch()
     assert recs == {}
     get.assert_not_called()
@@ -432,7 +432,7 @@ def test_wmt24pp_fixture_parse_and_fetch():
     first = next(iter(recs.values()))
     assert first.name and first.score is not None and 0 < first.score <= 1
     with patch(
-        "hull_core.model_selection.sources.httpx.get",
+        "httpx.Client.get",
         return_value=_resp(content=_fixture("llmstats_wmt24pp.html")),
     ):
         fetched = LLMStatsSource("wmt24pp", "wmt24++").fetch()
@@ -457,7 +457,7 @@ def test_manga_bench_vqa_column_and_fetch():
     assert recs["gemini-2-5-flash"].score == pytest.approx(7.26)
     assert recs["mangalmm"].score == pytest.approx(6.68)  # "(Ours)" stripped from the name
     with patch(
-        "hull_core.model_selection.sources.httpx.get",
+        "httpx.Client.get",
         return_value=_resp(content=_fixture("manga_bench.html")),
     ):
         fetched = MangaBenchSource("mangavqa", score_col=2).fetch()
@@ -468,7 +468,7 @@ def test_manga_bench_vqa_column_and_fetch():
 def test_manga_bench_table_missing_records_reason():
     html = b"<html><table><tr><th>Count Type</th><th>Total</th></tr><tr><td>QA pairs</td><td>40,363</td></tr></table></html>"
     assert _parse_manga_bench_table(html.decode(), score_col=1) == {}
-    with patch("hull_core.model_selection.sources.httpx.get", return_value=_resp(content=html)):
+    with patch("httpx.Client.get", return_value=_resp(content=html)):
         src = MangaBenchSource("mangavqa", score_col=2)
         assert src.fetch() == {}
         assert src.missing_reason == "manga_bench_table_empty"

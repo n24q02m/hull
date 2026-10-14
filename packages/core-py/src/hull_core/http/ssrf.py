@@ -23,6 +23,8 @@ import httpx
 _DNS_RESOLVER_POOL = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="mcp_core_dns")
 _SAFE_URL_SCHEMES = frozenset({"http", "https"})
 _RESOLVE_TIMEOUT_S = 2.0
+# httpx's stock Client timeout (5s all phases); a test pins this to httpx.Client().timeout.
+_HTTPX_DEFAULT_TIMEOUT = httpx.Timeout(5.0)
 
 
 class SSRFBlockedError(ValueError):
@@ -267,13 +269,28 @@ class SyncSSRFSafeTransport(httpx.HTTPTransport):
         return super().handle_request(request)
 
 
-def get_ssrf_safe_sync_client(*, allow_private: bool = False, allow_loopback: bool = False) -> httpx.Client:
+def get_ssrf_safe_sync_client(
+    *,
+    allow_private: bool = False,
+    allow_loopback: bool = False,
+    timeout: float | httpx.Timeout | None = _HTTPX_DEFAULT_TIMEOUT,
+    follow_redirects: bool = False,
+) -> httpx.Client:
     """New httpx.Client with SSRF-safe transport (caller owns lifecycle).
 
     Sync sibling of get_ssrf_safe_async_client. Use from sync contexts only
     (e.g. crg's sync summarizer); the DNS-pinning guarantee is identical.
+
+    ``timeout`` and ``follow_redirects`` are passed straight to ``httpx.Client``
+    and default to the stock httpx values. Redirects stay SSRF-safe because every
+    hop dials through the pinned backend, so a redirect to a private/loopback
+    address is refused at connect time.
     """
-    return httpx.Client(transport=SyncSSRFSafeTransport(allow_private=allow_private, allow_loopback=allow_loopback))
+    return httpx.Client(
+        transport=SyncSSRFSafeTransport(allow_private=allow_private, allow_loopback=allow_loopback),
+        timeout=timeout,
+        follow_redirects=follow_redirects,
+    )
 
 
 def is_multi_user_mode() -> bool:

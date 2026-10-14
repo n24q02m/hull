@@ -18,7 +18,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import hull_core.model_selection as ms
-from hull_core.model_selection import candidates, enrich_uptime
+from hull_core.http import SSRFBlockedError
+from hull_core.model_selection import candidates, enrich_uptime, sources
 from hull_core.model_selection.cache import FileCache
 from hull_core.model_selection.normalize import (
     ModelCandidate,
@@ -59,7 +60,7 @@ def test_openrouter_models_source_parses_rows():
             {"name": "no id"},  # skip
         ]
     }
-    with patch("hull_core.model_selection.sources.httpx.get", return_value=_resp(payload)):
+    with patch("httpx.Client.get", return_value=_resp(payload)):
         recs = OpenRouterModelsSource().fetch()
     assert set(recs) == {"m/a", "m/b"}
     assert recs["m/a"].raw["pricing"]["prompt"] == "1"
@@ -76,7 +77,7 @@ def test_openrouter_models_source_merges_modality_segments():
             return _resp({"data": [{"id": "cohere/rerank-4.5", "name": "rerank"}]})
         return _resp({"data": [{"id": "m/a", "name": "Model A"}]})
 
-    with patch("hull_core.model_selection.sources.httpx.get", side_effect=_by_url):
+    with patch("httpx.Client.get", side_effect=_by_url):
         recs = OpenRouterModelsSource().fetch()
     assert set(recs) == {"m/a", "thenlper/gte-large", "cohere/rerank-4.5"}
 
@@ -91,14 +92,14 @@ def test_openrouter_models_source_segment_failure_degrades_not_dies():
             return _resp({"data": [{"id": "cohere/rerank-4.5"}]})
         return _resp({"data": [{"id": "m/a"}]})
 
-    with patch("hull_core.model_selection.sources.httpx.get", side_effect=_by_url):
+    with patch("httpx.Client.get", side_effect=_by_url):
         recs = OpenRouterModelsSource().fetch()
     assert set(recs) == {"m/a", "cohere/rerank-4.5"}
 
 
 def test_openrouter_models_source_list_payload():
     with patch(
-        "hull_core.model_selection.sources.httpx.get",
+        "httpx.Client.get",
         return_value=_resp([{"id": "m/x"}]),
     ):
         assert set(OpenRouterModelsSource().fetch()) == {"m/x"}
@@ -106,7 +107,7 @@ def test_openrouter_models_source_list_payload():
 
 def test_source_fail_open_on_http_error():
     with patch(
-        "hull_core.model_selection.sources.httpx.get",
+        "httpx.Client.get",
         side_effect=ConnectionError("down"),
     ):
         assert OpenRouterModelsSource().fetch() == {}
@@ -137,7 +138,7 @@ def test_aa_source_parses_evaluations(monkeypatch):
             "not-a-dict",  # skip
         ]
     }
-    with patch("hull_core.model_selection.sources.httpx.get", return_value=_resp(payload)) as get:
+    with patch("httpx.Client.get", return_value=_resp(payload)) as get:
         recs = ArtificialAnalysisSource(api_key="k").fetch()
     assert get.call_args.kwargs["headers"]["x-api-key"] == "k"
     assert recs["GPT-6"].score == 52.3  # dict key = raw slug, record.key = slugified
@@ -151,7 +152,7 @@ def test_aa_source_parses_evaluations(monkeypatch):
 def test_ugi_csv_parse():
     csv_text = "model,ugi\nModel X,88.0\n"
     with patch(
-        "hull_core.model_selection.sources.httpx.get",
+        "httpx.Client.get",
         return_value=_resp(content=csv_text.encode()),
     ):
         recs = UGISource().fetch()
@@ -162,7 +163,7 @@ def test_ugi_space_mirror_schema_parse():
     """2026-10-07 mirror schema: BOM + 'author/model_name' + 'UGI <trophy>'."""
     csv_text = "\ufeffauthor/model_name,UGI 🏆,W/10 👍\nopenai/gpt-6,72.4,88.0\n"
     with patch(
-        "hull_core.model_selection.sources.httpx.get",
+        "httpx.Client.get",
         return_value=_resp(content=csv_text.encode("utf-8")),
     ):
         recs = UGISource().fetch()
@@ -222,7 +223,7 @@ def test_arena_parquet_parse_with_pandas():
     buf = io.BytesIO()
     df.to_parquet(buf, index=False)
     with patch(
-        "hull_core.model_selection.sources.httpx.get",
+        "httpx.Client.get",
         return_value=_resp(content=buf.getvalue()),
     ):
         recs = ArenaSource().fetch()
@@ -247,7 +248,7 @@ def test_arena_parquet_parse_with_pyarrow():
 
     pq.write_table(df, buf)
     with patch(
-        "hull_core.model_selection.sources.httpx.get",
+        "httpx.Client.get",
         return_value=_resp(content=buf.getvalue()),
     ):
         recs = ArenaSource().fetch()
@@ -266,7 +267,7 @@ def test_arena_parquet_no_parser_raises_runtime_error(monkeypatch):
 
 def test_arena_parquet_bad_blob_fail_open():
     with patch(
-        "hull_core.model_selection.sources.httpx.get",
+        "httpx.Client.get",
         return_value=_resp(content=b"not parquet"),
     ):
         assert ArenaSource().fetch() == {}
@@ -284,7 +285,7 @@ def test_fetch_endpoint_stats_aggregates():
             {"uptime_last_1d": "bad", "latency_last_30m": None},
         ]
     }
-    with patch("hull_core.model_selection.sources.httpx.get", return_value=_resp(payload)):
+    with patch("httpx.Client.get", return_value=_resp(payload)):
         stats = fetch_endpoint_stats("m/a")
     assert stats["uptime_1d"] == 99.9
     assert stats["zdr_available"] is True
@@ -293,7 +294,7 @@ def test_fetch_endpoint_stats_aggregates():
 
 def test_fetch_endpoint_stats_fail_open():
     with patch(
-        "hull_core.model_selection.sources.httpx.get",
+        "httpx.Client.get",
         side_effect=TimeoutError("slow"),
     ):
         assert fetch_endpoint_stats("m/a") == {}
@@ -527,3 +528,27 @@ def test_blended_cost_missing_inputs_are_none():
     assert blended_cost_1m(ModelCandidate(or_slug="x", raw={}), task) is None
     cand = ModelCandidate(or_slug="x", raw={"pricing": {"prompt": "0.000001"}})
     assert blended_cost_1m(cand, task) is None
+
+
+# --- SSRF guard on the module-level fetch helpers ------------------------------
+
+
+@pytest.mark.parametrize("helper", [sources._get_json, sources._get_bytes])
+def test_fetch_helpers_refuse_loopback_targets(helper):
+    """_get_json/_get_bytes use the DNS-pinning client: loopback is refused before any dial."""
+    with pytest.raises(SSRFBlockedError, match="loopback"):
+        helper("http://127.0.0.1:9/x")
+
+
+@pytest.mark.parametrize("helper", [sources._get_json, sources._get_bytes])
+def test_fetch_helpers_refuse_private_targets(helper):
+    with pytest.raises(SSRFBlockedError, match="internal/private"):
+        helper("http://10.0.0.5:9/x")
+
+
+def test_fetch_endpoint_stats_fail_open_on_blocked_target(monkeypatch, caplog):
+    """Fetcher contract holds for a blocked target: {} plus a warning naming the block."""
+    monkeypatch.setattr(sources, "OR_ENDPOINTS_URL", "http://127.0.0.1:9/{slug}")
+    with caplog.at_level(logging.WARNING):
+        assert fetch_endpoint_stats("x") == {}
+    assert "loopback" in caplog.text

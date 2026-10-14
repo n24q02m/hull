@@ -358,7 +358,7 @@ def test_open_medical_skips_failing_and_scoreless_files():
     )
     with (
         patch("hull_core.model_selection.sources._get_json", return_value=tree),
-        patch("hull_core.model_selection.sources.httpx.Client", return_value=client),
+        patch("hull_core.model_selection.sources.get_ssrf_safe_sync_client", return_value=client),
     ):
         recs = OpenMedicalLLMSource().fetch()
     assert set(recs) == {"org-good"}
@@ -385,7 +385,7 @@ def test_aa_capability_skips_non_dict_and_slugless_rows(monkeypatch):
             {"slug": "GPT-6", "name": "GPT-6", "evaluations": {field: 51.2}},
         ]
     }
-    with patch("hull_core.model_selection.sources.httpx.get", return_value=_open_medical_resp(payload)):
+    with patch("httpx.Client.get", return_value=_open_medical_resp(payload)):
         recs = AaCapabilitySource("aa_healthcare_index", "healthcare_and_medical", api_key="k").fetch()
     assert set(recs) == {"GPT-6"}
     assert recs["GPT-6"].score == 51.2
@@ -396,7 +396,7 @@ def test_aa_agentic_with_key_delegates_to_capability_fetch(monkeypatch):
     payload = {
         "data": [{"slug": "agent-pro", "name": "Agent Pro", "evaluations": {"artificial_analysis_agentic_index": 70.0}}]
     }
-    with patch("hull_core.model_selection.sources.httpx.get", return_value=_open_medical_resp(payload)) as get:
+    with patch("httpx.Client.get", return_value=_open_medical_resp(payload)) as get:
         recs = AaAgenticIndexSource(api_key="k").fetch()
     assert get.call_args.kwargs["headers"] == {"x-api-key": "k"}
     assert set(recs) == {"agent-pro"}

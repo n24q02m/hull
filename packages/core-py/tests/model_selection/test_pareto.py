@@ -7,10 +7,12 @@ strategy (no cost -> no best-value rank).
 
 from __future__ import annotations
 
+import random
+
 import pytest
 
 from hull_core.model_selection.normalize import ModelCandidate
-from hull_core.model_selection.pareto import frontier, knee_point, quadrants
+from hull_core.model_selection.pareto import _dominates, frontier, knee_point, quadrants
 from hull_core.model_selection.pareto import pick as pareto_pick
 
 
@@ -154,3 +156,45 @@ def test_pick_never_returns_unknown_cost(strategy, want):
 
 def test_pick_empty_candidates_returns_none():
     assert pareto_pick([], "knee") is None
+
+
+def _reference_frontier(candidates: list[ModelCandidate]) -> list[ModelCandidate]:
+    """The original any()-based definition, kept as the oracle for ``frontier``."""
+    known = [c for c in candidates if c.cost_1m_blended is not None]
+    result = [c for c in known if not any(_dominates(other, c) for other in known if other is not c)]
+    return sorted(result, key=lambda c: (c.cost_1m_blended, -c.quality))
+
+
+def _random_candidates(rng: random.Random, n: int) -> list[ModelCandidate]:
+    """Coarse value grids force exact ties (equal quality, equal cost, duplicates);
+    ~15% unknown cost and a mix of CI tolerances exercise the other branches."""
+    cands = []
+    for i in range(n):
+        cost = None if rng.random() < 0.15 else rng.choice([0.0, 0.5, 1.0, 2.0, 5.0, 10.0, 25.0])
+        cands.append(
+            ModelCandidate(
+                or_slug=f"m{i}",
+                quality=float(rng.randint(0, 20)),
+                cost_1m_blended=cost,
+                quality_ci=rng.choice([None, 0.0, 0.5, 2.0, 5.0]),
+            )
+        )
+    return cands
+
+
+@pytest.mark.parametrize("n", [0, 1, 2, 3, 5, 12, 50, 300])
+def test_frontier_matches_reference_on_random_data(n):
+    """frontier() must return the same members, in the same order, as the any() oracle."""
+    rng = random.Random(20261015 + n)
+    for _ in range(25):
+        cands = _random_candidates(rng, n)
+        got = frontier(cands)
+        want = _reference_frontier(cands)
+        assert [id(c) for c in got] == [id(c) for c in want]
+        assert all(c.cost_1m_blended is not None for c in got)
+
+
+def test_frontier_exact_duplicates_do_not_dominate_each_other():
+    """Two identical candidates tie: neither dominates, both stay on the frontier."""
+    a, b = _cand("a", q=80, cost=1.0), _cand("b", q=80, cost=1.0)
+    assert [c.or_slug for c in frontier([a, b])] == ["a", "b"]

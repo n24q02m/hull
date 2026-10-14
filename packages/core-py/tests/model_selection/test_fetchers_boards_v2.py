@@ -158,7 +158,7 @@ class _MapStub:
 
 def test_agentset_embed_fixture_parse_and_fetch():
     with patch(
-        "hull_core.model_selection.sources.httpx.get",
+        "httpx.Client.get",
         side_effect=[
             _resp(_json_fixture("agentset_benchmarks.json")),
             _resp(_github_commit_payload("2026-03-11T09:13:02Z")),
@@ -182,7 +182,7 @@ def test_agentset_embed_commit_api_failure_keeps_rows():
             raise ConnectionError("rate limited")
         return _resp(data)
 
-    with patch("hull_core.model_selection.sources.httpx.get", side_effect=_by_url):
+    with patch("httpx.Client.get", side_effect=_by_url):
         src = AgentSetEmbedSource()
         recs = src.fetch()
     assert len(recs) == 18
@@ -207,7 +207,7 @@ def test_agentset_rerank_fixture_parse():
 def test_agentset_rerank_fetch_sets_board_date():
     html = _fixture("agentset_rerankers.html").decode("utf-8")
     with patch(
-        "hull_core.model_selection.sources.httpx.get",
+        "httpx.Client.get",
         side_effect=[
             _resp(content=html.encode()),
             _resp({"pushed_at": "2026-02-06T15:07:52Z"}),
@@ -222,7 +222,7 @@ def test_agentset_rerank_fetch_sets_board_date():
 
 def test_agentset_rerank_table_missing_records_reason():
     html = b"<html><body><p>no table</p></body></html>"
-    with patch("hull_core.model_selection.sources.httpx.get", return_value=_resp(content=html)):
+    with patch("httpx.Client.get", return_value=_resp(content=html)):
         src = AgentSetRerankSource()
         assert src.fetch() == {}
         assert src.missing_reason == "agentset_rerank_table_empty"
@@ -247,7 +247,7 @@ def test_hindsight_reranker_listing_and_files():
             return _resp(served[name])
         raise ConnectionError(f"unavailable {name}")  # rest of the listing 500s -> skipped
 
-    with patch("hull_core.model_selection.sources.httpx.get", side_effect=_by_url):
+    with patch("httpx.Client.get", side_effect=_by_url):
         src = HindsightSource("hindsight_reranker", "reranker", "reranker_id")
         recs = src.fetch()
     assert set(recs) == {"cohere-rerank-v4-pro", "flashrank"}
@@ -270,13 +270,13 @@ def test_hindsight_embeddings_fixture_parse():
             return _resp(served[name])
         raise ConnectionError(f"unavailable {name}")
 
-    with patch("hull_core.model_selection.sources.httpx.get", side_effect=_by_url):
+    with patch("httpx.Client.get", side_effect=_by_url):
         recs = HindsightSource("hindsight_embeddings", "embeddings", "embedding_id").fetch()
     assert recs["text-embedding-3-small"].score == pytest.approx(0.7639)
 
 
 def test_hindsight_empty_listing_records_reason():
-    with patch("hull_core.model_selection.sources.httpx.get", return_value=_resp([])):
+    with patch("httpx.Client.get", return_value=_resp([])):
         src = HindsightSource("hindsight_reranker", "reranker", "reranker_id")
         assert src.fetch() == {}
         assert src.missing_reason == "hindsight_listing_empty"
@@ -289,7 +289,7 @@ def test_arena_agent_parquet_fixture_parse():
     # Hermetic: without this patch the fetch goes to the live HF parquet and the
     # asserted scores drift every weekly publish.
     with patch(
-        "hull_core.model_selection.sources.httpx.get",
+        "httpx.Client.get",
         return_value=_resp(content=_fixture("arena_agent.parquet")),
     ):
         recs = ArenaAgentSource().fetch()
@@ -304,7 +304,7 @@ def test_arena_agent_parquet_fixture_parse():
 
 def test_arena_agent_fetch_reads_parquet_bytes():
     with patch(
-        "hull_core.model_selection.sources.httpx.get",
+        "httpx.Client.get",
         return_value=_resp(content=_fixture("arena_agent.parquet")),
     ):
         src = ArenaAgentSource()
@@ -339,7 +339,7 @@ def test_wmt25_fetch_sets_revision_date():
             return _resp(content=abs_page)
         return _resp(content=html)
 
-    with patch("hull_core.model_selection.sources.httpx.get", side_effect=_by_url):
+    with patch("httpx.Client.get", side_effect=_by_url):
         src = Wmt25GmtrSource()
         recs = src.fetch()
     assert src.board_updated_at == "2025-08-24"
@@ -349,7 +349,7 @@ def test_wmt25_fetch_sets_revision_date():
 
 def test_wmt25_no_tables_records_reason():
     with patch(
-        "hull_core.model_selection.sources.httpx.get",
+        "httpx.Client.get",
         side_effect=[_resp(content=b"<html><p>empty</p></html>"), _resp(content=b"")],
     ):
         src = Wmt25GmtrSource()
@@ -376,7 +376,7 @@ def test_or_usage_supplement_fixture_aggregates_by_base_slug(monkeypatch):
             return _resp(data)
         raise ConnectionError(f"unexpected {url}")
 
-    with patch("hull_core.model_selection.sources.httpx.get", side_effect=_by_url):
+    with patch("httpx.Client.get", side_effect=_by_url):
         src = OrUsageSource()
         recs = src.fetch()
     # dated permaslug tails aggregate into the base catalog slug
@@ -394,7 +394,7 @@ def test_or_usage_supplement_fixture_aggregates_by_base_slug(monkeypatch):
 def test_or_usage_no_feed_records_key_reason(monkeypatch):
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     with patch(
-        "hull_core.model_selection.sources.httpx.get",
+        "httpx.Client.get",
         side_effect=ConnectionError("frontend down"),
     ):
         src = OrUsageSource()
@@ -429,7 +429,7 @@ def test_or_usage_primary_and_supplement_merge(monkeypatch):
             }
         )
 
-    with patch("hull_core.model_selection.sources.httpx.get", side_effect=_by_url):
+    with patch("httpx.Client.get", side_effect=_by_url):
         recs = OrUsageSource().fetch()
     assert recs["openai/gpt-5.5"].score == pytest.approx(1000.0)  # two days merged
     assert recs["voyageai/rerank-3-lite"].score == pytest.approx(50.0)
@@ -538,14 +538,14 @@ def test_fetch_source_records_board_updated_at_and_attribution():
     src = AgentSetRerankSource()
     html = _fixture("agentset_rerankers.html").decode("utf-8")
     with patch(
-        "hull_core.model_selection.sources.httpx.get",
+        "httpx.Client.get",
         side_effect=[_resp(content=html.encode()), _resp({"pushed_at": "2026-02-06T15:07:52Z"})],
     ):
         src.fetch()
     assert src.board_updated_at == "2026-02-06"
     status: dict = {}
     with patch(
-        "hull_core.model_selection.sources.httpx.get",
+        "httpx.Client.get",
         side_effect=[_resp(content=html.encode()), _resp({"pushed_at": "2026-02-06T15:07:52Z"})],
     ):
         ms._fetch_source(src, None, False, status)
@@ -553,7 +553,7 @@ def test_fetch_source_records_board_updated_at_and_attribution():
 
     usage = OrUsageSource()
     with patch(
-        "hull_core.model_selection.sources.httpx.get",
+        "httpx.Client.get",
         return_value=_resp(
             {"data": [{"date": "2026-10-08 00:00:00", "model_permaslug": "a/b", "rankingMetricValue": 5.0}]}
         ),

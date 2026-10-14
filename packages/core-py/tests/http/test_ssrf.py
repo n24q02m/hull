@@ -201,3 +201,72 @@ def test_vet_api_base_multi_user_blocks_loopback_and_ignores_escape(monkeypatch)
     monkeypatch.setattr(socket, "getaddrinfo", _fake_getaddrinfo("127.0.0.1"))
     with pytest.raises(SSRFBlockedError):
         vet_api_base("http://localhost:11434")
+
+
+# --- get_ssrf_safe_sync_client: additive client options + redirect re-vetting ---
+
+
+def test_get_ssrf_safe_sync_client_defaults_match_plain_httpx_client():
+    """No caller-visible change: without the new options the client is stock httpx."""
+    client = get_ssrf_safe_sync_client()
+    plain = httpx.Client()
+    assert client.timeout == plain.timeout
+    assert client.follow_redirects is False
+
+
+def test_get_ssrf_safe_sync_client_accepts_timeout_and_follow_redirects():
+    client = get_ssrf_safe_sync_client(timeout=7.5, follow_redirects=True)
+    assert client.timeout == httpx.Timeout(7.5)
+    assert client.follow_redirects is True
+    assert isinstance(client._transport, SyncSSRFSafeTransport)
+
+
+class _CannedStream(httpcore.NetworkStream):
+    """Network stream that answers any request with one canned HTTP/1.1 response."""
+
+    def __init__(self, response: bytes) -> None:
+        self._pending = response
+
+    def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+        data, self._pending = self._pending, b""
+        return data
+
+    def write(self, buffer: bytes, timeout: float | None = None) -> None:
+        return None
+
+    def close(self) -> None:
+        return None
+
+    def start_tls(self, ssl_context, server_hostname=None, timeout=None):
+        return self
+
+    def get_extra_info(self, info: str):
+        return None
+
+
+def test_sync_client_revets_every_redirect_hop(monkeypatch):
+    """A 302 from a public host to a private one must be refused at the dial.
+
+    No network: DNS is faked (public.example.com -> public IP, internal.example.com
+    -> RFC1918) and the inner backend is replaced by a stream serving a redirect.
+    The first hop dials the vetted public IP; the second hop never dials at all.
+    """
+    resolved = {"public.example.com": "93.184.216.34", "internal.example.com": "10.0.0.5"}
+
+    def fake_getaddrinfo(host, port, *args, **kwargs):
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (resolved[host], port or 80))]
+
+    dialled: list[str] = []
+    redirect = b"HTTP/1.1 302 Found\r\nLocation: http://internal.example.com/secret\r\nContent-Length: 0\r\n\r\n"
+
+    def fake_connect(self, host, port, **kwargs):
+        dialled.append(host)
+        return _CannedStream(redirect)
+
+    monkeypatch.setattr(socket, "getaddrinfo", fake_getaddrinfo)
+    monkeypatch.setattr(httpcore.SyncBackend, "connect_tcp", fake_connect)
+
+    with get_ssrf_safe_sync_client(follow_redirects=True) as client:
+        with pytest.raises(SSRFBlockedError, match="internal/private"):
+            client.get("http://public.example.com/start")
+    assert dialled == ["93.184.216.34"]

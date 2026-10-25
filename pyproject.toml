@@ -28,7 +28,7 @@ classifiers = [
 dependencies = [
     # FastMCP exposes `http_app(path, middleware, transport)` used to mount the
     # MCP Streamable HTTP endpoint; its transport layer is Starlette-based.
-    "fastmcp>=3.4.7,<4",
+    "fastmcp>=3.4.10,<4",
     "starlette>=0.41.0",
     "uvicorn>=0.30.0",
     "httpx>=0.28.1",
@@ -54,7 +54,7 @@ web = [
     "browserforge>=1.2.4",
     "capsolver>=1.0.7",
     "pydantic>=2.12.5",
-    "pillow>=12.3.0",
+    "pillow>=13.0.0",
 ]
 # Identity layer: seeded coherent browser profiles (fingerprint.build_identity).
 # Optional: hull_web imports and all legacy strategy behavior work without it.

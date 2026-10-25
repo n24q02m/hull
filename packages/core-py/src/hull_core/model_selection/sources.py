@@ -32,8 +32,7 @@ from pathlib import Path
 from urllib.parse import quote
 from typing import Any, Protocol, runtime_checkable
 
-import httpx
-
+from hull_core.http import get_ssrf_safe_sync_client
 from hull_core.model_selection.mteb_tasks import task_family
 
 logger = logging.getLogger(__name__)
@@ -219,13 +218,15 @@ class Source(Protocol):
 
 
 def _get_json(url: str, *, headers: dict[str, str] | None = None, params: dict[str, str] | None = None) -> Any:
-    resp = httpx.get(url, headers=headers, params=params, timeout=DEFAULT_TIMEOUT, follow_redirects=True)
+    with get_ssrf_safe_sync_client(timeout=DEFAULT_TIMEOUT, follow_redirects=True) as client:
+        resp = client.get(url, headers=headers, params=params)
     resp.raise_for_status()
     return resp.json()
 
 
 def _get_bytes(url: str, *, headers: dict[str, str] | None = None) -> bytes:
-    resp = httpx.get(url, headers=headers, timeout=DEFAULT_TIMEOUT, follow_redirects=True)
+    with get_ssrf_safe_sync_client(timeout=DEFAULT_TIMEOUT, follow_redirects=True) as client:
+        resp = client.get(url, headers=headers)
     resp.raise_for_status()
     return resp.content
 
@@ -1882,7 +1883,7 @@ class OpenMedicalLLMSource(_BaseSource):
             self.missing_reason = "open_medical_results_empty"
             return {}
         records: dict[str, SourceRecord] = {}
-        with httpx.Client(timeout=DEFAULT_TIMEOUT, follow_redirects=True) as client:
+        with get_ssrf_safe_sync_client(timeout=DEFAULT_TIMEOUT, follow_redirects=True) as client:
             for path in files[: self.max_files]:
                 hf_id = "/".join(path.split("/")[:2])
                 try:

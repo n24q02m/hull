@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -54,17 +54,32 @@ describe('LocalFsBackend', () => {
     rmSync(testHome, { recursive: true, force: true })
   })
 
-  it('writes config blob under <home>/.<plugin>-mcp/config.json', async () => {
+  it('writes config blob under <home>/.<plugin>/config.json', async () => {
     const backend = new LocalFsBackend()
+    expect(backend.isDefaultLayout).toBe(true)
     await backend.put('wet/config', Buffer.from('blob'))
-    const onDisk = readFileSync(join(testHome, '.wet-mcp', 'config.json'))
+    const onDisk = readFileSync(join(testHome, '.wet', 'config.json'))
     expect(onDisk).toEqual(Buffer.from('blob'))
+    expect(existsSync(join(testHome, '.wet-mcp'))).toBe(false)
+  })
+
+  it('honours a custom baseDir and reports a non-default layout', async () => {
+    const custom = join(testHome, 'legacy-root')
+    const backend = new LocalFsBackend({ baseDir: (plugin) => join(custom, `.${plugin}-mcp`) })
+    expect(backend.isDefaultLayout).toBe(false)
+    await backend.put('wet/subs/u1/config', Buffer.from('blob'))
+    expect(readFileSync(join(custom, '.wet-mcp', 'subs', 'u1', 'config.json'))).toEqual(Buffer.from('blob'))
+    expect(await backend.get('wet/subs/u1/config')).toEqual(Buffer.from('blob'))
+    await backend.delete('wet/subs/u1/config')
+    expect(await backend.get('wet/subs/u1/config')).toBeNull()
+    // Traversal checks still apply under a custom base.
+    await expect(backend.get('wet/subs/../config')).rejects.toThrow()
   })
 
   it('sub path get/delete roundtrip', async () => {
     const backend = new LocalFsBackend()
     await backend.put('wet/subs/u1/config', Buffer.from('blob'))
-    const onDisk = readFileSync(join(testHome, '.wet-mcp', 'subs', 'u1', 'config.json'))
+    const onDisk = readFileSync(join(testHome, '.wet', 'subs', 'u1', 'config.json'))
     expect(onDisk).toEqual(Buffer.from('blob'))
     expect(await backend.get('wet/subs/u1/config')).toEqual(Buffer.from('blob'))
     await backend.delete('wet/subs/u1/config')
@@ -88,6 +103,22 @@ describe('LocalFsBackend', () => {
     await expect(backend.put('../config', Buffer.from('x'))).rejects.toThrow()
   })
 
+  it('rejects keys that are not <plugin>/config or <plugin>/subs/<sub>/config', async () => {
+    const backend = new LocalFsBackend()
+    await expect(backend.get('wet')).rejects.toThrow(/Invalid backend key: wet/)
+    await expect(backend.get('wet/other')).rejects.toThrow(/Invalid backend key/)
+    await expect(backend.get('wet/subs/u1/other')).rejects.toThrow(/Invalid backend key/)
+  })
+
+  it('get and delete rethrow filesystem errors other than ENOENT', async () => {
+    const backend = new LocalFsBackend()
+    // A directory where the blob file should be: read/unlink fail with
+    // EISDIR/EPERM, which must surface instead of reading as "absent".
+    mkdirSync(join(testHome, '.wet', 'config.json'), { recursive: true })
+    await expect(backend.get('wet/config')).rejects.toThrow()
+    await expect(backend.delete('wet/config')).rejects.toThrow()
+  })
+
   it('allows a legitimate dot in sub', async () => {
     const backend = new LocalFsBackend()
     await backend.put('wet/subs/u.1/config', Buffer.from('blob'))
@@ -98,7 +129,7 @@ describe('LocalFsBackend', () => {
     const backend = new LocalFsBackend()
     // Seed the "old" blob directly (bypassing put/rename) so the mocked
     // rename failure below is the only thing exercising the atomic-write path.
-    const configDir = join(testHome, '.rename-error-trigger-mcp')
+    const configDir = join(testHome, '.rename-error-trigger')
     mkdirSync(configDir, { recursive: true })
     writeFileSync(join(configDir, 'config.json'), 'old-blob')
 
@@ -113,7 +144,7 @@ describe('LocalFsBackend', () => {
 
     // A successful put still writes the new content.
     await backend.put('demo/config', Buffer.from('new-content'))
-    expect(readFileSync(join(testHome, '.demo-mcp', 'config.json'), 'utf-8')).toBe('new-content')
+    expect(readFileSync(join(testHome, '.demo', 'config.json'), 'utf-8')).toBe('new-content')
   })
 })
 
@@ -227,6 +258,36 @@ describe('CfKvBackend', () => {
   it('put throws on 500', async () => {
     const backend = new CfKvBackend('http://kv.internal', undefined, new StatusHttp(500))
     await expect(backend.put('wet/config', Buffer.from('x'))).rejects.toThrow()
+  })
+
+  it('sends the bearer token when one is configured', async () => {
+    const seen: Array<Record<string, string> | undefined> = []
+    const http: Http = {
+      request: async (_method, _url, _data, headers) => {
+        seen.push(headers)
+        return { status: 404, body: Buffer.alloc(0) }
+      }
+    }
+    await new CfKvBackend('http://kv.internal/', 'tok', http).get('wet/config')
+    expect(seen).toEqual([{ Authorization: 'Bearer tok' }])
+  })
+
+  it('defaults to a fetch-based transport', async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = []
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      calls.push({ url, init })
+      return new Response(init.method === 'GET' ? new Uint8Array([7, 8]) : null, { status: 200 })
+    })
+    try {
+      const backend = new CfKvBackend('http://kv.internal//')
+      await backend.put('wet/config', Buffer.from([1, 2]))
+      expect(await backend.get('wet/config')).toEqual(Buffer.from([7, 8]))
+      expect(calls[0].url).toBe(`http://kv.internal/${encodeURIComponent('wet/config')}`)
+      expect(calls[0].init.body).toEqual(new Uint8Array([1, 2]))
+      expect(calls[1].init.body).toBeUndefined()
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 
   it('propagates transport errors from get/put/delete', async () => {

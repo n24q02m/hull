@@ -98,6 +98,12 @@ repos:
         entry: python scripts/repo-bootstrap/verify_readme_sync.py --repo-root=.
         language: system
         pass_filenames: false
+      # packages/core-ts publishes its own README to npm (@n24q02m/hull).
+      - id: verify-readme-sync-npm
+        name: Verify README registry metadata (npm @n24q02m/hull)
+        entry: python scripts/repo-bootstrap/verify_readme_sync.py --repo-root=packages/core-ts
+        language: system
+        pass_filenames: false
 
   # ============================================================================
   # Commit Message Enforcement

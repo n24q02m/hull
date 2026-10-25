@@ -1,3 +1,4 @@
+export type { HttpAuthConfig } from '../token-auth/authenticator.js'
 export {
   type HttpRoute,
   type HttpServerHandle,

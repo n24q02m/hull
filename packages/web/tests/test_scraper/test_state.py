@@ -30,10 +30,7 @@ class TestScrapingError:
             strategies_tried=["basic_http"],
             final_error="timeout",
         )
-        msg = str(err)
-        assert "https://example.com" in msg
-        assert "basic_http" in msg
-        assert "timeout" in msg
+        assert str(err) == "All strategies failed for https://example.com: tried ['basic_http'], last error: timeout"
 
     def test_is_exception(self):
         err = ScrapingError(url="u", strategies_tried=[], final_error="e")

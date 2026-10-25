@@ -55,8 +55,8 @@ describe('PerPluginStore', () => {
   })
 
   it('path layout', () => {
-    expect(credPath('foo', null)).toContain(join('.foo-mcp', 'config.json'))
-    expect(credPath('foo', 'abc-123')).toContain(join('.foo-mcp', 'subs', 'abc-123', 'config.json'))
+    expect(credPath('foo', null)).toBe(join(testHome, '.foo', 'config.json'))
+    expect(credPath('foo', 'abc-123')).toBe(join(testHome, '.foo', 'subs', 'abc-123', 'config.json'))
   })
 
   it('path traversal protection', () => {
@@ -164,7 +164,7 @@ describe('PerPluginStore', () => {
 
     await expect(store.save({ k: 'v' })).rejects.toThrow('simulated rename failure')
 
-    const secretDir = join(testHome, `.${pluginName}-mcp`)
+    const secretDir = join(testHome, `.${pluginName}`)
     expect(existsSync(join(secretDir, '.secret'))).toBe(false)
     expect(readdirSync(secretDir).some((entry) => entry.endsWith('.tmp'))).toBe(false)
   })

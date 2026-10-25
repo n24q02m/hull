@@ -43,6 +43,9 @@ import { refreshLockTimestamp, sweepStaleLocks, writeLockFile } from '../lifecyc
 import type { JWTIssuer } from '../oauth/jwt-issuer.js'
 import { tryOpenBrowser } from '../relay/browser.js'
 import { readStoredConfig } from '../storage/credential-store.js'
+import { Authenticator, type HttpAuthConfig } from '../token-auth/authenticator.js'
+import { guardRequest } from '../token-auth/http-guard.js'
+import { assertNoAuthLoopback } from '../token-auth/loopback.js'
 import { extractBearerToken } from './oauth-middleware.js'
 
 /** Decoded JWT claims returned by JWTIssuer.verifyAccessToken. */
@@ -154,6 +157,26 @@ export interface RunHttpServerOptions {
    * e.g. adding a second upstream account to an already-authenticated subject.
    */
   extraRoutes?: HttpRoute[]
+  /**
+   * Token-table HTTP auth, the core-py `[server] auth` modes:
+   *
+   *  - `{ mode: 'no-auth' }` -- no Authorization header; every request runs as
+   *    `localAuthContext()`. Refuses (throws `ServerConfigError`) any `host`
+   *    that is not loopback.
+   *  - `{ mode: 'token', tokenHash, rpm? }` -- one shared bearer token checked
+   *    against a `scrypt$...` hash; caller `uid` is `"shared"`.
+   *  - `{ mode: 'multi', usersFile?, users? }` -- users.toml table (default
+   *    `~/.hull/users.toml`); 401 wrong token, 403 disabled user, 429 over the
+   *    user's `limits.rpm`.
+   *
+   * The guard runs before routing for every path except `/health` (so `/mcp`
+   * and `extraRoutes` both see the caller via `currentUser()`), and rejects
+   * with core-py's JSON body and `WWW-Authenticate: Bearer` on 401. The config
+   * is validated before the port is bound. Mutually exclusive with the
+   * OAuth/relay options (`relaySchema`, `delegatedOAuth`, `jwtIssuer`,
+   * `authDisabled`, `authScope`).
+   */
+  auth?: HttpAuthConfig
 }
 
 export interface HttpServerHandle {
@@ -184,6 +207,20 @@ export async function runHttpServer(
   const host = options.host ?? '127.0.0.1'
   const wantedPort = options.port ?? 0
 
+  // Token-table auth replaces the OAuth/relay stack entirely; combining them
+  // would leave two competing Bearer schemes on /mcp.
+  let tokenAuth: Authenticator | null = null
+  if (options.auth !== undefined) {
+    const conflicting = (['relaySchema', 'delegatedOAuth', 'jwtIssuer', 'authDisabled', 'authScope'] as const).filter(
+      (key) => options[key] !== undefined && options[key] !== false
+    )
+    if (conflicting.length > 0) {
+      throw new Error(`\`auth\` is mutually exclusive with ${conflicting.map((key) => `\`${key}\``).join(', ')}`)
+    }
+    tokenAuth = new Authenticator(options.auth)
+    if (tokenAuth.mode === 'no-auth') assertNoAuthLoopback(host)
+  }
+
   // Edge auth deployment warning (per spec 2026-05-01-stdio-pure-http-multiuser
   // §4.2.1). When ``PUBLIC_URL`` points to a non-localhost host but
   // ``MCP_RELAY_PASSWORD`` is empty, the relay form is reachable from the
@@ -194,7 +231,7 @@ export async function runHttpServer(
   const publicUrl = process.env.PUBLIC_URL ?? ''
   const relayPassword = process.env.MCP_RELAY_PASSWORD ?? ''
   const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)/.test(publicUrl)
-  if (publicUrl && !isLocalhost && !relayPassword) {
+  if (tokenAuth === null && publicUrl && !isLocalhost && !relayPassword) {
     console.warn(
       '[hull] WARNING: HTTP mode public deployment without MCP_RELAY_PASSWORD — relay form is open to Internet'
     )
@@ -422,19 +459,10 @@ export async function runHttpServer(
     await handleSessionRequest(req, res)
   }
 
-  const handler = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
-    const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`)
-    const pathname = url.pathname
-
+  async function dispatch(req: IncomingMessage, res: ServerResponse, pathname: string): Promise<void> {
     // Route /mcp to MCP transport (with optional Bearer auth).
     if (pathname === '/mcp') {
       await mcpHandler(req, res)
-      return
-    }
-
-    // Liveness probe. Always available.
-    if (pathname === '/health') {
-      jsonResponse(res, 200, { status: 'ok', server: options.serverName })
       return
     }
 
@@ -457,6 +485,25 @@ export async function runHttpServer(
 
     // No OAuth app and no match -- 404.
     jsonResponse(res, 404, { error: 'not_found' })
+  }
+
+  const handler = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+    const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`)
+    const pathname = url.pathname
+
+    // Liveness probe. Always available, never behind token auth.
+    if (pathname === '/health') {
+      jsonResponse(res, 200, { status: 'ok', server: options.serverName })
+      return
+    }
+
+    // Token-table auth runs before any routing and binds the caller's
+    // AuthContext for the rest of the request (read via currentUser()).
+    if (tokenAuth !== null) {
+      await guardRequest(tokenAuth, req, res, () => dispatch(req, res, pathname))
+      return
+    }
+    await dispatch(req, res, pathname)
   }
 
   const httpServer: Server = createServer((req, res) => {

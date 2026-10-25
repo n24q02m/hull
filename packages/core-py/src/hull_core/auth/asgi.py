@@ -4,11 +4,16 @@ Runs before the MCP endpoint (passed through FastMCP's ``http_app`` middleware
 list) and publishes :class:`AuthContext` via the module contextvar so tools
 can scope storage access per user. Rejections are JSON:
 ``401`` (missing/invalid token), ``403`` (disabled user), ``429`` (over limit).
+
+``public_paths`` is an exact-match allow-list of request paths that skip
+authentication (e.g. an unauthenticated ``/health`` probe). Those requests run
+with no identity bound, so a public route must never touch per-user state.
 """
 
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 
 from hull_core.auth.context import set_current_user, reset_current_user
 from hull_core.auth.middleware import Authenticator
@@ -24,12 +29,13 @@ _STATUS_TEXT = {
 class HullAuthMiddleware:
     """ASGI middleware: authenticate → bind contextvar → forward, or reject."""
 
-    def __init__(self, app, authenticator: Authenticator) -> None:
+    def __init__(self, app, authenticator: Authenticator, public_paths: Iterable[str] = ()) -> None:
         self.app = app
         self.authenticator = authenticator
+        self.public_paths = frozenset(public_paths)
 
     async def __call__(self, scope, receive, send) -> None:  # noqa: ANN001
-        if scope["type"] != "http":
+        if scope["type"] != "http" or scope.get("path") in self.public_paths:
             await self.app(scope, receive, send)
             return
 

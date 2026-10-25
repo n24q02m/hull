@@ -11,6 +11,7 @@ import { existsSync } from 'node:fs'
 import { chmod, mkdir, readFile, unlink } from 'node:fs/promises'
 import { dirname, join, resolve, sep } from 'node:path'
 import { atomicWriteFile } from './atomic-write.js'
+import { dataDirName } from './data-dir.js'
 import { getHomeDir } from './home-dir.js'
 
 /** Stores opaque ciphertext blobs keyed by a string. */
@@ -44,19 +45,26 @@ function validateComponent(name: string): string {
   return name
 }
 
+/** Default base directory for a plugin: the current `~/.<plugin>` layout. */
+function defaultBaseDir(plugin: string): string {
+  return join(getHomeDir(), dataDirName(plugin))
+}
+
 /**
- * Map a backend key to its on-disk path.
+ * Map a backend key to its on-disk path under `baseDir(plugin)`.
  *
- *   "<plugin>/config"            -> ~/.<plugin>-mcp/config.json
- *   "<plugin>/subs/<sub>/config" -> ~/.<plugin>-mcp/subs/<sub>/config.json
+ * With the default layout:
+ *
+ *   "<plugin>/config"            -> ~/.<plugin>/config.json
+ *   "<plugin>/subs/<sub>/config" -> ~/.<plugin>/subs/<sub>/config.json
  */
-function keyToPath(key: string): string {
+function keyToPath(key: string, baseDir: (plugin: string) => string): string {
   const slash = key.indexOf('/')
   const plugin = slash === -1 ? key : key.slice(0, slash)
   const rest = slash === -1 ? '' : key.slice(slash + 1)
   validateComponent(plugin)
 
-  const base = join(getHomeDir(), `.${plugin}-mcp`)
+  const base = baseDir(plugin)
   let path: string
   if (rest === 'config') {
     path = join(base, 'config.json')
@@ -77,15 +85,37 @@ function keyToPath(key: string): string {
   return path
 }
 
+export interface LocalFsBackendOptions {
+  /**
+   * Map a (validated) plugin name to the absolute directory its blobs live in.
+   * Defaults to the current layout, `~/.<plugin>` (resolved against the home
+   * dir at call time). PerPluginStore passes a fixed directory here to read
+   * and clear the legacy `~/.<plugin>-mcp` / `~/.better-<plugin>-mcp` layouts.
+   */
+  baseDir?: (plugin: string) => string
+}
+
 /** Stores blobs on local disk, preserving the per-plugin layout. */
 export class LocalFsBackend implements CredentialBackend {
+  /**
+   * True when this backend writes the current `~/.<plugin>` layout (no
+   * `baseDir` override). PerPluginStore only consults the legacy on-disk
+   * layouts for such a backend; a custom-layout backend is taken as-is.
+   */
+  readonly isDefaultLayout: boolean
+  private readonly baseDir: (plugin: string) => string
   // Directories already initialized in this process: mkdir+chmod run exactly
   // once per directory so an existing overly-permissive directory is tightened
   // (TOCTOU hardening) without re-chmodding on every hot-path write.
   private readonly initDirs = new Set<string>()
 
+  constructor(options: LocalFsBackendOptions = {}) {
+    this.isDefaultLayout = options.baseDir === undefined
+    this.baseDir = options.baseDir ?? defaultBaseDir
+  }
+
   async get(key: string): Promise<Buffer | null> {
-    const path = keyToPath(key)
+    const path = keyToPath(key, this.baseDir)
     try {
       return await readFile(path)
     } catch (err) {
@@ -95,7 +125,7 @@ export class LocalFsBackend implements CredentialBackend {
   }
 
   async put(key: string, blob: Buffer): Promise<void> {
-    const path = keyToPath(key)
+    const path = keyToPath(key, this.baseDir)
     const dir = dirname(path)
     if (!existsSync(dir)) {
       await mkdir(dir, { recursive: true, mode: 0o700 })
@@ -110,7 +140,7 @@ export class LocalFsBackend implements CredentialBackend {
   }
 
   async delete(key: string): Promise<void> {
-    const path = keyToPath(key)
+    const path = keyToPath(key, this.baseDir)
     try {
       await unlink(path)
     } catch (err) {

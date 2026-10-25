@@ -1,9 +1,11 @@
 # =============================================================================
 # CD Template: Python. Publish steps are opt-in per repo via
-# vars.PUBLISH_PYPI / vars.PUBLISH_MCP_REGISTRY.
+# vars.PUBLISH_PYPI / vars.PUBLISH_MCP_REGISTRY (hull also: vars.PUBLISH_NPM).
 # Managed by n24q02m repo-bootstrap; local changes may be overwritten.
+# hull drift from the template: the publish-npm job and the second readme-sync
+# step for packages/core-ts are local additions not yet in the template.
 #
-# Pipeline: PSR v10 -> PyPI -> MCP Registry
+# Pipeline: PSR v10 -> PyPI (+ npm @n24q02m/hull) -> MCP Registry
 # CUSTOMIZE: Search for "# CUSTOMIZE:" comments and adjust for your repo.
 # =============================================================================
 name: CD
@@ -57,6 +59,10 @@ jobs:
           python-version: "3.14"
       - name: Verify README registry metadata
         run: python scripts/repo-bootstrap/verify_readme_sync.py --repo-root=.
+      # packages/core-ts publishes its own README to npm (@n24q02m/hull), so the
+      # same check runs against that package root.
+      - name: Verify README registry metadata (npm @n24q02m/hull)
+        run: python scripts/repo-bootstrap/verify_readme_sync.py --repo-root=packages/core-ts
 
   # ============================================================================
   # Release: PSR v10
@@ -89,7 +95,7 @@ jobs:
 
       # Version bump runs on the fork (orphan-tag + registry-collision guards).
       # The publish step below stays upstream — the fork does not replace it.
-      - uses: n24q02m/better-semantic-release@4bab853128d17c7d8d0173c79883624e77a3ead6 # v1.12.0
+      - uses: n24q02m/better-semantic-release@0e57c64481cb78492ad1ff8025b0cd368dbb695f # v1.13.0
         id: release
         if: inputs.publish_existing_tag == ''
         with:
@@ -97,7 +103,7 @@ jobs:
           prerelease: ${{ env.RELEASE_TYPE == 'beta' }}
           prerelease_token: beta
 
-      - uses: python-semantic-release/publish-action@5a5718ce47b892ef699f2972dae122297771d641 # v10.6.1
+      - uses: python-semantic-release/publish-action@99d4062dd393b5a7a62c5fe9ed78fb364b5674f2 # v10.7.0
         if: inputs.publish_existing_tag == '' && steps.release.outputs.released == 'true'
         with:
           github_token: ${{ steps.app-token.outputs.token }}
@@ -197,6 +203,70 @@ jobs:
       - run: uv build
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
+
+  # ============================================================================
+  # Publish to npm: @n24q02m/hull (packages/core-ts)
+  # ============================================================================
+  # Same tag, same version as the PyPI dist: PSR stamps packages/core-ts/
+  # package.json through [tool.semantic_release].version_variables, so the
+  # checked-out tag already carries the release version. Authentication is npm
+  # trusted publishing (OIDC via id-token: write), no NPM_TOKEN; it needs npm
+  # >= 11.5.1, which the npm bundled with Node 24 satisfies (asserted below).
+  # Opt-in via vars.PUBLISH_NPM, unset by default, so the job stays skipped
+  # until the trusted publisher for @n24q02m/hull is configured on npmjs.com.
+  publish-npm:
+    name: Publish to npm
+    needs: [readme-sync, release]
+    if: needs.release.outputs.released == 'true' && vars.PUBLISH_NPM == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: packages/core-ts
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.release.outputs.tag }}
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Assert npm supports trusted publishing and version is in lockstep
+        env:
+          RELEASE_VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          npm_version="$(npm --version)"
+          echo "npm ${npm_version}"
+          if [ "$(printf '%s\n' 11.5.1 "$npm_version" | sort -V | head -n1)" != "11.5.1" ]; then
+            echo "::error::npm ${npm_version} < 11.5.1 cannot use trusted publishing"
+            exit 1
+          fi
+          pkg_version="$(node -p 'require("./package.json").version')"
+          if [ "$pkg_version" != "$RELEASE_VERSION" ]; then
+            echo "::error::package.json version ${pkg_version} != release version ${RELEASE_VERSION}"
+            exit 1
+          fi
+
+      - run: bun install --frozen-lockfile
+
+      - run: bun run build
+
+      - name: Publish to npm
+        env:
+          NPM_DIST_TAG: ${{ needs.release.outputs.is_prerelease == 'true' && 'beta' || 'latest' }}
+        run: npm publish --provenance --no-git-checks --access public --tag "$NPM_DIST_TAG"
 
   # ============================================================================
   # Publish to MCP Registry (stable only)

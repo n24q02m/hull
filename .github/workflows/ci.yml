@@ -16,7 +16,13 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      wheel_version:
+        description: "Embedding-daemon smoke only: also smoke the published n24q02m-hull[embedding] wheel at this exact PyPI version (e.g. 0.4.0b8). Empty = source tree only."
+        required: false
+        type: string
+        default: ""
   issues:
     types: [opened, reopened]
 
@@ -90,6 +96,15 @@ jobs:
       - run: uv sync --locked --extra embedding
       - name: Smoke the daemon against the real q4f16 models
         run: uv run python scripts/smoke_embedding_daemon.py
+      - name: Smoke the published wheel from PyPI
+        if: inputs.wheel_version != ''
+        env:
+          WHEEL_VERSION: ${{ inputs.wheel_version }}
+        run: |
+          set -euo pipefail
+          [[ "$WHEEL_VERSION" =~ ^[0-9]+(\.[0-9]+)*((a|b|rc)[0-9]+)?$ ]] || { echo "::error::bad wheel_version"; exit 1; }
+          uv run --no-project --isolated --python 3.14 --with "n24q02m-hull[embedding]==${WHEEL_VERSION}" \
+            python scripts/smoke_embedding_daemon.py
 
   # ============================================================================
   # Lint & Test (Python)

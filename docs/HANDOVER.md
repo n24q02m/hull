@@ -90,6 +90,11 @@ uv build
 Use isolated fixtures for server/auth tests; the CLI tells you to start the
 server first when it is down — there is no hidden local-core mode.
 
+The embedding daemon has a real-model smoke (downloads the q4f16 exports; too
+heavy for the PR gate): run it from Actions with `workflow_dispatch` on `CI`
+(job `embedding-daemon-smoke`) or locally with
+`uv run python scripts/smoke_embedding_daemon.py` after `uv sync --extra embedding`.
+
 ## Model configuration policy
 
 - Each task (`embed`, `rerank`, `chat`, `jev_score`) has its own

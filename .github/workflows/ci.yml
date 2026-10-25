@@ -68,6 +68,30 @@ jobs:
         run: python scripts/repo-bootstrap/verify_readme_sync.py --repo-root=packages/core-ts
 
   # ============================================================================
+  # Embedding daemon real-model smoke (manual: downloads HF model artifacts).
+  # Asserts the /health /models /embed /rerank contract from docs/HANDOVER.md.
+  # ============================================================================
+  embedding-daemon-smoke:
+    name: Embedding daemon real-model smoke
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.14"
+      - run: uv sync --locked --extra embedding
+      - name: Smoke the daemon against the real q4f16 models
+        run: uv run python scripts/smoke_embedding_daemon.py
+
+  # ============================================================================
   # Lint & Test (Python)
   # ============================================================================
   lint-and-test:

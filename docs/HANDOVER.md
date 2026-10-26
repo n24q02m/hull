@@ -106,6 +106,31 @@ heavy for the PR gate): run it from Actions with `workflow_dispatch` on `CI`
   set explicitly per deployment/task. Keys come from the config file or
   `HULL_<TASK>_API_KEY` env vars; keys never select a model.
 
+## Model candidates snapshot
+
+`model_selection` ranks OpenRouter-servable models per task profile (agentic,
+classification, decision, embedding, rerank, translation, …) from public
+boards; it is scan-only (no evals, no paid calls) and never writes a model
+into any config.
+
+- Workflow `Model Candidates Publish` (`model-candidates.yml`): Mondays 04:41
+  UTC or `workflow_dispatch`. It force-pushes `data/model-candidates.json` to
+  the `data/model-candidates` branch (the read surface for consumers, not
+  `main`) and updates the single sticky issue
+  `[model-candidates] weekly leaders (all profiles)`.
+- `AA_API_KEY` (free tier) is the only secret; its absence only drops the AA
+  source.
+- A profile reaches `weak_evidence=false` only with at least two independent
+  boards. The `decision` profile counts `jevals`, `jevbench` (decision boards)
+  plus `judgemark_v4` (corroborator) and the `tau2_bench_or` / `bfcl` /
+  `arena_agent` agentic proxies; `jev_decision_index` (no declared license)
+  and `aa_agentic_index` (not provably independent of tau2) stay registered
+  but out of the profile. Decisions-segment catalog rows are visible to the
+  `decision` profile only.
+- Verify after a change: dispatch the workflow, then read
+  `tasks.<profile>.candidates` and `source_status.<board>.status` from the
+  branch file.
+
 ## Data and safety invariants
 
 - Storage is local SQLite (WAL) under `~/.hull/`; backup/sync is `rclone`

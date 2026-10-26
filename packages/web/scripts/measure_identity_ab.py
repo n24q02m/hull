@@ -114,11 +114,10 @@ def build_strategies(identity_on: bool) -> dict[str, Any]:
     )
 
     identity = build_identity(seed=TEST_SEED) if identity_on else None
-    kw = {"identity": identity} if identity is not None else {}
     return {
-        "basic_http": BasicHTTPStrategy(**kw),
-        "tls_spoof": TLSSpoofStrategy(**kw),
-        "headless": HeadlessStrategy(**kw),
+        "basic_http": BasicHTTPStrategy(identity=identity),
+        "tls_spoof": TLSSpoofStrategy(identity=identity),
+        "headless": HeadlessStrategy(identity=identity),
     }
 
 

@@ -59,13 +59,13 @@ web = [
 # Identity layer: seeded coherent browser profiles (fingerprint.build_identity).
 # Optional: hull_web imports and all legacy strategy behavior work without it.
 identity = [
-    "invisible-core>=34.31.0,<35",
+    "invisible-core>=50.47,<51",
 ]
 # Stealth engine tier (dots' InvisiblePlaywright) behind BrowserProvider.
 # Optional and heavy: downloads its own sealed Firefox build on first launch
 # unless STEALTHFOX_BINARY points at one.
 invisible = [
-    "invisible-playwright>=0.25.7,<0.26",
+    "invisible-playwright>=0.39,<0.40",
 ]
 # hull_embedding_daemon: local ONNX embedding server (FastAPI) backed by
 # qwen3-embed (n24q02m's fastembed fork serving the n24q02m/Qwen3-* ONNX

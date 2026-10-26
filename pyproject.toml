@@ -28,7 +28,7 @@ classifiers = [
 dependencies = [
     # FastMCP exposes `http_app(path, middleware, transport)` used to mount the
     # MCP Streamable HTTP endpoint; its transport layer is Starlette-based.
-    "fastmcp>=3.4.10,<4",
+    "fastmcp>=4.1.1,<5",
     "starlette>=0.41.0",
     "uvicorn>=0.30.0",
     "httpx>=0.28.1",

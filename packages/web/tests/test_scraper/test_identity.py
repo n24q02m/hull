@@ -44,14 +44,14 @@ def _install_fake_invisible_core(monkeypatch: pytest.MonkeyPatch, seed_echo: dic
         calls["tz"] = tz
         return "Europe/Berlin"
 
-    def resolve_session_locale(locale: Any, proxy: Any) -> str:
-        calls["locale"] = locale
-        return "de-DE"
+    def decide_session_locale(requested: Any, *, proxy: Any = None) -> types.SimpleNamespace:
+        calls["locale"] = requested
+        return types.SimpleNamespace(primary="de-DE")
 
     mod = types.ModuleType("invisible_core")
     mod.generate_profile = generate_profile  # ty: ignore[unresolved-attribute]
     mod.resolve_session_timezone = resolve_session_timezone  # ty: ignore[unresolved-attribute]
-    mod.resolve_session_locale = resolve_session_locale  # ty: ignore[unresolved-attribute]
+    mod.decide_session_locale = decide_session_locale  # ty: ignore[unresolved-attribute]
     constants = types.ModuleType("invisible_core.constants")
     firefox_ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:147.0) Gecko/20100101 Firefox/147.0"
     constants.USER_AGENT = firefox_ua  # ty: ignore[unresolved-attribute]

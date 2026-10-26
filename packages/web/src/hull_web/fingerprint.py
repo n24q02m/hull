@@ -151,8 +151,8 @@ def build_identity(
     """
     try:
         from invisible_core import (  # ty: ignore[unresolved-import]  # optional [identity] extra
+            decide_session_locale,
             generate_profile,
-            resolve_session_locale,
             resolve_session_timezone,
         )
         from invisible_core.constants import (  # ty: ignore[unresolved-import]
@@ -173,7 +173,7 @@ def build_identity(
     # UA in basic_http's headers and the UA the engine sends are the same string.
     try:
         tz = resolve_session_timezone(timezone, proxy)
-        loc = resolve_session_locale(None, proxy)
+        loc = decide_session_locale(locale, proxy=proxy).primary
     except Exception as exc:
         # unresolvable (proxy, offline, missing mmdb). Identity stays coherent
         # with the documented en-US/UTC fallback instead of failing the build

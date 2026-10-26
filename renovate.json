@@ -30,6 +30,21 @@
       "minimumReleaseAge": "7 days"
     },
     {
+      "description": "numpy stays inside qwen3-embed's band (qwen3-embed 1.14.0 requires numpy<2.5); drop this rule when qwen3-embed widens it",
+      "matchPackageNames": [
+        "numpy"
+      ],
+      "allowedVersions": "<2.5"
+    },
+    {
+      "description": "invisible-playwright pins invisible-core to an exact version, so the two can only move together",
+      "matchPackageNames": [
+        "invisible-core",
+        "invisible-playwright"
+      ],
+      "groupName": "invisible stack"
+    },
+    {
       "description": "Release runs on the better-semantic-release fork \u2014 never let an update swap it back to upstream python-semantic-release",
       "matchManagers": [
         "github-actions"

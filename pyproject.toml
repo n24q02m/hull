@@ -65,7 +65,7 @@ identity = [
 # Optional and heavy: downloads its own sealed Firefox build on first launch
 # unless STEALTHFOX_BINARY points at one.
 invisible = [
-    "invisible-playwright>=0.25.7,<0.26",
+    "invisible-playwright>=0.39,<0.40",
 ]
 # hull_embedding_daemon: local ONNX embedding server (FastAPI) backed by
 # qwen3-embed (n24q02m's fastembed fork serving the n24q02m/Qwen3-* ONNX

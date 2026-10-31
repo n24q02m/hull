@@ -19,8 +19,7 @@ describe('storage subpath export (./storage)', () => {
     expect(pkg.exports['./storage'].types).toBe('./build/storage/index.d.ts')
   })
 
-  it('the barrel exposes the CF storage seam used by downstream servers', () => {
-    expect(typeof storage.CfKvBackend).toBe('function')
+  it('the barrel exposes the storage seam used by downstream servers', () => {
     expect(typeof storage.PerPluginStore).toBe('function')
     expect(typeof storage.backendFromEnv).toBe('function')
   })

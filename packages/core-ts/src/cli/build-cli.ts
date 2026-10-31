@@ -14,7 +14,7 @@
  *   those would hang in stdio mode instead of printing the requested output.
  *
  * A leading *positional* argv[0] is treated as a subcommand name -- either one
- * of the reserved built-ins (`config`/`doctor`/`logout`/`relay`/`status`/`token`)
+ * of the reserved built-ins (`config`/`doctor`/`logout`/`status`/`token`)
  * or a server-specific one supplied via `extra` -- and is routed to its handler
  * instead of `serve`. `status` and `logout` are top-level aliases of
  * `config status` and `config delete` (same output and exit codes).
@@ -35,13 +35,11 @@
 
 import { accessSync, constants, existsSync } from 'node:fs'
 import { createInterface } from 'node:readline'
-import { tryOpenBrowser } from '../relay/browser.js'
 import { backendFromEnv } from '../storage/backends.js'
 import { pluginNameForServer } from '../storage/credential-store.js'
 import { dataDir, legacyDataDirs } from '../storage/data-dir.js'
-import { clearMode, getMode } from '../storage/mode.js'
+import { getMode } from '../storage/mode.js'
 import { PerPluginStore } from '../storage/per-plugin-store.js'
-import { acquireSessionLock, releaseSessionLock, type SessionInfo } from '../storage/session-lock.js'
 import { tokenCliHandler } from '../token-auth/cli.js'
 
 // Minimum Node major the stack supports (mcp-core package.json `engines`
@@ -51,7 +49,7 @@ import { tokenCliHandler } from '../token-auth/cli.js'
 const MIN_NODE_MAJOR = 24
 
 /** A server's start entry point. Returns an exit code, or nothing for 0. */
-export type ServeFn = (argv: string[]) => number | void | Promise<number | void>
+export type ServeFn = (argv: string[]) => number | undefined | Promise<number | undefined>
 
 /**
  * A subcommand handler. Receives the argv that follows the subcommand name
@@ -65,7 +63,7 @@ export interface BuildCliOptions {
   serve: ServeFn
   /**
    * Server-specific subcommands. A name here overrides the reserved built-in
-   * of the same name (`config`/`doctor`/`logout`/`relay`/`status`/`token`), so a
+   * of the same name (`config`/`doctor`/`logout`/`status`/`token`), so a
    * server can supply its own handler. This is also where a server provides
    * `auth`, which is not a built-in because sign-in is domain-specific.
    */
@@ -150,50 +148,6 @@ function configHandler(serverName: string, pluginName: string): CliHandler {
   }
 }
 
-function relayStatus(serverName: string, info: SessionInfo | null): number {
-  if (info === null) {
-    console.error(`${serverName}: no active relay session`)
-    return 1
-  }
-  const ageS = (Date.now() - info.createdAt) / 1000
-  console.log(`${serverName}: session ${info.sessionId.slice(0, 8)} relay_url=${info.relayUrl} age=${ageS.toFixed(0)}s`)
-  return 0
-}
-
-function relayHandler(serverName: string): CliHandler {
-  return async (argv) => {
-    const action = argv[0]
-    if (action === 'reset') {
-      await releaseSessionLock(serverName)
-      await clearMode(serverName)
-      console.log(`${serverName}: relay state cleared`)
-      return 0
-    }
-    if (action !== 'status' && action !== 'open') {
-      console.error(`${serverName}: relay expects 'status', 'open', or 'reset'`)
-      return 2
-    }
-    const info = await acquireSessionLock(serverName)
-    if (action === 'status') return relayStatus(serverName, info)
-    // "open"
-    if (info === null) {
-      console.error(`${serverName}: no active relay session`)
-      return 1
-    }
-    // Branch on the return value: `tryOpenBrowser` declines under headless / CI
-    // / the env-guard, and printing "opened" there is untrue in the very first
-    // line the user reads -- they wait for a tab that never appears. Failing to
-    // open is not a failure of the command (the URL is still correct and still
-    // usable), so the exit code stays 0.
-    if (await tryOpenBrowser(info.relayUrl)) {
-      console.log(`${serverName}: opened ${info.relayUrl}`)
-    } else {
-      console.log(`${serverName}: could not launch a browser here; visit ${info.relayUrl}`)
-    }
-    return 0
-  }
-}
-
 async function runDoctor(serverName: string, pluginName: string): Promise<number> {
   let ok = true
 
@@ -255,14 +209,8 @@ async function runDoctor(serverName: string, pluginName: string): Promise<number
     }
   }
 
-  const info = await acquireSessionLock(serverName)
-  if (info !== null) {
-    console.log(`[ok] relay session active (${info.sessionId.slice(0, 8)})`)
-  } else {
-    console.log('[warn] no active relay session')
-  }
-
-  console.log(`[ok] mode: ${(await getMode(serverName)) ?? 'unset'}`)
+  const mode = await getMode(serverName)
+  console.log(`[ok] mode: ${mode ?? 'unset'}`)
 
   return ok ? 0 : 1
 }
@@ -307,7 +255,6 @@ export function buildCli(serverName: string, options: BuildCliOptions): (argv?: 
     config: configHandler(serverName, pluginName),
     status: () => configStatus(serverName, pluginName),
     logout: (argv) => configDelete(serverName, pluginName, argv.includes('--yes')),
-    relay: relayHandler(serverName),
     doctor: doctorHandler(serverName, pluginName),
     token: tokenCliHandler(),
     ...extra

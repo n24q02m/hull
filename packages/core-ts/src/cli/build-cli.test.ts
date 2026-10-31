@@ -4,13 +4,6 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-// Mock rather than lean on the env-guard: `relay open` now BRANCHES on what
-// tryOpenBrowser returns, so the test has to be able to drive both branches. The
-// mock is also the stronger guarantee that no real browser opens during a test
-// run -- stronger than an env var that whoever runs the tests could clear.
-const { tryOpenBrowserMock } = vi.hoisted(() => ({ tryOpenBrowserMock: vi.fn(async () => true) }))
-vi.mock('../relay/browser.js', () => ({ tryOpenBrowser: tryOpenBrowserMock }))
-
 // Interactive `[y/N]` prompt: when `answer` is set, createInterface returns a
 // stub that emits that line once; otherwise the real readline is used.
 const { promptAnswer } = vi.hoisted(() => ({ promptAnswer: { value: null as string | null } }))
@@ -50,8 +43,7 @@ import {
   setConfigPath,
   setHomeDirForTesting,
   setLockDir,
-  writeConfig,
-  writeSessionLock
+  writeConfig
 } from '../storage/index.js'
 import { buildCli } from './build-cli.js'
 
@@ -93,8 +85,6 @@ beforeEach(() => {
   setHomeDirForTesting(tmp)
   setLockDir(join(tmp, 'locks'))
   setConfigPath(join(tmp, 'config.enc'))
-  tryOpenBrowserMock.mockReset()
-  tryOpenBrowserMock.mockResolvedValue(true)
   capture()
 })
 
@@ -166,7 +156,7 @@ describe('buildCli — help and version', () => {
     expect(rc).toBe(0)
     expect(served).toBe(false)
     expect(logs[0]).toBe(`usage: ${SERVER} [-h] [--version] [<subcommand> ...]`)
-    expect(logs).toContain('subcommands: config, doctor, logout, relay, status, token')
+    expect(logs).toContain('subcommands: config, doctor, logout, status, token')
   })
 
   it('prints help on --help', async () => {
@@ -178,7 +168,7 @@ describe('buildCli — help and version', () => {
   it('lists extra subcommands sorted in help', async () => {
     const run = buildCli(SERVER, { serve: () => 0, extra: { auth: () => 0 } })
     await run(['-h'])
-    expect(logs).toContain('subcommands: auth, config, doctor, logout, relay, status, token')
+    expect(logs).toContain('subcommands: auth, config, doctor, logout, status, token')
   })
 
   it('does not reserve auth as a built-in', async () => {
@@ -217,7 +207,7 @@ describe('buildCli — unknown subcommand', () => {
     const rc = await run(['bogus'])
     expect(rc).toBe(2)
     expect(errs.join('\n')).toContain(`${SERVER}: unknown subcommand 'bogus'`)
-    expect(errs.join('\n')).toContain('expected one of: config, doctor, logout, relay, status, token)')
+    expect(errs.join('\n')).toContain('expected one of: config, doctor, logout, status, token)')
   })
 })
 
@@ -400,80 +390,6 @@ describe('buildCli — interactive delete confirmation (TTY)', () => {
   })
 })
 
-describe('buildCli — relay subcommand', () => {
-  it('reports no active session on status with rc 1', async () => {
-    const run = buildCli(SERVER, { serve: () => 0 })
-    expect(await run(['relay', 'status'])).toBe(1)
-    expect(errs.join('\n')).toContain('no active relay session')
-  })
-
-  it('reports an active session on status', async () => {
-    await writeSessionLock(SERVER, {
-      sessionId: 'abcd1234ef',
-      relayUrl: 'https://relay.example/s/abcd1234',
-      createdAt: Date.now()
-    })
-    const run = buildCli(SERVER, { serve: () => 0 })
-    expect(await run(['relay', 'status'])).toBe(0)
-    expect(logs[0]).toContain('session abcd1234')
-    expect(logs[0]).toContain('relay_url=https://relay.example/s/abcd1234')
-  })
-
-  it('clears relay state on reset', async () => {
-    await writeSessionLock(SERVER, {
-      sessionId: 'abcd1234ef',
-      relayUrl: 'https://relay.example/s/abcd1234',
-      createdAt: Date.now()
-    })
-    const run = buildCli(SERVER, { serve: () => 0 })
-    expect(await run(['relay', 'reset'])).toBe(0)
-    expect(logs[0]).toBe(`${SERVER}: relay state cleared`)
-    // Status now reports no session.
-    expect(await run(['relay', 'status'])).toBe(1)
-  })
-
-  it('opens the active session URL', async () => {
-    await writeSessionLock(SERVER, {
-      sessionId: 'abcd1234ef',
-      relayUrl: 'https://relay.example/s/abcd1234',
-      createdAt: Date.now()
-    })
-    const run = buildCli(SERVER, { serve: () => 0 })
-    expect(await run(['relay', 'open'])).toBe(0)
-    expect(logs[0]).toBe(`${SERVER}: opened https://relay.example/s/abcd1234`)
-  })
-
-  // This used to print "opened" whatever the outcome, so under headless / CI /
-  // the env-guard it was wrong in the very first line and the user waited for a
-  // tab that never appeared.
-  it('says it could not launch a browser, and still hands over the URL', async () => {
-    tryOpenBrowserMock.mockResolvedValue(false)
-    await writeSessionLock(SERVER, {
-      sessionId: 'abcd1234ef',
-      relayUrl: 'https://relay.example/s/abcd1234',
-      createdAt: Date.now()
-    })
-    const run = buildCli(SERVER, { serve: () => 0 })
-
-    // Failing to open a browser is not a failure of the command: the URL is
-    // still correct, so the exit code is still 0.
-    expect(await run(['relay', 'open'])).toBe(0)
-    expect(logs[0]).not.toContain('opened')
-    expect(logs[0]).toContain('https://relay.example/s/abcd1234')
-  })
-
-  it('reports no session to open with rc 1', async () => {
-    const run = buildCli(SERVER, { serve: () => 0 })
-    expect(await run(['relay', 'open'])).toBe(1)
-    expect(errs.join('\n')).toContain('no active relay session')
-  })
-
-  it('returns rc 2 on an invalid relay action', async () => {
-    const run = buildCli(SERVER, { serve: () => 0 })
-    expect(await run(['relay', 'bogus'])).toBe(2)
-  })
-})
-
 describe('buildCli — doctor subcommand', () => {
   it('runs every check and exits per the aggregate health', async () => {
     const run = buildCli(SERVER, { serve: () => 0 })
@@ -482,7 +398,6 @@ describe('buildCli — doctor subcommand', () => {
     expect(all).toMatch(/\[(ok|fail)] node /)
     expect(all).toContain('[ok] credential backend initializes')
     expect(all).toContain('[warn] config: not configured')
-    expect(all).toContain('[warn] no active relay session')
     expect(all).toContain('[ok] mode: unset')
     // doctor returns 0 iff no check failed. The runtime-version line is the only
     // check that varies by test runner: `bun run test` runs under Bun, whose
@@ -566,17 +481,6 @@ describe('buildCli — doctor subcommand', () => {
       delete process.env.MCP_STORAGE_BACKEND
     }
   })
-
-  it('reports an active relay session', async () => {
-    await writeSessionLock(SERVER, {
-      sessionId: 'abcd1234ef',
-      relayUrl: 'https://relay.example/s/abcd1234',
-      createdAt: Date.now()
-    })
-    const run = buildCli(SERVER, { serve: () => 0 })
-    await run(['doctor'])
-    expect(logs.join('\n')).toContain('[ok] relay session active (abcd1234)')
-  })
 })
 
 describe('buildCli — pluginName / serverName separation (store key vs display)', () => {
@@ -627,19 +531,6 @@ describe('buildCli — pluginName / serverName separation (store key vs display)
     const all = logs.join('\n')
     expect(all).toContain(`store dir writable: ${join(tmp, '.w51')}`)
     expect(all).not.toContain('.w51-mcp')
-  })
-
-  it('keeps relay state keyed by serverName, not the derived plugin slug', async () => {
-    // A lock written under "w51-mcp" must be seen by buildCli("w51-mcp") even
-    // though its store slug is "w51".
-    await writeSessionLock('w51-mcp', {
-      sessionId: 'abcd1234ef',
-      relayUrl: 'https://relay.example/s/abcd1234',
-      createdAt: Date.now()
-    })
-    const run = buildCli('w51-mcp', { serve: () => 0 })
-    expect(await run(['relay', 'status'])).toBe(0)
-    expect(logs[0]).toContain('session abcd1234')
   })
 })
 

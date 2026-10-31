@@ -52,21 +52,9 @@
       "import": "./build/storage/index.js",
       "types": "./build/storage/index.d.ts"
     },
-    "./relay": {
-      "import": "./build/relay/client.js",
-      "types": "./build/relay/client.d.ts"
-    },
     "./schema": {
       "import": "./build/schema/types.js",
       "types": "./build/schema/types.d.ts"
-    },
-    "./oauth": {
-      "import": "./build/oauth/index.js",
-      "types": "./build/oauth/index.d.ts"
-    },
-    "./auth": {
-      "import": "./build/auth/index.js",
-      "types": "./build/auth/index.d.ts"
     },
     "./transport": {
       "import": "./build/transport/index.js",

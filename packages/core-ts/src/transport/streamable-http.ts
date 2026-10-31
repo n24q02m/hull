@@ -24,8 +24,6 @@ import {
   type StreamableHTTPServerTransportOptions
 } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 
-import type { OAuthMiddleware } from './oauth-middleware.js'
-
 export interface StreamableHTTPServerOptions {
   /** MCP server instance that handles requests */
   server: McpServer
@@ -33,8 +31,8 @@ export interface StreamableHTTPServerOptions {
   host?: string
   /** Port to advertise (used for logging / display only) */
   port: number
-  /** Optional OAuth middleware for Bearer token validation */
-  oauthMiddleware?: OAuthMiddleware
+  /** Optional middleware for request authorization */
+  authMiddleware?: (req: IncomingMessage, res: ServerResponse) => Promise<boolean> | boolean
   /** Transport options forwarded to StreamableHTTPServerTransport */
   transportOptions?: StreamableHTTPServerTransportOptions
 }
@@ -43,7 +41,7 @@ export class StreamableHTTPServer {
   readonly host: string
   readonly port: number
   private readonly _server: McpServer
-  private readonly _oauth?: OAuthMiddleware
+  private readonly _auth?: (req: IncomingMessage, res: ServerResponse) => Promise<boolean> | boolean
   private readonly _transport: StreamableHTTPServerTransport
   private _connected = false
 
@@ -51,7 +49,7 @@ export class StreamableHTTPServer {
     this._server = options.server
     this.host = options.host ?? '127.0.0.1'
     this.port = options.port
-    this._oauth = options.oauthMiddleware
+    this._auth = options.authMiddleware
     this._transport = new StreamableHTTPServerTransport(options.transportOptions ?? { sessionIdGenerator: undefined })
   }
 
@@ -67,8 +65,8 @@ export class StreamableHTTPServer {
    * configured, then delegates to the SDK transport.
    */
   async handleRequest(req: IncomingMessage, res: ServerResponse, parsedBody?: unknown): Promise<void> {
-    if (this._oauth) {
-      const allowed = await this._oauth.validate(req, res)
+    if (this._auth) {
+      const allowed = await this._auth(req, res)
       if (!allowed) return
     }
     await this._transport.handleRequest(req, res, parsedBody)

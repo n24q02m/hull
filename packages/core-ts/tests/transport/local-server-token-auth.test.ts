@@ -9,11 +9,7 @@ import { join } from 'node:path'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-
-vi.mock('../../src/relay/browser.js', () => ({
-  tryOpenBrowser: vi.fn().mockResolvedValue(true)
-}))
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 import { AuthConfigError } from '../../src/token-auth/authenticator.js'
 import { currentUser } from '../../src/token-auth/context.js'
@@ -160,31 +156,6 @@ describe('runHttpServer auth: token mode', () => {
     await expect(
       runHttpServer(makeMcpServer, { serverName: 'test-token-bad', port: 0, auth: { mode: 'token', tokenHash: '' } })
     ).rejects.toBeInstanceOf(AuthConfigError)
-  })
-
-  it.each([
-    [{ authDisabled: true }, '`auth` is mutually exclusive with `authDisabled`'],
-    [{ authScope: async (_c: unknown, fn: () => Promise<void>) => fn() }, '`authScope`'],
-    [{ relaySchema: { server: 'x', displayName: 'x', fields: [] } }, '`relaySchema`']
-  ])('refuses to combine auth with the OAuth/relay options (%#)', async (extra, message) => {
-    await expect(
-      runHttpServer(makeMcpServer, {
-        serverName: 'test-token-conflict',
-        port: 0,
-        auth: { mode: 'token', tokenHash: sharedHash },
-        ...(extra as object)
-      })
-    ).rejects.toThrow(message)
-  })
-
-  it('allows authDisabled: false alongside auth', async () => {
-    handle = await runHttpServer(makeMcpServer, {
-      serverName: `test-token-auth-false-${Date.now()}`,
-      port: 0,
-      auth: { mode: 'token', tokenHash: sharedHash },
-      authDisabled: false
-    })
-    expect((await fetch(`${base()}/mcp`, { method: 'POST', body: '{}' })).status).toBe(401)
   })
 })
 

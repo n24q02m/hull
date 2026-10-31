@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { backendFromEnv, CfKvBackend, type Http, InMemoryBackend, LocalFsBackend } from '../../src/storage/backends.js'
+import { backendFromEnv, InMemoryBackend, LocalFsBackend } from '../../src/storage/backends.js'
 import { setHomeDirForTesting } from '../../src/storage/home-dir.js'
 import { PerPluginStore } from '../../src/storage/per-plugin-store.js'
 
@@ -181,126 +181,6 @@ describe('PerPluginStore with injected backend', () => {
   })
 })
 
-/** In-memory HTTP stub keyed by the URL's last path segment; records PUT bodies. */
-class FakeHttpStoring implements Http {
-  store = new Map<string, Buffer>()
-
-  async request(method: string, url: string, data?: Buffer): Promise<{ status: number; body: Buffer }> {
-    const seg = url.slice(url.lastIndexOf('/') + 1)
-    if (method === 'PUT') {
-      this.store.set(seg, data ?? Buffer.alloc(0))
-      return { status: 200, body: Buffer.alloc(0) }
-    }
-    if (method === 'GET') {
-      const v = this.store.get(seg)
-      return v ? { status: 200, body: v } : { status: 404, body: Buffer.alloc(0) }
-    }
-    if (method === 'DELETE') {
-      this.store.delete(seg)
-      return { status: 200, body: Buffer.alloc(0) }
-    }
-    throw new Error(`unexpected method ${method}`)
-  }
-}
-
-/** HTTP stub returning a fixed status for any request. */
-class StatusHttp implements Http {
-  constructor(
-    private status: number,
-    private body: Buffer = Buffer.alloc(0)
-  ) {}
-
-  async request(): Promise<{ status: number; body: Buffer }> {
-    return { status: this.status, body: this.body }
-  }
-}
-
-describe('CfKvBackend', () => {
-  it('roundtrip via a fake http stub', async () => {
-    const fake = new FakeHttpStoring()
-    const backend = new CfKvBackend('http://kv.internal', undefined, fake)
-    expect(await backend.get('wet/config')).toBeNull()
-    await backend.put('wet/config', Buffer.from('blob'))
-    expect(await backend.get('wet/config')).toEqual(Buffer.from('blob'))
-    await backend.delete('wet/config')
-    expect(await backend.get('wet/config')).toBeNull()
-  })
-
-  it('get throws on 500', async () => {
-    const backend = new CfKvBackend(
-      'http://kv.internal',
-      undefined,
-      new StatusHttp(500, Buffer.from('<html>oops</html>'))
-    )
-    await expect(backend.get('wet/config')).rejects.toThrow()
-  })
-
-  it('get throws on 401', async () => {
-    const backend = new CfKvBackend('http://kv.internal', undefined, new StatusHttp(401))
-    await expect(backend.get('wet/config')).rejects.toThrow()
-  })
-
-  it('get returns null on 404', async () => {
-    const backend = new CfKvBackend('http://kv.internal', undefined, new StatusHttp(404))
-    expect(await backend.get('wet/config')).toBeNull()
-  })
-
-  it('delete throws on 500', async () => {
-    const backend = new CfKvBackend('http://kv.internal', undefined, new StatusHttp(500))
-    await expect(backend.delete('wet/config')).rejects.toThrow()
-  })
-
-  it('delete does not throw on 404', async () => {
-    const backend = new CfKvBackend('http://kv.internal', undefined, new StatusHttp(404))
-    await expect(backend.delete('wet/config')).resolves.toBeUndefined()
-  })
-
-  it('put throws on 500', async () => {
-    const backend = new CfKvBackend('http://kv.internal', undefined, new StatusHttp(500))
-    await expect(backend.put('wet/config', Buffer.from('x'))).rejects.toThrow()
-  })
-
-  it('sends the bearer token when one is configured', async () => {
-    const seen: Array<Record<string, string> | undefined> = []
-    const http: Http = {
-      request: async (_method, _url, _data, headers) => {
-        seen.push(headers)
-        return { status: 404, body: Buffer.alloc(0) }
-      }
-    }
-    await new CfKvBackend('http://kv.internal/', 'tok', http).get('wet/config')
-    expect(seen).toEqual([{ Authorization: 'Bearer tok' }])
-  })
-
-  it('defaults to a fetch-based transport', async () => {
-    const calls: Array<{ url: string; init: RequestInit }> = []
-    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
-      calls.push({ url, init })
-      return new Response(init.method === 'GET' ? new Uint8Array([7, 8]) : null, { status: 200 })
-    })
-    try {
-      const backend = new CfKvBackend('http://kv.internal//')
-      await backend.put('wet/config', Buffer.from([1, 2]))
-      expect(await backend.get('wet/config')).toEqual(Buffer.from([7, 8]))
-      expect(calls[0].url).toBe(`http://kv.internal/${encodeURIComponent('wet/config')}`)
-      expect(calls[0].init.body).toEqual(new Uint8Array([1, 2]))
-      expect(calls[1].init.body).toBeUndefined()
-    } finally {
-      vi.unstubAllGlobals()
-    }
-  })
-
-  it('propagates transport errors from get/put/delete', async () => {
-    const throwingHttp: Http = {
-      request: () => Promise.reject(new Error('econnrefused'))
-    }
-    const backend = new CfKvBackend('http://kv.internal', undefined, throwingHttp)
-    await expect(backend.get('wet/config')).rejects.toThrow(/econnrefused/)
-    await expect(backend.put('wet/config', Buffer.from('x'))).rejects.toThrow(/econnrefused/)
-    await expect(backend.delete('wet/config')).rejects.toThrow(/econnrefused/)
-  })
-})
-
 describe('backendFromEnv', () => {
   afterEach(() => {
     delete process.env.MCP_STORAGE_BACKEND
@@ -313,20 +193,8 @@ describe('backendFromEnv', () => {
     expect(backendFromEnv()).toBeInstanceOf(LocalFsBackend)
   })
 
-  it('MCP_STORAGE_BACKEND=cf-kv is CfKvBackend', () => {
-    process.env.MCP_STORAGE_BACKEND = 'cf-kv'
-    process.env.MCP_KV_BASE_URL = 'http://kv.internal'
-    expect(backendFromEnv()).toBeInstanceOf(CfKvBackend)
-  })
-
   it('throws on an unknown backend kind', () => {
     process.env.MCP_STORAGE_BACKEND = 'bogus'
     expect(() => backendFromEnv()).toThrow()
-  })
-
-  it('cf-kv without MCP_KV_BASE_URL throws a clear error', () => {
-    process.env.MCP_STORAGE_BACKEND = 'cf-kv'
-    delete process.env.MCP_KV_BASE_URL
-    expect(() => backendFromEnv()).toThrow(/MCP_KV_BASE_URL/)
   })
 })

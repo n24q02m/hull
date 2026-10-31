@@ -2,19 +2,20 @@
 
 Operational handover for [hull](https://github.com/n24q02m/hull) — the shared
 monorepo core for the wet / crg / mnemo self-hosted stack. Current stable
-line: **n24q02m-hull 0.3.x**.
+line: **n24q02m-hull 0.4.0** (PyPI) / **@n24q02m/hull 0.4.0** (npm).
 
 ## Current operation
 
-- Package: `n24q02m-hull` (one PyPI dist). The wheel carries three import
-  packages; heavy stacks are opt-in extras:
-  - `hull_core` (base) — token auth, per-task model cells, rate limiter,
-    `~/.hull/` SQLite WAL storage, `server start` + `/mcp` endpoint, CLI,
-    SSRF-safe HTTP, lifecycle lock, `model_selection` picker.
-  - `hull_web` (`[web]`) — search (SearXNG), scraping strategies, stealth
-    browsers, fingerprinting, HTTP/SSRF security (consumed by wet).
-  - `hull_embedding_daemon` (`[embedding]`) — local ONNX/GGUF embedding
-    server (FastAPI).
+- Packages:
+  - Python: `n24q02m-hull` (PyPI). The wheel carries three import packages; heavy stacks are opt-in extras:
+    - `hull_core` (base) — token auth, per-task model cells, rate limiter,
+      `~/.hull/` SQLite WAL storage, `server start` + `/mcp` endpoint, CLI,
+      SSRF-safe HTTP, lifecycle lock, `model_selection` picker.
+    - `hull_web` (`[web]`) — search (SearXNG), scraping strategies, stealth
+      browsers, fingerprinting, HTTP/SSRF security (consumed by wet).
+    - `hull_embedding_daemon` (`[embedding]`) — local ONNX/GGUF embedding
+      server (FastAPI).
+  - TypeScript: `@n24q02m/hull` (`packages/core-ts` on npm) — token-table auth (`token`, `multi` with `users.toml`), Streamable HTTP `/mcp` transport, `buildCli` console builder, encrypted `PerPluginStore` storage (`~/.<plugin>/`), lockfiles and cache. All relay, OAuth AS/delegated, and CfKvBackend residue removed (0.4.0).
 - Runtime: Python 3.13; dev with `uv`, always-on with docker.
 - Surfaces: `hull` CLI (control plane + consumer), `hull server start`
   (the only way to run a server — MCP is an HTTP endpoint at

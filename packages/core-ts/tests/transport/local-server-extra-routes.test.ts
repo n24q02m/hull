@@ -3,11 +3,7 @@
  * and drives it with ``fetch``, same shape as local-server.test.ts.
  */
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { afterEach, describe, expect, it, vi } from 'vitest'
-
-vi.mock('../../src/relay/browser.js', () => ({
-  tryOpenBrowser: vi.fn().mockResolvedValue(true)
-}))
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { type HttpServerHandle, runHttpServer } from '../../src/transport/local-server.js'
 

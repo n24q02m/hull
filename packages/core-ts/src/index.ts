@@ -1,61 +1,6 @@
-// Local OAuth 2.1 Authorization Server (single-user, 127.0.0.1) +
-// Delegated OAuth (upstream redirect / device code) for remote multi-user.
-export {
-  authorizationServerMetadata,
-  type CapabilityInfo,
-  type ConfigField,
-  type CredentialsCallback,
-  createDelegatedOAuthApp,
-  createLocalOAuthApp,
-  type DelegatedOAuthAppOptions,
-  type DelegatedOAuthAppResult,
-  type FlowType,
-  type LocalOAuthAppOptions,
-  type LocalOAuthAppResult,
-  type NextStep,
-  type OAuthTokens,
-  protectedResourceMetadata,
-  type RelayConfigSchema,
-  type RenderOptions,
-  renderCredentialForm,
-  type StepCallback,
-  type SubjectContext,
-  type TokenCallback,
-  type UpstreamOAuthConfig
-} from './auth/index.js'
-// Console-script CLI builder shared by every TS MCP server (config/relay/doctor
-// built-ins + version + help; parity with core-py's build_cli).
+// Console-script CLI builder shared by every TS MCP server (config/doctor/logout/status/token built-ins).
 export { type BuildCliOptions, buildCli, type CliHandler, type ServeFn } from './cli/build-cli.js'
 export * from './crypto/index.js'
-// OAuth 2.1 multi-user infrastructure (HTTP mode)
-export { JWTIssuer } from './oauth/jwt-issuer.js'
-export { verifyPKCE } from './oauth/pkce.js'
-export {
-  InMemoryAuthCache,
-  type IOAuthSessionCache,
-  OAuthProvider,
-  type OAuthProviderOptions,
-  type PreAuthSession
-} from './oauth/provider.js'
-export { type IUserCredentialStore, SqliteUserStore } from './oauth/user-store.js'
-export { tryOpenBrowser } from './relay/browser.js'
-export {
-  createSession,
-  generatePassphrase,
-  notifyComplete,
-  pollForResponses,
-  pollForResult,
-  type RelaySession,
-  sendMessage
-} from './relay/client.js'
-export {
-  buildOpenRelayHandler,
-  type ElicitationServer,
-  type OpenRelayHandlerOptions,
-  type OpenRelayResult,
-  registerOpenRelayTool,
-  type ToolRegistrar
-} from './relay/tool-helpers.js'
 export type * from './schema/types.js'
 export { exportConfig, importConfig, listConfigs, scheduleReloadExit } from './storage/config-file.js'
 // Single-user credential read/write/delete route through the unified
@@ -76,7 +21,7 @@ export {
 // HTTP token-table auth (no-auth / token / multi users.toml), the TS port of
 // core-py hull_core.auth; wired into runHttpServer via its `auth` option.
 export * from './token-auth/index.js'
-// HTTP MCP server entry point (OAuth AS + /mcp transport on 127.0.0.1)
+// HTTP MCP server entry point (Streamable HTTP transport on host:port)
 export {
   type HttpRoute,
   type HttpServerHandle,

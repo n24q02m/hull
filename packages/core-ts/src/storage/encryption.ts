@@ -1,6 +1,10 @@
 const encoder = new TextEncoder()
 const decoder = new TextDecoder()
 
+// Fixed PBKDF2 salts of config.enc files written by the former relay-era
+// releases. The byte values are part of the on-disk format: changing them makes
+// existing files undecryptable, so they stay as-is (core-py keeps the same salt
+// in legacy_config_file.py).
 export const LEGACY_SALT = encoder.encode('mcp-relay-config')
 export const LEGACY_EXPORT_SALT = encoder.encode('mcp-relay-export')
 export const PBKDF2_ITERATIONS = 600_000

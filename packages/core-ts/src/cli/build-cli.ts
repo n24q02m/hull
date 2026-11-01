@@ -20,7 +20,7 @@
  * `config status` and `config delete` (same output and exit codes).
  *
  * `auth` is deliberately NOT a built-in: signing in is domain-specific (OAuth
- * device code, bot token, API key paste, relay form, ...), so each server that
+ * device code, bot token, API key paste, ...), so each server that
  * needs it supplies its own `auth` handler via `extra`.
  * STDOUT is the MCP protocol channel in stdio mode, so only this subcommand
  * path prints to stdout; the `serve` path never touches stdout here.
@@ -38,7 +38,6 @@ import { createInterface } from 'node:readline'
 import { backendFromEnv } from '../storage/backends.js'
 import { pluginNameForServer } from '../storage/credential-store.js'
 import { dataDir, legacyDataDirs } from '../storage/data-dir.js'
-import { getMode } from '../storage/mode.js'
 import { PerPluginStore } from '../storage/per-plugin-store.js'
 import { tokenCliHandler } from '../token-auth/cli.js'
 
@@ -209,9 +208,6 @@ async function runDoctor(serverName: string, pluginName: string): Promise<number
     }
   }
 
-  const mode = await getMode(serverName)
-  console.log(`[ok] mode: ${mode ?? 'unset'}`)
-
   return ok ? 0 : 1
 }
 
@@ -223,8 +219,7 @@ function doctorHandler(serverName: string, pluginName: string): CliHandler {
  * Build the console-script entry point for one MCP server.
  *
  * `serverName` is the console/display name (e.g. `"wet-mcp"`): it names the
- * program in help/usage and status lines, and keys relay session state and
- * run mode (which servers store under their `SERVER_NAME`).
+ * program in help/usage and status lines.
  *
  * `options.pluginName` is the credential storage slug that `PerPluginStore`
  * keys on (e.g. `"wet"`): it decides where `config` and `doctor` read/write
@@ -236,7 +231,7 @@ function doctorHandler(serverName: string, pluginName: string): CliHandler {
  *
  * Reserved built-ins: `config` (`status`/`delete`), `status` (= `config
  * status`), `logout` (= `config delete`; non-interactive use needs `--yes`,
- * otherwise exit 1), `relay`, `doctor` and `token`. `auth` is not a built-in:
+ * otherwise exit 1), `doctor` and `token`. `auth` is not a built-in:
  * sign-in is domain-specific, so a server that needs it passes an `auth`
  * handler in `extra`.
  *

@@ -3,14 +3,14 @@
  *
  * Thin convenience wrapper around `@modelcontextprotocol/sdk`'s
  * `StreamableHTTPServerTransport` that pairs it with an `McpServer`
- * instance and an optional OAuth Bearer validation middleware.
+ * instance and an optional Bearer validation middleware.
  *
  * The SDK already implements the full 2025-11-25 transport spec
  * (session management, SSE streaming, stateful / stateless modes),
  * so this wrapper focuses on the mcp-core ergonomics:
  *
  *  - one-call `connect()` that wires server <-> transport
- *  - `handleRequest(req, res)` that applies the OAuth middleware
+ *  - `handleRequest(req, res)` that applies the auth middleware
  *    first and short-circuits with 401 on missing / invalid token
  *  - explicit `host` / `port` properties for lifecycle management
  *    (the actual port bind is left to the caller's http.Server)
@@ -61,7 +61,7 @@ export class StreamableHTTPServer {
   }
 
   /**
-   * Handle an incoming HTTP request. Applies OAuth validation first if
+   * Handle an incoming HTTP request. Applies auth validation first if
    * configured, then delegates to the SDK transport.
    */
   async handleRequest(req: IncomingMessage, res: ServerResponse, parsedBody?: unknown): Promise<void> {

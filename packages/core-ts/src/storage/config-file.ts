@@ -172,8 +172,8 @@ async function saveStore(store: ConfigStore): Promise<void> {
  * Schedule a process exit so an MCP client can respawn the server and pick up
  * fresh credentials from disk. Only relevant for stdio-mode servers whose
  * client supervises restart. HTTP-mode servers update credentials in-process
- * and MUST NOT call this — an exit mid-OAuth-device-code flow kills the user's
- * verification window. Skipped under vitest (NODE_ENV=test) and when
+ * and MUST NOT call this — an exit mid-sign-in (e.g. an OAuth device-code flow)
+ * kills the user's verification window. Skipped under vitest (NODE_ENV=test) and when
  * MCP_NO_RELOAD is set.
  */
 export function scheduleReloadExit(): void {
@@ -205,29 +205,6 @@ export async function deleteConfig(serverName: string): Promise<void> {
   } else {
     await saveStore(store)
   }
-}
-
-/**
- * Metadata flag set by `markSetupComplete` after a successful relay-form
- * submission (POST /authorize). `runHttpServer`/`isSchemaComplete` read this
- * to distinguish "user has submitted the form" from "config.enc has values
- * written by a peer-share or partial bootstrap path". Lives alongside the
- * user's normal credential keys in the same per-server config dict.
- */
-export const SETUP_COMPLETE_KEY = '_setup_complete'
-
-/**
- * Set the `_setup_complete` flag in `serverName`'s config. Idempotent.
- * Creates a new entry with just the flag if no prior config exists (useful
- * for all-optional schemas where the user may submit an empty form).
- *
- * Strict equality semantics in `isSchemaComplete` rely on this writing the
- * literal string `"true"`.
- */
-export async function markSetupComplete(serverName: string): Promise<void> {
-  const existing = (await readConfig(serverName)) ?? {}
-  existing[SETUP_COMPLETE_KEY] = 'true'
-  await writeConfig(serverName, existing)
 }
 
 export async function listConfigs(): Promise<string[]> {

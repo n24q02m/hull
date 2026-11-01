@@ -37,14 +37,7 @@ vi.mock('node:fs', async (importOriginal) => {
   }
 })
 
-import {
-  LocalFsBackend,
-  PerPluginStore,
-  setConfigPath,
-  setHomeDirForTesting,
-  setLockDir,
-  writeConfig
-} from '../storage/index.js'
+import { LocalFsBackend, PerPluginStore, setConfigPath, setHomeDirForTesting, writeConfig } from '../storage/index.js'
 import { buildCli } from './build-cli.js'
 
 const SERVER = 'w51-test'
@@ -83,7 +76,6 @@ function capture(): void {
 beforeEach(() => {
   tmp = mkdtempSync(join(tmpdir(), 'w51-'))
   setHomeDirForTesting(tmp)
-  setLockDir(join(tmp, 'locks'))
   setConfigPath(join(tmp, 'config.enc'))
   capture()
 })
@@ -91,7 +83,6 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks()
   setHomeDirForTesting(null)
-  setLockDir(null)
   setConfigPath(null)
   rmSync(tmp, { recursive: true, force: true })
 })
@@ -398,7 +389,6 @@ describe('buildCli — doctor subcommand', () => {
     expect(all).toMatch(/\[(ok|fail)] node /)
     expect(all).toContain('[ok] credential backend initializes')
     expect(all).toContain('[warn] config: not configured')
-    expect(all).toContain('[ok] mode: unset')
     // doctor returns 0 iff no check failed. The runtime-version line is the only
     // check that varies by test runner: `bun run test` runs under Bun, whose
     // process.versions.node is a compat shim that some Bun builds report below
@@ -475,8 +465,6 @@ describe('buildCli — doctor subcommand', () => {
       const all = logs.join('\n')
       expect(all).toContain('[fail] credential backend: Unknown MCP_STORAGE_BACKEND: bogus')
       expect(all).toContain('[warn] config: not checked (credential backend unavailable)')
-      // Later checks still run.
-      expect(all).toContain('[ok] mode: unset')
     } finally {
       delete process.env.MCP_STORAGE_BACKEND
     }

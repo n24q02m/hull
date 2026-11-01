@@ -30,11 +30,7 @@
  * single-user `PerPluginStore(pluginName)` this module manages.
  */
 
-import {
-  deleteConfig as deleteLegacyConfig,
-  readConfig as readLegacyConfig,
-  SETUP_COMPLETE_KEY
-} from './config-file.js'
+import { deleteConfig as deleteLegacyConfig, readConfig as readLegacyConfig } from './config-file.js'
 import { PerPluginStore } from './per-plugin-store.js'
 
 /**
@@ -58,8 +54,8 @@ export async function readStoredConfig(
   pluginName: string = pluginNameForServer(serverName)
 ): Promise<Record<string, string> | null> {
   const fromStore = await new PerPluginStore(pluginName).load()
-  // Single-user blobs are always string maps (written by writeStoredConfig /
-  // markSetupComplete below); the cast restates that invariant.
+  // Single-user blobs are always string maps (written by writeStoredConfig); the cast
+  // restates that invariant.
   if (fromStore !== null) return fromStore as Record<string, string>
   return readLegacyConfig(serverName)
 }
@@ -69,7 +65,7 @@ export async function readStoredConfig(
  *
  * Full replace, mirroring the legacy `writeConfig` contract and the wet-mcp
  * Python `save()` call: callers that need to preserve prior keys read first and
- * merge (see `markSetupComplete`). The write also serves as the migration
+ * merge. The write also serves as the migration
  * trigger -- an existing legacy `config.enc` entry is superseded because
  * `readStoredConfig` prefers the per-plugin store from here on.
  */
@@ -93,20 +89,4 @@ export async function deleteStoredConfig(
 ): Promise<void> {
   await new PerPluginStore(pluginName).clear()
   await deleteLegacyConfig(serverName)
-}
-
-/**
- * Set the persistent `_setup_complete` flag in a server's single-user config,
- * preserving any existing keys. Reads through the unified path (so a legacy
- * entry is migrated forward) and writes the merged result to the per-plugin
- * store. Creates an entry with just the flag when nothing exists (useful for
- * all-optional schemas where the user may submit an empty form).
- */
-export async function markSetupComplete(
-  serverName: string,
-  pluginName: string = pluginNameForServer(serverName)
-): Promise<void> {
-  const existing = (await readStoredConfig(serverName, pluginName)) ?? {}
-  existing[SETUP_COMPLETE_KEY] = 'true'
-  await writeStoredConfig(serverName, existing, pluginName)
 }

@@ -28,6 +28,22 @@ describe('public API surface', () => {
     }
   })
 
+  it('does not export the removed relay-era surface', () => {
+    const exported: Record<string, unknown> = { ...publicApi }
+    for (const name of [
+      'deriveJwtSigningSeed',
+      'markSetupComplete',
+      'getMode',
+      'setLocalMode',
+      'clearMode',
+      'acquireSessionLock',
+      'writeSessionLock',
+      'releaseSessionLock'
+    ]) {
+      expect(exported[name], name).toBeUndefined()
+    }
+  })
+
   it('re-exports the token-table auth API from root', () => {
     const exported: Record<string, unknown> = { ...publicApi }
     for (const name of [

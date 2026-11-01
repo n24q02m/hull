@@ -46,6 +46,6 @@ export async function resolveConfig(
     }
   }
 
-  // 4. Nothing found -- trigger relay setup
+  // 4. Nothing found -- the caller decides how to prompt for configuration
   return { config: null, source: null }
 }

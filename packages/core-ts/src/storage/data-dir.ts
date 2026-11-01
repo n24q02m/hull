@@ -50,8 +50,8 @@ export function assertValidPluginName(pluginName: string): void {
 }
 
 /**
- * Validate a multi-user sub for use as a single path component. The OAuth AS
- * mints sub = token_urlsafe(), whose base64url alphabet includes `_` and `-`,
+ * Validate a multi-user sub for use as a single path component. Subs are
+ * base64url-style tokens (token_urlsafe), whose alphabet includes `_` and `-`,
  * so both must pass; `/` and `..` stay rejected.
  */
 export function assertValidSub(sub: string): void {

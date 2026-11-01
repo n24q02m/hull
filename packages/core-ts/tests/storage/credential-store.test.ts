@@ -5,13 +5,11 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   clearKeyCacheForTesting,
   readConfig as readLegacyConfig,
-  SETUP_COMPLETE_KEY,
   setConfigPath,
   writeConfig as writeLegacyConfig
 } from '../../src/storage/config-file.js'
 import {
   deleteStoredConfig,
-  markSetupComplete,
   pluginNameForServer,
   readStoredConfig,
   writeStoredConfig
@@ -122,32 +120,6 @@ describe('deleteStoredConfig (clears BOTH stores)', () => {
 
   it('does not throw when nothing is stored', async () => {
     await expect(deleteStoredConfig('never-configured-mcp')).resolves.toBeUndefined()
-  })
-})
-
-describe('markSetupComplete', () => {
-  it('sets the flag in the per-plugin store without dropping existing keys', async () => {
-    await writeStoredConfig('better-email-mcp', { EMAIL_CREDENTIALS: 'x' })
-    await markSetupComplete('better-email-mcp')
-
-    const saved = await new PerPluginStore('better-email').load()
-    expect(saved?.EMAIL_CREDENTIALS).toBe('x')
-    expect(saved?.[SETUP_COMPLETE_KEY]).toBe('true')
-  })
-
-  it('creates a store entry with just the flag when nothing exists', async () => {
-    await markSetupComplete('better-email-mcp')
-    expect(await new PerPluginStore('better-email').load()).toEqual({ [SETUP_COMPLETE_KEY]: 'true' })
-  })
-
-  it('migrates an existing legacy config to the per-plugin store, adding the flag', async () => {
-    await writeLegacyConfig('better-email-mcp', { EMAIL_CREDENTIALS: 'legacy-cred' })
-    await markSetupComplete('better-email-mcp')
-
-    expect(await new PerPluginStore('better-email').load()).toEqual({
-      EMAIL_CREDENTIALS: 'legacy-cred',
-      [SETUP_COMPLETE_KEY]: 'true'
-    })
   })
 })
 

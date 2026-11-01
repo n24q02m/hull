@@ -33,7 +33,7 @@ describe('token-auth subpath export (./token-auth)', () => {
 })
 
 describe('token-auth import isolation', () => {
-  // Token mode must work with no relay/OAuth/transport machinery loaded, so
+  // Token mode must work with no transport machinery loaded, so
   // the module may only import node builtins, smol-toml and its siblings.
   const files = readdirSync(SRC).filter((f) => f.endsWith('.ts'))
 

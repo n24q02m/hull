@@ -5,7 +5,6 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { InMemoryBackend, LocalFsBackend } from '../../src/storage/backends.js'
 import { setHomeDirForTesting } from '../../src/storage/home-dir.js'
 import { PerPluginStore } from '../../src/storage/per-plugin-store.js'
-import { releaseSessionLock, setLockDir, writeSessionLock } from '../../src/storage/session-lock.js'
 
 /**
  * TOCTOU directory hardening: an existing overly-permissive credential/cache
@@ -25,7 +24,6 @@ describe('storage directory hardening (TOCTOU)', () => {
 
   afterEach(() => {
     setHomeDirForTesting(null)
-    setLockDir(null)
     rmSync(testHome, { recursive: true, force: true })
   })
 
@@ -50,27 +48,6 @@ describe('storage directory hardening (TOCTOU)', () => {
     rmSync(join(testHome, '.wet'), { recursive: true, force: true })
     await backend.put('wet/config', Buffer.from('two'))
     expect(readFileSync(join(testHome, '.wet', 'config.json'))).toEqual(Buffer.from('two'))
-  })
-
-  itPosix('writeSessionLock tightens a pre-existing 0o777 lock directory to 0o700', async () => {
-    const lockDir = join(testHome, 'locks')
-    mkdirSync(lockDir, { recursive: true })
-    chmodSync(lockDir, 0o777)
-    setLockDir(lockDir)
-
-    await writeSessionLock('wet', { sessionId: 's1', relayUrl: 'https://relay.example', createdAt: Date.now() })
-
-    expect(dirMode(lockDir)).toBe(0o700)
-  })
-
-  it('writeSessionLock re-creates a deleted lock directory on the next write', async () => {
-    const lockDir = join(testHome, 'locks2')
-    setLockDir(lockDir)
-    await writeSessionLock('wet', { sessionId: 's1', relayUrl: 'https://relay.example', createdAt: Date.now() })
-    rmSync(lockDir, { recursive: true, force: true })
-    await writeSessionLock('wet', { sessionId: 's2', relayUrl: 'https://relay.example', createdAt: Date.now() })
-    // The lock file exists again and is readable through the public API.
-    await releaseSessionLock('wet')
   })
 
   itPosix(

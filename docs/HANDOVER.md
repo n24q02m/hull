@@ -15,7 +15,7 @@ line: **n24q02m-hull 0.4.0** (PyPI) / **@n24q02m/hull 0.4.0** (npm).
       browsers, fingerprinting, HTTP/SSRF security (consumed by wet).
     - `hull_embedding_daemon` (`[embedding]`) — local ONNX/GGUF embedding
       server (FastAPI).
-  - TypeScript: `@n24q02m/hull` (`packages/core-ts` on npm) — token-table auth (`token`, `multi` with `users.toml`), Streamable HTTP `/mcp` transport, `buildCli` console builder, encrypted `PerPluginStore` storage (`~/.<plugin>/`), lockfiles and cache. All relay, OAuth AS/delegated, and CfKvBackend residue removed (0.4.0).
+  - TypeScript: `@n24q02m/hull` (`packages/core-ts` on npm) — token-table auth (`token`, `multi` with `users.toml`), Streamable HTTP `/mcp` transport, `buildCli` console builder, encrypted `PerPluginStore` storage (`~/.<plugin>/`), lockfiles and cache. All relay, OAuth AS/delegated, and CfKvBackend residue is removed from the source tree; the published npm 0.4.0 tarball still carries it (see "Unreleased" below).
 - Runtime: Python 3.13; dev with `uv`, always-on with docker.
 - Surfaces: `hull` CLI (control plane + consumer), `hull server start`
   (the only way to run a server — MCP is an HTTP endpoint at

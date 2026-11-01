@@ -144,7 +144,10 @@ into any config.
 ## Unreleased: `@n24q02m/hull` removals since 0.4.0
 
 The npm 0.4.0 tarball still ships the relay-era surface. The next npm release
-drops it, so importers that deep-import these paths must stop before bumping:
+(0.4.1 or whichever version the release tooling picks) drops the public API
+listed below; consumers must update as described in the bump table at the end of
+this section before bumping. Importers that deep-import these paths must stop
+first:
 
 - Public exports removed: `getMode`, `setLocalMode`, `clearMode`, `ServerMode`,
   `acquireSessionLock`, `writeSessionLock`, `releaseSessionLock`, `SessionInfo`,

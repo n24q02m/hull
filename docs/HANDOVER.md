@@ -150,14 +150,23 @@ drops it, so importers that deep-import these paths must stop before bumping:
   `acquireSessionLock`, `writeSessionLock`, `releaseSessionLock`, `SessionInfo`,
   `setLockDir`, `markSetupComplete`, `deriveJwtSigningSeed`, and every type of the
   `./schema` subpath (the subpath itself is gone too).
-- Earlier removals shipped in the same release line: the `auth/`, `oauth/` and
-  `relay/` runtime modules and the OAuth middleware.
+- Also absent from the monorepo build (still in the 0.4.0 tarball): the
+  `CfKvBackend` storage backend (`storage` exports only `backendFromEnv`,
+  `InMemoryBackend`, `LocalFsBackend`), the `auth/`, `oauth/` and `relay/`
+  runtime modules, and the OAuth middleware.
 - `buildCli` `doctor` no longer prints a `mode:` line.
 - Kept on purpose: the fixed key-derivation inputs `mcp-relay-config`,
   `mcp-relay-export` and `mcp-relay` (HKDF info). Changing them would change
   derived keys and break stored `config.enc` files.
 - Consumer check (origin/main of notion, email, workspace, telegram, mnemo,
-  wet, crg): none imports a removed symbol.
+  wet, crg): none imports a removed symbol or `CfKvBackend`. telegram, mnemo,
+  wet and crg are Python and do not depend on `@n24q02m/hull`.
+- Consumer bump after the release: notion, email and workspace all declare
+  `"@n24q02m/hull": "^0.4.0"`, so any 0.4.x is picked up on the next install.
+  Run `bun update @n24q02m/hull`, then type-check and test each. No source change
+  is needed (a local pack of this tree passed notion 922/922, email 733/733,
+  workspace 334/334). email also already dropped the removed `openBrowser`
+  option from its `runHttpServer` call.
 
 ## In-flight and rollback
 

@@ -18,6 +18,16 @@ describe('public API surface', () => {
     expect(route.path).toBe('/accounts/callback')
   })
 
+  it('keeps the helpers published consumers import from the root entry point', () => {
+    // better-email-mcp opens OAuth device-code URLs with tryOpenBrowser, and every
+    // TS server wires buildCli / runHttpServer from the root. Removing one breaks
+    // those consumers at type-check time, so pin them here.
+    const exported: Record<string, unknown> = { ...publicApi }
+    for (const name of ['buildCli', 'runHttpServer', 'tryOpenBrowser']) {
+      expect(typeof exported[name], name).toBe('function')
+    }
+  })
+
   it('re-exports the token-table auth API from root', () => {
     const exported: Record<string, unknown> = { ...publicApi }
     for (const name of [

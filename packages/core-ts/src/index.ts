@@ -28,3 +28,5 @@ export {
   type RunHttpServerOptions,
   runHttpServer
 } from './transport/local-server.js'
+// Cross-platform best-effort browser opener (WSL-aware, headless/CI-guarded).
+export { tryOpenBrowser } from './util/browser.js'

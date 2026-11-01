@@ -1,12 +1,12 @@
 {
   "name": "@n24q02m/hull",
   "version": "0.4.0",
-  "description": "hull TypeScript core: MCP Streamable HTTP 2025-11-25 transport, OAuth 2.1 AS, lifecycle, install",
+  "description": "hull TypeScript core: MCP Streamable HTTP 2025-11-25 transport, token-table HTTP auth, credential storage, CLI builder",
   "keywords": [
     "mcp",
     "model-context-protocol",
     "streamable-http",
-    "oauth21",
+    "token-auth",
     "transport",
     "claude",
     "cursor",

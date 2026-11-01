@@ -43,7 +43,7 @@ npm install @n24q02m/hull
 | `packages/core-py` | `hull_core` | (base; MTEB boards need `[mteb]`) | Auth (3 modes), per-task model cells, limiter, `~/.hull/` SQLite WAL storage, `server start` + `/mcp` endpoint, CLI, SSRF-safe HTTP, lifecycle lock, `model_selection` leaderboard picker + runtime registry (refresh → eval-on-change → promote) |
 | `packages/embedding-daemon` | `hull_embedding_daemon` | `[embedding]` | Local ONNX/GGUF embedding server (FastAPI) |
 | `packages/web` | `hull_web` | `[web]` | Search (SearXNG), scraping strategies, stealth browsers, fingerprinting, HTTP/SSRF security |
-| `packages/core-ts` | `@n24q02m/hull` (npm) | n/a | TypeScript core: MCP Streamable HTTP transport, OAuth 2.1 authorization server, credential storage, relay client |
+| `packages/core-ts` | `@n24q02m/hull` (npm) | n/a | TypeScript core: MCP Streamable HTTP transport, token-table auth (`token`, `multi`), `buildCli` console builder, encrypted credential storage, lockfiles and cache |
 
 ## Runtime model
 

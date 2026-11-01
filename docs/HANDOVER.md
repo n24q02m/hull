@@ -145,8 +145,8 @@ into any config.
 
 The npm 0.4.0 tarball still ships the relay-era surface. The next npm release
 (0.4.1 or whichever version the release tooling picks) drops the public API
-listed below; consumers must update as described in the bump table at the end of
-this section before bumping. Importers that deep-import these paths must stop
+listed below; consumers must update as described in the "Consumer bump after the
+release" item below. Importers that deep-import these paths must stop
 first:
 
 - Public exports removed: `getMode`, `setLocalMode`, `clearMode`, `ServerMode`,

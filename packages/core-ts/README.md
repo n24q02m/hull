@@ -1,6 +1,6 @@
 # @n24q02m/hull
 
-**TypeScript core of hull: MCP Streamable HTTP transport, OAuth 2.1 authorization server, credential storage and relay client for self-hosted MCP servers.**
+**TypeScript core of hull: MCP Streamable HTTP transport, token-table HTTP auth, encrypted credential storage and a CLI builder for self-hosted MCP servers.**
 
 This package is the TypeScript side of the hull monorepo. It is released in
 lockstep with the Python dist `n24q02m-hull`: one hull release tag publishes
@@ -25,12 +25,9 @@ subpath:
 | Import path | Provides |
 |---|---|
 | `@n24q02m/hull` | Everything below, plus `buildCli` (console-script subcommand dispatch around a server entry point) and `tryOpenBrowser` |
-| `@n24q02m/hull/transport` | `runHttpServer` (local HTTP server with routes), `StreamableHTTPServer` (MCP Streamable HTTP transport), `OAuthMiddleware` (bearer JWT verification) |
-| `@n24q02m/hull/oauth` | `OAuthProvider` (OAuth 2.1 authorization server), `JWTIssuer`, `verifyPKCE`, `InMemoryAuthCache`, `SqliteUserStore` |
-| `@n24q02m/hull/auth` | `createLocalOAuthApp` and `createDelegatedOAuthApp` (credential-form and upstream-OAuth flows), `renderCredentialForm`, `createSessionStore`, `deriveStableSub`, `authorizationServerMetadata` / `protectedResourceMetadata` (well-known documents) |
+| `@n24q02m/hull/transport` | `runHttpServer` (local HTTP server with routes), `StreamableHTTPServer` (MCP Streamable HTTP transport), `jsonResponse` |
 | `@n24q02m/hull/crypto` | AES `encrypt` / `decrypt`, ECDH `generateKeyPair` / `deriveSharedSecret` / `exportPublicKey` / `importPublicKey`, key derivation `deriveAesKey` / `deriveJwtSigningSeed` |
-| `@n24q02m/hull/storage` | `atomicWriteFile`, credential backends (`LocalFsBackend`, `InMemoryBackend`, `CfKvBackend`, `backendFromEnv`), encrypted credential read/write/delete and config import/export, `PerPluginStore`, data dir helpers (`dataDir`, `dataDirCandidates`, `legacyDataDirs`), `resolveConfig` (environment variables, then stored config, then defaults), server mode state, session lock, machine identity helpers |
-| `@n24q02m/hull/relay` | Relay client: `createSession`, `generatePassphrase`, `pollForResult`, `sendMessage`, `pollForResponses`, `notifyComplete` |
+| `@n24q02m/hull/storage` | `atomicWriteFile`, credential backends (`LocalFsBackend`, `InMemoryBackend`, `backendFromEnv`), encrypted credential read/write/delete and config import/export, `PerPluginStore`, data dir helpers (`dataDir`, `dataDirCandidates`, `legacyDataDirs`), `resolveConfig` (environment variables, then stored config, then defaults), server mode state, session lock, machine identity helpers |
 | `@n24q02m/hull/schema` | Type-only config schema: `ConfigField`, `ConfigMode`, `RelayConfigSchema` and related form layout types |
 | `@n24q02m/hull/token-auth` | Token-table HTTP auth: `Authenticator`, `hashToken` / `verifyToken`, `loadUsers`, `currentUser`, `ensurePathAllowed`, `guardRequest`, `SlidingWindowLimiter`, `tokenCliHandler` |
 
@@ -64,7 +61,7 @@ dirs are only read, never written. The next `save()` writes to `~/.<plugin>/`,
 and from then on the new copy takes precedence. `clear()` removes the blob
 from every location. A corrupt blob is reported as corrupt; the store does
 not fall back to an older copy behind it. Injected backends (`InMemoryBackend`,
-`CfKvBackend`, a `LocalFsBackend` with a custom `baseDir`) are used as the
+a `LocalFsBackend` with a custom `baseDir`) are used as the
 only source.
 
 ## CLI built-ins
@@ -79,21 +76,17 @@ positional argument to a subcommand. Bare or flag-prefixed argv (for example
 | `logout [--yes]` | Same as `config delete`: removes the stored credential from the current and every legacy dir. Without `--yes` it prompts on a TTY; non-interactive use without `--yes` exits 1. |
 | `config status` / `config delete [--yes]` | The long forms of the two commands above. |
 | `doctor` | Runtime, backend, store dir and config checks. Warns `only legacy store dir found` when credentials still sit in a legacy dir. |
-| `relay status` / `relay open` / `relay reset` | Relay session state. |
 | `token hash` | Mint a token-table hash (see below). |
 
 `auth` is not a built-in. Signing in depends on the server (OAuth device code,
-bot token, API key, relay form), so each server provides its own `auth`
+bot token, API key), so each server provides its own `auth`
 handler through `extra`. Entries in `extra` also override a built-in of the
 same name.
 
 ## Token-table HTTP auth
 
 `runHttpServer` accepts an `auth` option with the three modes of core-py
-`[server] auth`. It replaces the OAuth/relay stack for that server: `auth` is
-mutually exclusive with `relaySchema`, `delegatedOAuth`, `jwtIssuer`,
-`authDisabled` and `authScope`, and needs neither a relay nor an OAuth
-issuer.
+`[server] auth`; when omitted the server runs in `no-auth` mode (loopback only).
 
 | Mode | Config | Behaviour |
 |---|---|---|
@@ -150,7 +143,7 @@ printf '%s' "$TOKEN" | my-mcp token hash
 ```ts
 import { runHttpServer } from '@n24q02m/hull/transport'
 import { encrypt, decrypt } from '@n24q02m/hull/crypto'
-import type { RelayConfigSchema } from '@n24q02m/hull/schema'
+import { buildCli, tryOpenBrowser } from '@n24q02m/hull'
 ```
 
 ## Development

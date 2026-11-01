@@ -49,7 +49,7 @@ import { tokenCliHandler } from '../token-auth/cli.js'
 const MIN_NODE_MAJOR = 24
 
 /** A server's start entry point. Returns an exit code, or nothing for 0. */
-export type ServeFn = (argv: string[]) => number | undefined | Promise<number | undefined>
+export type ServeFn = (argv: string[]) => number | void | Promise<number | void>
 
 /**
  * A subcommand handler. Receives the argv that follows the subcommand name

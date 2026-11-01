@@ -105,7 +105,7 @@ describe('runHttpServer extraRoutes', () => {
       ]
     })
 
-    // GET on a POST-only route: no OAuth app here, so it must fall through to 404.
+    // GET on a POST-only route: the route only answers POST, so a GET must fall through to 404.
     const resp = await fetch(`http://${handle.host}:${handle.port}/accounts/add`)
 
     expect(resp.status).toBe(404)

@@ -6,7 +6,7 @@ import * as storage from '../src/storage/index.js'
 
 // The `@n24q02m/mcp-core/storage` subpath must resolve to the storage barrel, not
 // the narrow resolver module. Downstream CF deployments (better-notion, email)
-// import CfKvBackend / PerPluginStore / backendFromEnv from this subpath; pointing
+// import PerPluginStore / backendFromEnv from this subpath; pointing
 // it at resolver.js (which only exports resolveConfig) silently strips those
 // symbols at the published-package boundary while source builds stay green.
 describe('storage subpath export (./storage)', () => {

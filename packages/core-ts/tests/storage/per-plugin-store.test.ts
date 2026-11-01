@@ -72,7 +72,7 @@ describe('PerPluginStore', () => {
   })
 
   it('accepts token_urlsafe subs (underscore + hyphen)', () => {
-    // The OAuth AS mints sub = token_urlsafe(16); its base64url alphabet includes
+    // A sub minted as token_urlsafe(16) uses a base64url alphabet that includes
     // "_" and "-". Both must be accepted, else ~half of all per-sub credential saves
     // fail with "Invalid sub" (regression: telegram CF, 2026-06-17).
     const sub = 'oG5FyoFE-RWqI_aciDl4zA'

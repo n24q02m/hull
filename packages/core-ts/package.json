@@ -52,10 +52,6 @@
       "import": "./build/storage/index.js",
       "types": "./build/storage/index.d.ts"
     },
-    "./schema": {
-      "import": "./build/schema/types.js",
-      "types": "./build/schema/types.d.ts"
-    },
     "./transport": {
       "import": "./build/transport/index.js",
       "types": "./build/transport/index.d.ts"

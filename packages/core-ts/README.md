@@ -26,9 +26,8 @@ subpath:
 |---|---|
 | `@n24q02m/hull` | Everything below, plus `buildCli` (console-script subcommand dispatch around a server entry point) and `tryOpenBrowser` |
 | `@n24q02m/hull/transport` | `runHttpServer` (local HTTP server with routes), `StreamableHTTPServer` (MCP Streamable HTTP transport), `jsonResponse` |
-| `@n24q02m/hull/crypto` | AES `encrypt` / `decrypt`, ECDH `generateKeyPair` / `deriveSharedSecret` / `exportPublicKey` / `importPublicKey`, key derivation `deriveAesKey` / `deriveJwtSigningSeed` |
-| `@n24q02m/hull/storage` | `atomicWriteFile`, credential backends (`LocalFsBackend`, `InMemoryBackend`, `backendFromEnv`), encrypted credential read/write/delete and config import/export, `PerPluginStore`, data dir helpers (`dataDir`, `dataDirCandidates`, `legacyDataDirs`), `resolveConfig` (environment variables, then stored config, then defaults), server mode state, session lock, machine identity helpers |
-| `@n24q02m/hull/schema` | Type-only config schema: `ConfigField`, `ConfigMode`, `RelayConfigSchema` and related form layout types |
+| `@n24q02m/hull/crypto` | AES `encrypt` / `decrypt`, ECDH `generateKeyPair` / `deriveSharedSecret` / `exportPublicKey` / `importPublicKey`, key derivation `deriveAesKey` |
+| `@n24q02m/hull/storage` | `atomicWriteFile`, credential backends (`LocalFsBackend`, `InMemoryBackend`, `backendFromEnv`), encrypted credential read/write/delete and config import/export, `PerPluginStore`, data dir helpers (`dataDir`, `dataDirCandidates`, `legacyDataDirs`), `resolveConfig` (environment variables, then stored config, then defaults), machine identity helpers |
 | `@n24q02m/hull/token-auth` | Token-table HTTP auth: `Authenticator`, `hashToken` / `verifyToken`, `loadUsers`, `currentUser`, `ensurePathAllowed`, `guardRequest`, `SlidingWindowLimiter`, `tokenCliHandler` |
 
 ## Credential storage layout

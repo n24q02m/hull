@@ -141,6 +141,24 @@ into any config.
 - SSRF-safe HTTP in the base stack; web stack keeps scraping/browser work
   behind the `[web]` extra.
 
+## Unreleased: `@n24q02m/hull` removals since 0.4.0
+
+The npm 0.4.0 tarball still ships the relay-era surface. The next npm release
+drops it, so importers that deep-import these paths must stop before bumping:
+
+- Public exports removed: `getMode`, `setLocalMode`, `clearMode`, `ServerMode`,
+  `acquireSessionLock`, `writeSessionLock`, `releaseSessionLock`, `SessionInfo`,
+  `setLockDir`, `markSetupComplete`, `deriveJwtSigningSeed`, and every type of the
+  `./schema` subpath (the subpath itself is gone too).
+- Earlier removals shipped in the same release line: the `auth/`, `oauth/` and
+  `relay/` runtime modules and the OAuth middleware.
+- `buildCli` `doctor` no longer prints a `mode:` line.
+- Kept on purpose: the fixed key-derivation inputs `mcp-relay-config`,
+  `mcp-relay-export` and `mcp-relay` (HKDF info). Changing them would change
+  derived keys and break stored `config.enc` files.
+- Consumer check (origin/main of notion, email, workspace, telegram, mnemo,
+  wet, crg): none imports a removed symbol.
+
 ## In-flight and rollback
 
 Roll back a source change by reverting the owning commit; config changes take

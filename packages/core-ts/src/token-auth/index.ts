@@ -1,7 +1,7 @@
 /**
  * HTTP token-table auth (`no-auth` / `token` / `multi`), the TS port of
  * core-py `hull_core.auth` + `hull_core.limits`. Self-contained: nothing
- * here imports the relay, OAuth, or transport modules.
+ * here imports the transport modules.
  */
 
 export {

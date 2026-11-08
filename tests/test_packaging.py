@@ -160,3 +160,17 @@ def test_console_scripts(wheel: Path, names: list[str]) -> None:
         text = zf.read(ep_path).decode("utf-8")
     assert "hull = hull_core.cli:main" in text
     assert "hull-embedding-daemon = hull_embedding_daemon.__main__:main" in text
+
+
+def test_litellm_import_package_has_one_owner() -> None:
+    """crawl4ai pins ``unclecode-litellm``, a fork that ships the same ``litellm``
+    import package as upstream. Two dists writing one ``site-packages/litellm/``
+    leave a mix of both versions (NameError at import). ``[tool.uv]
+    exclude-dependencies`` keeps the fork out; this fails if any second dist
+    claims ``litellm`` again."""
+    from importlib.metadata import packages_distributions
+
+    owners = packages_distributions().get("litellm")
+    if not owners:
+        pytest.skip("litellm not installed in this environment")
+    assert sorted(set(owners)) == ["litellm"]

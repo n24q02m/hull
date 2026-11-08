@@ -135,6 +135,15 @@ dev = [
     "dspy>=3.4.1,<3.5.0",
 ]
 
+[tool.uv]
+# crawl4ai (every release through 0.9.5) pins `unclecode-litellm==1.81.13`,
+# a fork that ships the same `litellm` import package as upstream `litellm`.
+# With both installed, uv's parallel install writes two versions into one
+# site-packages/litellm/ and the result is a mix of both (CI: NameError
+# 'List' in litellm/fine_tuning/main.py). Upstream litellm is already a
+# direct dependency here, so drop the fork and let crawl4ai import upstream.
+exclude-dependencies = ["unclecode-litellm"]
+
 [tool.hatch.build.targets.wheel]
 packages = [
     "packages/core-py/src/hull_core",

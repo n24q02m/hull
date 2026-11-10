@@ -28,7 +28,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Generator, Iterable, Mapping
 
-from hull_core.credentials.crypto import SecretCipher, key_fingerprint, key_hint
+from hull_core.credentials.crypto import SecretCipher, key_hint
 from hull_core.credentials.models import (
     Account,
     AccountError,
@@ -227,7 +227,7 @@ class CredentialStore:
         label = _optional_text(label)
         model = _optional_text(model)
         secret = self._cipher.encrypt(api_key)
-        fingerprint = key_fingerprint(api_key)
+        fingerprint = self._cipher.fingerprint(api_key)
         hint = key_hint(api_key)
         with self._lock, self._immediate():
             if account_id is not None:

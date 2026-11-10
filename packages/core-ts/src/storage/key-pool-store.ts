@@ -34,7 +34,7 @@ import {
   type MigrationResult,
   providerFromBaseUrl
 } from './key-pool.js'
-import { keyFingerprint, keyHint, SecretCipher } from './key-pool-crypto.js'
+import { keyHint, SecretCipher } from './key-pool-crypto.js'
 
 export const KEY_POOL_SCHEMA = `
 CREATE TABLE IF NOT EXISTS provider_accounts (
@@ -279,7 +279,7 @@ export class CredentialStore {
     const label = optional(input.label)
     const model = optional(input.model)
     const secret = this.cipher.encrypt(apiKey)
-    const fingerprint = keyFingerprint(apiKey)
+    const fingerprint = this.cipher.fingerprint(apiKey)
     const hint = keyHint(apiKey)
     const write = this.db.transaction((): CredentialRow => {
       if (accountId !== null) this.requireAccount(accountId, provider)

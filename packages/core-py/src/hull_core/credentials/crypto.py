@@ -12,7 +12,7 @@ envelope with the same key file, so either stack can open a pool the other
 created; both test suites pin one shared vector.
 
 Only the envelope ever reaches the database. The key hint (last four
-characters) and the SHA-256 fingerprint are derived values stored alongside it
+characters) and the keyed HMAC-SHA256 fingerprint are derived values stored alongside it
 for display and duplicate detection; neither can be turned back into the key.
 """
 
@@ -21,6 +21,7 @@ from __future__ import annotations
 import base64
 import binascii
 import hashlib
+import hmac
 import os
 import secrets
 from pathlib import Path
@@ -118,9 +119,15 @@ def key_hint(api_key: str) -> str:
     return "…" + api_key[-4:] if len(api_key) >= 8 else "…"
 
 
-def key_fingerprint(api_key: str) -> str:
-    """SHA-256 of the key, for duplicate detection without comparisons."""
-    return hashlib.sha256(api_key.encode("utf-8")).hexdigest()
+def key_fingerprint(key: bytes, api_key: str) -> str:
+    """Keyed HMAC-SHA256 fingerprint for duplicate detection, never for auth.
+
+    Unkeyed digests of a provider key are offline-crackable and leak equality
+    across machines; HMAC under the local ``.credential-key`` keeps duplicate
+    detection while making the digest useless without that key.
+    """
+    _checked_key(Path("<memory>"), key)
+    return hmac.new(key, api_key.encode("utf-8"), hashlib.sha256).hexdigest()
 
 
 class SecretCipher:
@@ -135,6 +142,9 @@ class SecretCipher:
         if self._key is None:
             self._key = load_or_create_key(self.key_path)
         return self._key
+
+    def fingerprint(self, plaintext: str) -> str:
+        return key_fingerprint(self.key, plaintext)
 
     def encrypt(self, plaintext: str) -> str:
         return encrypt_secret(self.key, plaintext)

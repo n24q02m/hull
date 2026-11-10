@@ -16,6 +16,7 @@ const VECTOR_KEY = Buffer.from(Array.from({ length: 32 }, (_, index) => index))
 const VECTOR_NONCE = Buffer.from(Array.from({ length: 12 }, (_, index) => index))
 const VECTOR_PLAINTEXT = 'sk-hull-vector-0123456789'
 const VECTOR_ENVELOPE = 'v1:AAECAwQFBgcICQoL:NGn7c7CJrjb7JPT/3ptVXbLktADFTWhEAcYamPqU91OPf2S7BjLOftk='
+const VECTOR_FINGERPRINT = 'bd3b8547ef5e3341ad0833a81c6602962ef539d2624e007b10f004b165c68784'
 
 let dir: string
 
@@ -97,8 +98,14 @@ describe('key hint and fingerprint', () => {
     expect(keyHint(apiKey)).toBe('…abcd')
     expect(keyHint(apiKey)).not.toContain(apiKey)
     expect(keyHint('short')).toBe('…')
-    expect(keyFingerprint(apiKey)).toBe(keyFingerprint(apiKey))
-    expect(keyFingerprint(apiKey)).toHaveLength(64)
-    expect(keyFingerprint(apiKey)).not.toContain(apiKey)
+    const fingerprint = keyFingerprint(VECTOR_KEY, apiKey)
+    expect(fingerprint).toBe(keyFingerprint(VECTOR_KEY, apiKey))
+    expect(fingerprint).toHaveLength(64)
+    expect(fingerprint).not.toContain(apiKey)
+  })
+
+  it('is keyed and matches the core-py vector', () => {
+    expect(keyFingerprint(VECTOR_KEY, VECTOR_PLAINTEXT)).toBe(VECTOR_FINGERPRINT)
+    expect(keyFingerprint(Buffer.alloc(32), VECTOR_PLAINTEXT)).not.toBe(VECTOR_FINGERPRINT)
   })
 })

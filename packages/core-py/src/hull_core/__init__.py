@@ -12,16 +12,24 @@ from hull_core.auth.middleware import Authenticator
 from hull_core.auth.tokens import hash_token, verify_token
 from hull_core.auth.users import User, UserLimits, UsersError, load_users
 from hull_core.config.models import ModelCell, resolve_model_cells
+from hull_core.credentials.models import PoolExhaustedError
+from hull_core.credentials.pool import KeyPool
+from hull_core.credentials.registry import AccountRegistry
+from hull_core.credentials.store import CredentialStore
 from hull_core.config.settings import HullSettings, ServerSettings, load_settings
 from hull_core.limits.limiter import SlidingWindowLimiter
 from hull_core.storage.sqlite import HullDatabase
 
 __all__ = [
+    "AccountRegistry",
     "AuthContext",
     "Authenticator",
+    "CredentialStore",
     "HullDatabase",
+    "KeyPool",
     "HullSettings",
     "ModelCell",
+    "PoolExhaustedError",
     "ServerSettings",
     "SlidingWindowLimiter",
     "User",

@@ -4,12 +4,19 @@ Each task resolves to one cell of ``base_url + api_key + model``. Config file
 values come from ``[models.<task>]``; the api_key may be overridden per task
 via ``HULL_<TASK>_API_KEY`` (env wins — hosts inject keys at start; keys are
 host-only material and never end-user supplied).
+
+``provider`` and ``account`` are optional pointers into the provider key pool
+(:mod:`hull_core.credentials`). They do not change the cell: the cell still
+carries one base_url/api_key/model, and the pool is what rotates credentials
+when that key is rate-limited or revoked.
 """
 
 from __future__ import annotations
 
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import Any
 
 TASKS = ("embed", "rerank", "chat", "jev_score")
 
@@ -32,6 +39,8 @@ class ModelCell:
     base_url: str
     api_key: str
     model: str
+    provider: str = ""
+    account: str = ""
 
     @property
     def configured(self) -> bool:
@@ -39,7 +48,9 @@ class ModelCell:
         return bool(self.api_key)
 
 
-def model_cell_from_config(task: str, table: dict | None, *, env: dict[str, str] | None = None) -> ModelCell:
+def model_cell_from_config(
+    task: str, table: Mapping[str, Any] | None, *, env: Mapping[str, str] | None = None
+) -> ModelCell:
     """Build one task's cell from its ``[models.<task>]`` table + env override."""
     if task not in TASKS:
         raise ValueError(f"unknown model task {task!r}; expected one of {TASKS}")
@@ -50,10 +61,14 @@ def model_cell_from_config(task: str, table: dict | None, *, env: dict[str, str]
     base_url = str(table.get("base_url", DEFAULT_BASE_URL)).rstrip("/")
     model = str(table.get("model", DEFAULT_MODELS[task]))
     api_key = str(env_map.get(api_key_env(task), table.get("api_key", "")) or "")
-    return ModelCell(task=task, base_url=base_url, api_key=api_key, model=model)
+    provider = str(table.get("provider", "") or "")
+    account = str(table.get("account", "") or "")
+    return ModelCell(task=task, base_url=base_url, api_key=api_key, model=model, provider=provider, account=account)
 
 
-def resolve_model_cells(models_config: dict | None, *, env: dict[str, str] | None = None) -> dict[str, ModelCell]:
+def resolve_model_cells(
+    models_config: Mapping[str, Any] | None, *, env: Mapping[str, str] | None = None
+) -> dict[str, ModelCell]:
     """Resolve all four task cells; unknown [models.*] tables are ignored."""
     models_config = models_config or {}
     return {task: model_cell_from_config(task, models_config.get(task), env=env) for task in TASKS}

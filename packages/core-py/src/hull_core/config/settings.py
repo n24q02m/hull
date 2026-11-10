@@ -99,6 +99,9 @@ auth = "no-auth"
 # model; OpenRouter default pre-wired). api_key may be left empty here and
 # supplied via env instead: HULL_EMBED_API_KEY / HULL_RERANK_API_KEY /
 # HULL_CHAT_API_KEY / HULL_JEV_SCORE_API_KEY (host-only, never end-user).
+# Optional pool pointers (see README "Provider key pools"):
+# provider = "openrouter"   # pool identity; derived from base_url when absent
+# account = "openrouter:work"  # account id from credential registry
 [models.embed]
 base_url = "https://openrouter.ai/api/v1"
 api_key = ""

@@ -6,7 +6,6 @@ import {
   CredentialCryptoError,
   decryptSecret,
   encryptSecret,
-  keyFingerprint,
   keyHint,
   loadOrCreateKey,
   SECRET_KEY_LENGTH
@@ -16,7 +15,6 @@ const VECTOR_KEY = Buffer.from(Array.from({ length: 32 }, (_, index) => index))
 const VECTOR_NONCE = Buffer.from(Array.from({ length: 12 }, (_, index) => index))
 const VECTOR_PLAINTEXT = 'sk-hull-vector-0123456789'
 const VECTOR_ENVELOPE = 'v1:AAECAwQFBgcICQoL:NGn7c7CJrjb7JPT/3ptVXbLktADFTWhEAcYamPqU91OPf2S7BjLOftk='
-const VECTOR_FINGERPRINT = 'bd3b8547ef5e3341ad0833a81c6602962ef539d2624e007b10f004b165c68784'
 
 let dir: string
 
@@ -92,20 +90,11 @@ describe('credential key file', () => {
   })
 })
 
-describe('key hint and fingerprint', () => {
-  it('never expose the key itself', () => {
+describe('key hint', () => {
+  it('never exposes the key itself', () => {
     const apiKey = 'sk-live-super-secret-abcd'
     expect(keyHint(apiKey)).toBe('…abcd')
     expect(keyHint(apiKey)).not.toContain(apiKey)
     expect(keyHint('short')).toBe('…')
-    const fingerprint = keyFingerprint(VECTOR_KEY, apiKey)
-    expect(fingerprint).toBe(keyFingerprint(VECTOR_KEY, apiKey))
-    expect(fingerprint).toHaveLength(64)
-    expect(fingerprint).not.toContain(apiKey)
-  })
-
-  it('is keyed and matches the core-py vector', () => {
-    expect(keyFingerprint(VECTOR_KEY, VECTOR_PLAINTEXT)).toBe(VECTOR_FINGERPRINT)
-    expect(keyFingerprint(Buffer.alloc(32), VECTOR_PLAINTEXT)).not.toBe(VECTOR_FINGERPRINT)
   })
 })

@@ -12,7 +12,8 @@ multi-account providers). ``account_id`` is what config points at; the human
 name, email, workspace and free-form labels live in the account registry.
 
 The key itself never appears in a repr, a health view or an error message; the
-pool exposes a hint (last four characters) and a keyed HMAC fingerprint instead.
+pool exposes only a hint (last four characters) instead; duplicate detection
+decrypts and compares existing entries in constant time.
 """
 
 from __future__ import annotations

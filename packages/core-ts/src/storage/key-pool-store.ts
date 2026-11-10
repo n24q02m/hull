@@ -34,7 +34,7 @@ import {
   type MigrationResult,
   providerFromBaseUrl
 } from './key-pool.js'
-import { keyHint, SecretCipher } from './key-pool-crypto.js'
+import { CredentialCryptoError, keyHint, SecretCipher, secretsEqual } from './key-pool-crypto.js'
 
 export const KEY_POOL_SCHEMA = `
 CREATE TABLE IF NOT EXISTS provider_accounts (
@@ -60,7 +60,6 @@ CREATE TABLE IF NOT EXISTS provider_credentials (
     model           TEXT,
     secret          TEXT NOT NULL,
     key_hint        TEXT NOT NULL,
-    key_fingerprint TEXT NOT NULL,
     priority        INTEGER NOT NULL DEFAULT 0,
     disabled        INTEGER NOT NULL DEFAULT 0,
     last_status     INTEGER,
@@ -71,8 +70,6 @@ CREATE TABLE IF NOT EXISTS provider_credentials (
     updated_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS provider_credentials_identity
-    ON provider_credentials(provider, ifnull(account_id, ''), key_fingerprint, base_url);
 
 CREATE INDEX IF NOT EXISTS provider_credentials_pool
     ON provider_credentials(provider, account_id, priority, id);
@@ -269,6 +266,29 @@ export class CredentialStore {
     return row
   }
 
+  private rejectDuplicate(provider: string, accountId: string | null, apiKey: string): void {
+    const rows = this.db
+      .prepare<[string, string | null], { secret: string }>(
+        'SELECT secret FROM provider_credentials WHERE provider = ? AND account_id IS ?'
+      )
+      .all(provider, accountId)
+    for (const row of rows) {
+      let existing: string
+      try {
+        existing = this.cipher.decrypt(row.secret)
+      } catch (error) {
+        if (error instanceof CredentialCryptoError) continue
+        throw error
+      }
+      if (secretsEqual(existing, apiKey)) {
+        throw new CredentialExistsError(
+          `provider ${JSON.stringify(provider)} already has this credential` +
+            (accountId ? ` for account ${JSON.stringify(accountId)}` : '')
+        )
+      }
+    }
+  }
+
   // -- writes -----------------------------------------------------------
 
   addCredential(input: AddCredentialInput): Credential {
@@ -279,10 +299,10 @@ export class CredentialStore {
     const label = optional(input.label)
     const model = optional(input.model)
     const secret = this.cipher.encrypt(apiKey)
-    const fingerprint = this.cipher.fingerprint(apiKey)
     const hint = keyHint(apiKey)
     const write = this.db.transaction((): CredentialRow => {
       if (accountId !== null) this.requireAccount(accountId, provider)
+      this.rejectDuplicate(provider, accountId, apiKey)
       let priority = input.priority ?? null
       if (priority === null || priority === undefined) {
         const next = this.db
@@ -292,24 +312,13 @@ export class CredentialStore {
           .get(provider, accountId)
         priority = next?.next ?? 0
       }
-      let result: Database.RunResult
-      try {
-        result = this.db
-          .prepare<[string, string | null, string | null, string, string | null, string, string, string, number]>(
-            'INSERT INTO provider_credentials ' +
-              '(provider, account_id, label, base_url, model, secret, key_hint, key_fingerprint, priority) ' +
-              'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
-          )
-          .run(provider, accountId, label, baseUrl, model, secret, hint, fingerprint, priority)
-      } catch (error) {
-        if (error instanceof Error && error.message.includes('UNIQUE')) {
-          throw new CredentialExistsError(
-            `provider ${JSON.stringify(provider)} already has this credential` +
-              (accountId ? ` for account ${JSON.stringify(accountId)}` : '')
-          )
-        }
-        throw error
-      }
+      const result = this.db
+        .prepare<[string, string | null, string | null, string, string | null, string, string, number]>(
+          'INSERT INTO provider_credentials ' +
+            '(provider, account_id, label, base_url, model, secret, key_hint, priority) ' +
+            'VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+        )
+        .run(provider, accountId, label, baseUrl, model, secret, hint, priority)
       return this.row(Number(result.lastInsertRowid))
     })
     return this.toCredential(write.immediate())

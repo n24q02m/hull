@@ -22,7 +22,6 @@ from hull_core.credentials.crypto import (
     SecretCipher,
     decrypt_secret,
     encrypt_secret,
-    key_fingerprint,
     key_hint,
     load_or_create_key,
 )
@@ -71,7 +70,6 @@ __all__ = [
     "decrypt_secret",
     "default_pool_db_path",
     "encrypt_secret",
-    "key_fingerprint",
     "key_hint",
     "load_or_create_key",
     "parse_rate_limit_reset",

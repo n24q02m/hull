@@ -67,7 +67,7 @@ def test_add_refuses_duplicates_and_orders_by_priority(store: CredentialStore) -
     assert (first.priority, second.priority) == (0, 1)
     assert [item.id for item in store.pool_credentials("openrouter")] == [first.id, second.id]
     with pytest.raises(CredentialExistsError, match="already has this credential"):
-        store.add_credential("openrouter", "key-one-0001", base_url="https://openrouter.ai/api/v1")
+        store.add_credential("openrouter", "key-one-0001", base_url="https://openrouter.ai/api/v2")
     store.set_priority(first.id, 9)
     assert [item.id for item in store.pool_credentials("openrouter")] == [second.id, first.id]
     store.remove_credential(second.id)

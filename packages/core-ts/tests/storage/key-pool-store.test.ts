@@ -89,9 +89,9 @@ describe('credential CRUD', () => {
     })
     expect([first.priority, second.priority]).toEqual([0, 1])
     expect(store.poolCredentials('openrouter').map((item) => item.id)).toEqual([first.id, second.id])
-    expect(() => store.addCredential({ provider: 'openrouter', apiKey: 'key-one-0001', baseUrl: BASE_URL })).toThrow(
-      CredentialExistsError
-    )
+    expect(() =>
+      store.addCredential({ provider: 'openrouter', apiKey: 'key-one-0001', baseUrl: `${BASE_URL}/v2` })
+    ).toThrow(CredentialExistsError)
     store.setPriority(first.id, 9)
     expect(store.poolCredentials('openrouter').map((item) => item.id)).toEqual([second.id, first.id])
     store.removeCredential(second.id)

@@ -11,7 +11,6 @@ from hull_core.credentials.crypto import (
     CredentialCryptoError,
     decrypt_secret,
     encrypt_secret,
-    key_fingerprint,
     key_hint,
     load_or_create_key,
 )
@@ -20,7 +19,6 @@ VECTOR_KEY = bytes(range(32))
 VECTOR_NONCE = bytes(range(12))
 VECTOR_PLAINTEXT = "sk-hull-vector-" + "0123456789"
 VECTOR_ENVELOPE = "v1:AAECAwQFBgcICQoL:NGn7c7CJrjb7JPT/3ptVXbLktADFTWhEAcYamPqU91OPf2S7BjLOftk="
-VECTOR_FINGERPRINT = "bd3b8547ef5e3341ad0833a81c6602962ef539d2624e007b10f004b165c68784"
 
 
 def test_roundtrip_uses_versioned_envelope() -> None:
@@ -88,17 +86,8 @@ def test_foreign_key_file_is_never_replaced(tmp_path) -> None:
     assert path.read_bytes() == b"0123456789abcdef"
 
 
-def test_hint_and_fingerprint_never_expose_the_key() -> None:
+def test_hint_never_exposes_the_key() -> None:
     api_key = "sk-live-super-secret-abcd"
     assert key_hint(api_key) == "…abcd"
     assert api_key not in key_hint(api_key)
     assert key_hint("short") == "…"
-    fingerprint = key_fingerprint(VECTOR_KEY, api_key)
-    assert fingerprint == key_fingerprint(VECTOR_KEY, api_key)
-    assert api_key not in fingerprint
-    assert len(fingerprint) == 64
-
-
-def test_fingerprint_is_keyed_and_matches_typescript() -> None:
-    assert key_fingerprint(VECTOR_KEY, VECTOR_PLAINTEXT) == VECTOR_FINGERPRINT
-    assert key_fingerprint(bytes(32), VECTOR_PLAINTEXT) != VECTOR_FINGERPRINT

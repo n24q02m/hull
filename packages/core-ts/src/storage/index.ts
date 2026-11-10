@@ -45,7 +45,6 @@ export {
   CredentialCryptoError,
   decryptSecret,
   encryptSecret,
-  keyFingerprint,
   keyHint,
   loadOrCreateKey,
   SECRET_KEY_LENGTH,

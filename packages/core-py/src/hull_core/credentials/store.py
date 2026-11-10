@@ -15,7 +15,8 @@ Scope rules
   already leased by the other one.
 
 Secrets are sealed by :mod:`hull_core.credentials.crypto`; this module only
-ever stores the envelope, a display hint and a fingerprint.
+ever stores the envelope and a display hint; duplicate detection decrypts
+and compares in constant time.
 """
 
 from __future__ import annotations
@@ -28,7 +29,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Generator, Iterable, Mapping
 
-from hull_core.credentials.crypto import SecretCipher, key_hint
+from hull_core.credentials.crypto import CredentialCryptoError, SecretCipher, key_hint, secrets_equal
 from hull_core.credentials.models import (
     Account,
     AccountError,
@@ -69,7 +70,6 @@ CREATE TABLE IF NOT EXISTS provider_credentials (
     model           TEXT,
     secret          TEXT NOT NULL,
     key_hint        TEXT NOT NULL,
-    key_fingerprint TEXT NOT NULL,
     priority        INTEGER NOT NULL DEFAULT 0,
     disabled        INTEGER NOT NULL DEFAULT 0,
     last_status     INTEGER,
@@ -79,9 +79,6 @@ CREATE TABLE IF NOT EXISTS provider_credentials (
     created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
     updated_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
-
-CREATE UNIQUE INDEX IF NOT EXISTS provider_credentials_identity
-    ON provider_credentials(provider, ifnull(account_id, ''), key_fingerprint, base_url);
 
 CREATE INDEX IF NOT EXISTS provider_credentials_pool
     ON provider_credentials(provider, account_id, priority, id);
@@ -206,6 +203,28 @@ class CredentialStore:
             raise AccountError(f"account {account_id!r} belongs to provider {row['provider']!r}, not {provider!r}")
         return row
 
+    def _reject_duplicate(self, provider: str, account_id: str | None, api_key: str) -> None:
+        """Refuse the same plaintext key in one pool scope (provider + account).
+
+        Existing secrets are decrypted and compared in constant time inside the
+        write transaction; undecryptable rows are skipped so one corrupt entry
+        cannot block every insert.
+        """
+        rows = self._conn.execute(
+            "SELECT secret FROM provider_credentials WHERE provider = ? AND account_id IS ?",
+            (provider, account_id),
+        ).fetchall()
+        for row in rows:
+            try:
+                existing = self._cipher.decrypt(str(row["secret"]))
+            except CredentialCryptoError:
+                continue
+            if secrets_equal(existing, api_key):
+                raise CredentialExistsError(
+                    f"provider {provider!r} already has this credential"
+                    + (f" for account {account_id!r}" if account_id else "")
+                )
+
     # -- writes -----------------------------------------------------------
 
     def add_credential(
@@ -227,11 +246,11 @@ class CredentialStore:
         label = _optional_text(label)
         model = _optional_text(model)
         secret = self._cipher.encrypt(api_key)
-        fingerprint = self._cipher.fingerprint(api_key)
         hint = key_hint(api_key)
         with self._lock, self._immediate():
             if account_id is not None:
                 self._require_account(account_id, provider)
+            self._reject_duplicate(provider, account_id, api_key)
             if priority is None:
                 row = self._conn.execute(
                     "SELECT COALESCE(MAX(priority), -1) + 1 AS next FROM provider_credentials "
@@ -239,18 +258,12 @@ class CredentialStore:
                     (provider, account_id),
                 ).fetchone()
                 priority = int(row["next"])
-            try:
-                cur = self._conn.execute(
-                    "INSERT INTO provider_credentials "
-                    "(provider, account_id, label, base_url, model, secret, key_hint, key_fingerprint, priority) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    (provider, account_id, label, base_url, model, secret, hint, fingerprint, int(priority)),
-                )
-            except sqlite3.IntegrityError:
-                raise CredentialExistsError(
-                    f"provider {provider!r} already has this credential"
-                    + (f" for account {account_id!r}" if account_id else "")
-                ) from None
+            cur = self._conn.execute(
+                "INSERT INTO provider_credentials "
+                "(provider, account_id, label, base_url, model, secret, key_hint, priority) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (provider, account_id, label, base_url, model, secret, hint, int(priority)),
+            )
             row = self._row(int(cur.lastrowid or 0))
         return self._credential(row)
 

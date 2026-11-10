@@ -12,7 +12,7 @@
  * other created; both test suites pin one shared vector.
  */
 
-import { createCipheriv, createDecipheriv, createHmac, randomBytes } from 'node:crypto'
+import { createCipheriv, createDecipheriv, randomBytes, timingSafeEqual } from 'node:crypto'
 import { closeSync, fsyncSync, mkdirSync, openSync, readFileSync, writeSync } from 'node:fs'
 import { dirname } from 'node:path'
 
@@ -118,15 +118,11 @@ export function keyHint(apiKey: string): string {
   return apiKey.length >= 8 ? `…${apiKey.slice(-4)}` : '…'
 }
 
-/**
- * Keyed HMAC-SHA256 fingerprint for duplicate detection, never for auth.
- *
- * An unkeyed digest of a provider key is offline-crackable and leaks equality
- * across machines; HMAC under the local `.credential-key` keeps duplicate
- * detection while making the digest useless without that key.
- */
-export function keyFingerprint(key: Buffer, apiKey: string): string {
-  return createHmac('sha256', checkedKey(key)).update(apiKey, 'utf8').digest('hex')
+/** Constant-time equality used for duplicate detection; never logs either value. */
+export function secretsEqual(left: string, right: string): boolean {
+  const a = Buffer.from(left, 'utf8')
+  const b = Buffer.from(right, 'utf8')
+  return a.length === b.length && timingSafeEqual(a, b)
 }
 
 /** Lazy key-file holder used by {@link CredentialStore}. */
@@ -141,10 +137,6 @@ export class SecretCipher {
   get key(): Buffer {
     if (this.cachedKey === null) this.cachedKey = loadOrCreateKey(this.keyPath)
     return this.cachedKey
-  }
-
-  fingerprint(plaintext: string): string {
-    return keyFingerprint(this.key, plaintext)
   }
 
   encrypt(plaintext: string): string {

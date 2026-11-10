@@ -17,7 +17,7 @@ readme = "README.md"
 # outside the CI matrix, which derives its rows from this line.
 # Reproduce: uv pip compile pyproject.toml --python-version 3.15 --all-extras --only-binary :all:
 # Raise the ceiling once those wheels exist (same command must then pass).
-requires-python = ">=3.13,<3.15"
+requires-python = ">=3.15,<3.16"
 license = { text = "Apache-2.0" }
 authors = [{ name = "n24q02m" }]
 keywords = ["mcp", "auth", "multi-user", "openai-spec", "llm", "web", "scraping", "search"]

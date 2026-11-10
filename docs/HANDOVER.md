@@ -4,8 +4,9 @@ Operational handover for [hull](https://github.com/n24q02m/hull) — the shared
 monorepo core for the wet / crg / mnemo self-hosted stack. Current stable
 line: **n24q02m-hull 0.4.0** (PyPI) / **@n24q02m/hull 0.4.0** (npm).
 Next, unreleased: **0.5.0** — add a provider key pool + multi-account registry
-(`hull_core.credentials`, `@n24q02m/hull/storage`), additive to the 0.4.0
-surface.
+(`hull_core.credentials`, `@n24q02m/hull/storage`) and an optional per-request
+URL guard on the interact session opener (`hull_web.browsers.open_interact_session`
+`url_guard=`), both additive to the 0.4.0 surface.
 
 ## Current operation
 
@@ -189,6 +190,15 @@ into any config.
   namespaces per user.
 - SSRF-safe HTTP in the base stack; web stack keeps scraping/browser work
   behind the `[web]` extra.
+- Interact sessions take an optional per-request guard (0.5.0, additive):
+  `hull_web.browsers.open_interact_session(url, url_guard=guard)` checks the
+  initial URL before launching, every routed sub-resource, and — on Chromium —
+  every redirect hop through the CDP `Fetch` domain, because Playwright's route
+  layer never delivers the request a redirect leads to
+  (microsoft/playwright#34994). Pass `hull_web.is_safe_url`, which resolves the
+  hostname on every call, to cover DNS rebinding as far as a URL check can. A
+  blocked navigation raises `UrlGuardBlockedError` naming the URL; `url_guard`
+  absent keeps the pre-0.5.0 behaviour (no interception at all).
 
 ## Unreleased: `@n24q02m/hull` removals since 0.4.0
 

@@ -7,20 +7,21 @@ line: **n24q02m-hull 0.4.0** (PyPI) / **@n24q02m/hull 0.4.0** (npm).
 ## Current operation
 
 - Packages:
-  - Python: `n24q02m-hull` (PyPI). The wheel carries three import packages; heavy stacks are opt-in extras:
+  - Python: `n24q02m-hull` (PyPI). The wheel carries two import packages; heavy stacks are opt-in extras:
     - `hull_core` (base) — token auth, per-task model cells, rate limiter,
       `~/.hull/` SQLite WAL storage, `server start` + `/mcp` endpoint, CLI,
       SSRF-safe HTTP, lifecycle lock, `model_selection` picker.
     - `hull_web` (`[web]`) — search (SearXNG), scraping strategies, stealth
       browsers, fingerprinting, HTTP/SSRF security (consumed by wet).
-    - `hull_embedding_daemon` (`[embedding]`) — local ONNX/GGUF embedding
-      server (FastAPI).
+  - The embed/rerank HTTP service is **not** in this repo: it is
+    `fastretrieval[server]` (`fastretrieval-server`, `python -m
+    fastretrieval.server`), the dist that owns the model runtime. hull reaches
+    it over HTTP like any other OpenAI-spec provider.
   - TypeScript: `@n24q02m/hull` (`packages/core-ts` on npm) — token-table auth (`token`, `multi` with `users.toml`), Streamable HTTP `/mcp` transport, `buildCli` console builder, encrypted `PerPluginStore` storage (`~/.<plugin>/`), lockfiles and cache. All relay, OAuth AS/delegated, and CfKvBackend residue is removed from the source tree; the published npm 0.4.0 tarball still carries it (see "Unreleased" below).
 - Runtime: Python 3.13; dev with `uv`, always-on with docker.
 - Surfaces: `hull` CLI (control plane + consumer), `hull server start`
   (the only way to run a server — MCP is an HTTP endpoint at
-  `http://host:port/mcp`, never a spawned subprocess), `hull-embedding-daemon`
-  (HTTP on `127.0.0.1:9800`).
+  `http://host:port/mcp`, never a spawned subprocess).
 - hull is a library/daemon product, not a packaged MCP server: no registry
   entry. Downstream products (wet, crg, mnemo) consume the library.
 
@@ -29,9 +30,7 @@ line: **n24q02m-hull 0.4.0** (PyPI) / **@n24q02m/hull 0.4.0** (npm).
 ```bash
 pip install n24q02m-hull               # hull_core only (crg, mnemo dependency)
 pip install "n24q02m-hull[web]"        # + hull_web scraping/browser stack (wet)
-pip install "n24q02m-hull[embedding]"  # + hull_embedding_daemon server stack
 pip install "n24q02m-hull[mteb]"       # + pyarrow for model_selection MTEB fetchers
-pip install "n24q02m-hull[embedding,embedding-gguf]"  # + llama.cpp runtime for *-GGUF models
 ```
 
 `import hull_web` without the `[web]` extra raises `ImportError` naming the
@@ -60,24 +59,23 @@ Mode is a config state (`[server] auth` in `~/.hull/config.toml`):
 Token hashes are scrypt (`hull token hash`). Wrong token → `401`; disabled
 user → `403`; over-limit → `429`.
 
-## Embedding daemon
+## Embed/rerank service (owned elsewhere)
 
-| Route | Purpose |
-|-------|---------|
-| `GET /health` | liveness + version |
-| `GET /models` | public alias table → canonical model names |
-| `POST /embed` | `{input: [str], model?, dims?}` → `{data, model, dims}` |
-| `POST /rerank` | `{query, documents, model?, top_n?}` → ranked results desc |
+The shared embedding/rerank HTTP service used to ship here as
+`hull_embedding_daemon` (`n24q02m-hull[embedding]`). It now belongs to the dist
+that owns the model runtime:
 
-- `/embed` honours MRL truncation: `dims` accepts 32..1024 (default 1024).
-- Models run through qwen3-embed over the `n24q02m/Qwen3-*` exports
-  (`qwen3-0.6b`, `qwen3-0.6b-q4f16`, `qwen3-0.6b-gguf`, `qwen3-rerank-0.6b*`).
-  Artifacts lazy-download from Hugging Face into the user cache on first use
-  (`HULL_EMBEDDING_CACHE_DIR`).
-- Bind `--host/--port` (default `127.0.0.1:9800`); threads `--threads`.
-- Backends: ONNX default; CUDA = swap in `onnxruntime-gpu` (never install both
-  wheels side by side). GGUF names need `[embedding,embedding-gguf]`, else
+- Install/run: `pip install "fastretrieval[server]"`, then
+  `fastretrieval-server` (or `python -m fastretrieval.server`). Default bind
+  `127.0.0.1:9800`, same route contract — `GET /health`, `GET /models`,
+  `POST /embed` (`{input, model?, dims?}`, `dims` 32..1024), `POST /rerank`
+  (`{query, documents, model?, top_n?}`).
+- Cache dir: `FASTRETRIEVAL_CACHE_PATH` (was `HULL_EMBEDDING_CACHE_DIR`);
+  threads: `FASTRETRIEVAL_THREADS`. GGUF names need `fastretrieval[gguf]`, else
   requests fail `503` with the install hint (ONNX unaffected).
+- hull holds no model runtime: callers reach the service over HTTP. A
+  reintroduced `import` of `fastretrieval`/`onnxruntime`/`llama_cpp` in
+  `packages/*/src` fails `tests/test_embedding_boundary.py`.
 
 ## Build, run, and verify
 
@@ -91,10 +89,8 @@ uv build
 Use isolated fixtures for server/auth tests; the CLI tells you to start the
 server first when it is down — there is no hidden local-core mode.
 
-The embedding daemon has a real-model smoke (downloads the q4f16 exports; too
-heavy for the PR gate): run it from Actions with `workflow_dispatch` on `CI`
-(job `embedding-daemon-smoke`) or locally with
-`uv run python scripts/smoke_embedding_daemon.py` after `uv sync --extra embedding`.
+The embed/rerank service keeps its real-model smoke in its owning repo
+(`fastretrieval`, job `server-smoke`); hull's CI no longer downloads models.
 
 ## Model configuration policy
 
@@ -175,7 +171,7 @@ first:
 
 Roll back a source change by reverting the owning commit; config changes take
 effect on process restart. Daemon model artifacts are cached per user cache
-dir — clear `HULL_EMBEDDING_CACHE_DIR` (or the platform user cache) when
+dir — clear `FASTRETRIEVAL_CACHE_PATH` (or the platform user cache) when
 switching artifact exports. Keep graph-free: hull holds no product graph
 state; downstream products own their DBs.
 
@@ -183,7 +179,7 @@ state; downstream products own their DBs.
 
 1. Run the quick start against a scratch `HOME` (or `~/.hull` sandbox) and
    verify `401/403/429` paths with two tokens in `multi` mode.
-2. Exercise `hull-embedding-daemon` `/embed` with `dims` truncation and a GGUF
-   request without the extra (expect `503` + hint).
+2. Exercise `fastretrieval-server` `/embed` with `dims` truncation and a GGUF
+   request without `fastretrieval[gguf]` (expect `503` + hint).
 3. Run the full test suite and `uv build`; read the extras matrix against
    `pyproject.toml` before adding a new extra.

@@ -10,6 +10,11 @@ untouched:
   is set), which are answered here; starting a stdio server on them would
   block on stdin instead of printing.
 
+``-h``/``--help`` prints one argparse-rendered page: the pass-through rule,
+then every subcommand with the flags it accepts (derived from the subcommand's
+own parser, including a server's ``extra`` commands), so a reader can find
+``auth --bot-token`` without guessing that ``<subcommand> -h`` exists.
+
 A leading positional argv[0] names a subcommand: a built-in below or a
 server-specific one from ``extra`` (which wins on a name clash). Built-ins
 know nothing about relays, OAuth or run modes; they only touch the hull
@@ -212,12 +217,70 @@ def _configure_builtin(name: str, parser: argparse.ArgumentParser) -> None:
         parser.add_argument("token_value", nargs="?", default=None, help=argparse.SUPPRESS)
 
 
-def _usage(server_name: str, handlers: dict[str, ExtraHandler]) -> str:
-    return (
-        f"usage: {server_name} [-h] [--version] [<subcommand> ...]\n"
-        "Any other flags/args are passed through to the MCP server (e.g. --http).\n"
-        f"subcommands: {', '.join(sorted(handlers))}"
-    )
+# One-line description per built-in; the flags are appended from the parser.
+_BUILTIN_HELP = {
+    "config": "print the credential state, or delete the stored config",
+    "status": "print the credential state and where it is stored",
+    "logout": "remove the stored config and session credentials",
+    "doctor": "check python, data dir, backend and credentials",
+    "token": "mint a token_hash from stdin or a hidden prompt",
+}
+
+
+def _argument_label(action: argparse.Action) -> str | None:
+    """The action as it would appear in a usage line, or None when not shown."""
+    if action.dest in ("help", "subcommand"):
+        # argparse's own -h and the subcommand dispatcher: never user surface.
+        return None
+    if action.option_strings:
+        label = ", ".join(action.option_strings)
+        if action.nargs != 0:
+            label += f" {action.metavar or action.dest.upper()}"
+        return label
+    # Positionals fall back the way argparse does: a declared metavar, else the
+    # choice set, else the upper-cased dest.
+    if action.metavar:
+        return str(action.metavar)
+    if action.choices:
+        return "{" + ",".join(str(choice) for choice in action.choices) + "}"
+    return action.dest.upper()
+
+
+def _argument_summary(sub: argparse.ArgumentParser, *, positionals: bool) -> str:
+    """The arguments a subcommand accepts, e.g. ``--bot-token BOT_TOKEN``.
+
+    ``_actions`` is argparse's only iteration hook; every action comes from this
+    module's ``add_argument`` calls or a consumer's ``configure`` callback, so
+    the top-level help cannot claim an argument the subcommand does not accept.
+    """
+    labels = []
+    for action in sub._actions:
+        label = _argument_label(action)
+        if label is not None and (positionals or bool(action.option_strings)):
+            labels.append(label)
+    return ", ".join(labels)
+
+
+def _subcommand_table(parsers: list[tuple[str, argparse.ArgumentParser]], *, overridden: set[str]) -> str:
+    """Epilog listing every subcommand with its arguments, in one aligned block.
+
+    An ``extra`` that replaces a built-in is described by its own arguments:
+    keeping the built-in text would describe a command the server replaced.
+    """
+    rows: list[tuple[str, str]] = []
+    for name, sub in sorted(parsers, key=lambda item: item[0]):
+        description = None if name in overridden else _BUILTIN_HELP.get(name)
+        if description:
+            # A built-in reads as "description (flags)"; its positionals are
+            # internal wiring (``config status|delete``), not a user surface.
+            flags = _argument_summary(sub, positionals=False)
+            rows.append((name, f"{description} ({flags})" if flags else description))
+        else:
+            # An extra has no description here, so its argument list stands in.
+            rows.append((name, _argument_summary(sub, positionals=True) or "(no arguments)"))
+    width = max(len(name) for name, _ in rows)
+    lines = [f"  {name.ljust(width)}  {text}" for name, text in rows]
+    return "subcommands (each also accepts -h):\n" + "\n".join(lines)
 
 
 def build_cli(
@@ -262,6 +325,27 @@ def build_cli(
         handlers[name] = handler_fn
         overridden.add(name)
 
+    parser = argparse.ArgumentParser(
+        prog=server_name,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=(
+            "Control commands; a bare invocation starts the MCP server.\n\n"
+            "Any other flag or argument (e.g. --http) is passed through to the MCP server."
+        ),
+    )
+    if version is not None:
+        parser.add_argument("--version", "-V", action="version", version=f"{server_name} {version}")
+    subparsers = parser.add_subparsers(dest="subcommand")
+    sub_parsers: list[tuple[str, argparse.ArgumentParser]] = []
+    for name in handlers:
+        sub = subparsers.add_parser(name)
+        if name in configurers:
+            configurers[name](sub)
+        elif name not in overridden:
+            _configure_builtin(name, sub)
+        sub_parsers.append((name, sub))
+    parser.epilog = _subcommand_table(sub_parsers, overridden=overridden)
+
     def run(argv: list[str] | None = None) -> int:
         if argv is None:
             argv = sys.argv[1:]
@@ -271,7 +355,7 @@ def build_cli(
             return 0 if rc is None else rc
 
         if argv[0] in ("-h", "--help"):
-            print(_usage(server_name, handlers))
+            print(parser.format_help(), end="")
             return 0
 
         if version is not None and argv[0] in ("--version", "-V"):
@@ -284,18 +368,11 @@ def build_cli(
 
         handler = handlers.get(argv[0])
         if handler is None:
-            print(f"{server_name}: unknown subcommand {argv[0]!r}", file=sys.stderr)
-            print(_usage(server_name, handlers), file=sys.stderr)
+            expected = ", ".join(sorted(handlers))
+            print(f"{server_name}: unknown subcommand {argv[0]!r} (expected one of: {expected})", file=sys.stderr)
+            print(parser.format_usage(), file=sys.stderr, end="")
             return 2
 
-        parser = argparse.ArgumentParser(prog=server_name)
-        subparsers = parser.add_subparsers(dest="subcommand")
-        for name in handlers:
-            sub = subparsers.add_parser(name)
-            if name in configurers:
-                configurers[name](sub)
-            elif name not in overridden:
-                _configure_builtin(name, sub)
         try:
             ns = parser.parse_args(argv)
         except SystemExit as exc:

@@ -24,7 +24,8 @@ URL guard on the interact session opener (`hull_web.browsers.open_interact_sessi
     it over HTTP like any other OpenAI-spec provider.
   - TypeScript: `@n24q02m/hull` (`packages/core-ts` on npm) — token-table auth (`token`, `multi` with `users.toml`), Streamable HTTP `/mcp` transport, `buildCli` console builder, encrypted `PerPluginStore` storage (`~/.<plugin>/`), the `@n24q02m/hull/storage` key-pool/account mirror over `~/.hull/hull.db`, lockfiles and cache. All relay, OAuth AS/delegated, and CfKvBackend residue is removed from the source tree; the published npm 0.4.0 tarball still carries it (see "Unreleased" below).
 - Runtime: Python 3.13; dev with `uv`, always-on with docker.
-- Surfaces: `hull` CLI (control plane + consumer), `hull server start`
+- Surfaces: `hull` CLI (control plane + consumer: `config`, `db`, `token`,
+  `status`, `doctor`, `--version`), `hull server start`
   (the only way to run a server — MCP is an HTTP endpoint at
   `http://host:port/mcp`, never a spawned subprocess).
 - hull is a library/daemon product, not a packaged MCP server: no registry
@@ -45,10 +46,15 @@ missing modules and the install command.
 
 ```bash
 uv sync
-uv run hull config init          # write ~/.hull/config.toml (OpenRouter defaults)
-uv run hull token hash mysecret  # mint a token_hash for users.toml / config
-uv run hull server start         # serves http://127.0.0.1:8000/mcp
+uv run hull config init               # write ~/.hull/config.toml (OpenRouter defaults)
+printf '%s' "$TOKEN" | uv run hull token hash  # mint a token_hash for users.toml / config
+uv run hull status                    # auth mode, bind, DB path
+uv run hull doctor                    # python / config / users.toml checks
+uv run hull server start              # serves http://127.0.0.1:8000/mcp
 ```
+
+`hull token hash` reads the token from piped stdin or a hidden prompt; a token
+on the command line is refused, because it would land in shell history.
 
 ## Auth — one mechanism, three modes
 

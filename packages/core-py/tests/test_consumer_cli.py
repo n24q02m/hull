@@ -87,10 +87,42 @@ def test_help_is_answered_here(home: Path, capsys: pytest.CaptureFixture[str], f
     run, serve = _cli()
     assert run([flag]) == 0
     out = capsys.readouterr().out
-    assert out.startswith(f"usage: {SERVER} [-h] [--version] [<subcommand> ...]")
+    assert out.startswith(f"usage: {SERVER}")
+    assert "a bare invocation starts the MCP server" in out
     assert "passed through to the MCP server" in out
-    assert "subcommands: config, doctor, logout, status, token" in out
+    assert "subcommands (each also accepts -h):" in out
+    for line in (
+        "config  print the credential state, or delete the stored config (--yes)",
+        "status  print the credential state and where it is stored",
+        "logout  remove the stored config and session credentials (--yes)",
+        "doctor  check python, data dir, backend and credentials",
+        "token   mint a token_hash from stdin or a hidden prompt",
+    ):
+        assert line in out
     assert serve.calls == []
+
+
+def test_help_advertises_version_when_set(home: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    run, _ = _cli(version="1.2.3")
+    assert run(["-h"]) == 0
+    out = capsys.readouterr().out
+    assert "--version, -V" in out
+
+
+def test_help_lists_an_extra_with_its_arguments(home: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    def configure_auth(sub: argparse.ArgumentParser) -> None:
+        sub.add_argument("--bot-token")
+        sub.add_argument("--phone")
+        sub.add_argument("--user", default="default")
+
+    run, _ = _cli(extra={"auth": (configure_auth, lambda _ns: 0)})
+    assert run(["--help"]) == 0
+    out = capsys.readouterr().out
+    assert "auth    --bot-token BOT_TOKEN, --phone PHONE, --user USER" in out
+    # The built-in token hash writes its positional away: it must not leak as
+    # an internal dest into the table.
+    assert "token_action" not in out
+    assert "config_action" not in out
 
 
 @pytest.mark.parametrize("flag", ["--version", "-V"])
@@ -112,6 +144,7 @@ def test_unknown_subcommand(home: Path, capsys: pytest.CaptureFixture[str]) -> N
     assert run(["frobnicate"]) == 2
     err = capsys.readouterr().err
     assert f"{SERVER}: unknown subcommand 'frobnicate'" in err
+    assert "(expected one of: config, doctor, logout, status, token)" in err
     assert "usage:" in err
     assert serve.calls == []
 
@@ -436,7 +469,9 @@ def test_extra_overrides_builtin_and_its_args(home: Path, capsys: pytest.Capture
     assert run(["config"]) == 7, "the built-in positional is gone with the override"
     assert run(["config", "status"]) == 2
     assert run(["-h"]) == 0
-    assert "subcommands: config, doctor, logout, status, token" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "subcommands (each also accepts -h):" in out
+    assert "config  (no arguments)" in out
 
 
 def test_extra_value_error_keeps_traceback(home: Path) -> None:

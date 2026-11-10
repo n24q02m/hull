@@ -63,5 +63,9 @@ a 4-character hint. Tables (`provider_accounts`, `provider_credentials`) are
 created additively next to the existing `~/.hull/` schema.
 
 ```bash
-hull config init && hull token hash <secret> && hull server start
+hull config init && printf '%s' "$TOKEN" | hull token hash && hull server start
 ```
+
+`hull token hash` reads the token from stdin or a hidden prompt and refuses a
+token on argv (shell history). `hull status` and `hull doctor` report the
+instance state; `hull --version` prints the installed version.

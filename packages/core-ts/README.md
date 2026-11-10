@@ -27,7 +27,7 @@ subpath:
 | `@n24q02m/hull` | Everything below, plus `buildCli` (console-script subcommand dispatch around a server entry point) and `tryOpenBrowser` |
 | `@n24q02m/hull/transport` | `runHttpServer` (local HTTP server with routes), `StreamableHTTPServer` (MCP Streamable HTTP transport), `jsonResponse` |
 | `@n24q02m/hull/crypto` | AES `encrypt` / `decrypt`, ECDH `generateKeyPair` / `deriveSharedSecret` / `exportPublicKey` / `importPublicKey`, key derivation `deriveAesKey` |
-| `@n24q02m/hull/storage` | `atomicWriteFile`, credential backends (`LocalFsBackend`, `InMemoryBackend`, `backendFromEnv`), encrypted credential read/write/delete and config import/export, `PerPluginStore`, data dir helpers (`dataDir`, `dataDirCandidates`, `legacyDataDirs`), `resolveConfig` (environment variables, then stored config, then defaults), machine identity helpers |
+| `@n24q02m/hull/storage` | `atomicWriteFile`, credential backends (`LocalFsBackend`, `InMemoryBackend`, `backendFromEnv`), encrypted credential read/write/delete and config import/export, `PerPluginStore`, data dir helpers (`dataDir`, `dataDirCandidates`, `legacyDataDirs`), `resolveConfig` (environment variables, then stored config, then defaults), machine identity helpers, and the provider key pool (`CredentialStore`, `KeyPool`, `AccountRegistry`, `SecretCipher`) |
 | `@n24q02m/hull/token-auth` | Token-table HTTP auth: `Authenticator`, `hashToken` / `verifyToken`, `loadUsers`, `currentUser`, `ensurePathAllowed`, `guardRequest`, `SlidingWindowLimiter`, `tokenCliHandler` |
 
 ## Credential storage layout
@@ -62,6 +62,45 @@ from every location. A corrupt blob is reported as corrupt; the store does
 not fall back to an older copy behind it. Injected backends (`InMemoryBackend`,
 a `LocalFsBackend` with a custom `baseDir`) are used as the
 only source.
+
+## Provider key pools (`~/.hull/hull.db`)
+
+`@n24q02m/hull/storage` mirrors the Python key pool: ordered credentials per
+provider (optionally scoped to a named account), encrypted at rest and rotated
+on failure. This is separate from `PerPluginStore` above — the pool lives in the
+shared hull database, not in `~/.<plugin>/`.
+
+```ts
+import { CredentialStore } from '@n24q02m/hull/storage'
+
+const store = new CredentialStore() // ~/.hull/hull.db + ~/.hull/.credential-key
+store.migrateModelCells(settings.models) // idempotent seed from existing cells
+
+const work = store.accounts().add({ provider: 'openrouter', name: 'Work', email: 'ops@example.com' })
+store.addCredential({
+  provider: 'openrouter',
+  apiKey: process.env.OPENROUTER_KEY ?? '',
+  baseUrl: 'https://openrouter.ai/api/v1',
+  accountId: work.accountId // "openrouter:work"
+})
+
+const pool = store.poolForCell(settings.models.embed)
+const result = await pool.runAsync((credential) => callProvider(credential))
+```
+
+| Upstream | Rotation behaviour |
+|---|---|
+| `401` / `403` | disable that credential, take the next |
+| `429` | cooldown `Retry-After` / `rate_limit_reset` (1 s…1 h, default 60 s), take the next |
+| `5xx` | retry the same credential once (`max5xxRetries`), then rotate |
+| anything else | re-throw unchanged; pool state untouched |
+| empty / all blocked | `PoolExhaustedError` with counts and a redacted last error |
+
+Acquired credentials are leased (default 60 s), so concurrent tasks never
+receive the same key. `store.health(provider)` is the read-only view; keys and
+their values never appear in health, `toString`, `toJSON`, or error text — only
+a 4-character hint. Tables (`provider_accounts`, `provider_credentials`) are
+created additively with `CREATE TABLE IF NOT EXISTS` in the existing database.
 
 ## CLI built-ins
 

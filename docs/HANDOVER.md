@@ -3,12 +3,16 @@
 Operational handover for [hull](https://github.com/n24q02m/hull) — the shared
 monorepo core for the wet / crg / mnemo self-hosted stack. Current stable
 line: **n24q02m-hull 0.4.0** (PyPI) / **@n24q02m/hull 0.4.0** (npm).
+Next, unreleased: **0.5.0** — add a provider key pool + multi-account registry
+(`hull_core.credentials`, `@n24q02m/hull/storage`), additive to the 0.4.0
+surface.
 
 ## Current operation
 
 - Packages:
   - Python: `n24q02m-hull` (PyPI). The wheel carries two import packages; heavy stacks are opt-in extras:
-    - `hull_core` (base) — token auth, per-task model cells, rate limiter,
+    - `hull_core` (base) — token auth, per-task model cells, **provider key
+      pools + named accounts** (`hull_core.credentials`), rate limiter,
       `~/.hull/` SQLite WAL storage, `server start` + `/mcp` endpoint, CLI,
       SSRF-safe HTTP, lifecycle lock, `model_selection` picker.
     - `hull_web` (`[web]`) — search (SearXNG), scraping strategies, stealth
@@ -17,7 +21,7 @@ line: **n24q02m-hull 0.4.0** (PyPI) / **@n24q02m/hull 0.4.0** (npm).
     `fastretrieval[server]` (`fastretrieval-server`, `python -m
     fastretrieval.server`), the dist that owns the model runtime. hull reaches
     it over HTTP like any other OpenAI-spec provider.
-  - TypeScript: `@n24q02m/hull` (`packages/core-ts` on npm) — token-table auth (`token`, `multi` with `users.toml`), Streamable HTTP `/mcp` transport, `buildCli` console builder, encrypted `PerPluginStore` storage (`~/.<plugin>/`), lockfiles and cache. All relay, OAuth AS/delegated, and CfKvBackend residue is removed from the source tree; the published npm 0.4.0 tarball still carries it (see "Unreleased" below).
+  - TypeScript: `@n24q02m/hull` (`packages/core-ts` on npm) — token-table auth (`token`, `multi` with `users.toml`), Streamable HTTP `/mcp` transport, `buildCli` console builder, encrypted `PerPluginStore` storage (`~/.<plugin>/`), the `@n24q02m/hull/storage` key-pool/account mirror over `~/.hull/hull.db`, lockfiles and cache. All relay, OAuth AS/delegated, and CfKvBackend residue is removed from the source tree; the published npm 0.4.0 tarball still carries it (see "Unreleased" below).
 - Runtime: Python 3.13; dev with `uv`, always-on with docker.
 - Surfaces: `hull` CLI (control plane + consumer), `hull server start`
   (the only way to run a server — MCP is an HTTP endpoint at
@@ -58,6 +62,55 @@ Mode is a config state (`[server] auth` in `~/.hull/config.toml`):
 
 Token hashes are scrypt (`hull token hash`). Wrong token → `401`; disabled
 user → `403`; over-limit → `429`.
+
+## Provider credentials — key pools and accounts
+
+Until 0.5.0 a task cell resolved exactly one `api_key`, so one dead key took
+the feature down. The cell shape is unchanged; a **pool of ordered
+credentials sits under the provider identity** and a cell may select a named
+account:
+
+```toml
+# ~/.hull/config.toml — unchanged cell shape, optional selectors
+[models.embed]
+base_url = "https://openrouter.ai/api/v1"
+api_key  = "sk-or-v1-..."   # first-run seed only
+model    = "openai/text-embedding-3-small"
+provider = "openrouter"     # optional, inferred from base_url
+account  = "openrouter:work" # optional; default pool when absent
+```
+
+- Python API: `hull_core.credentials.CredentialStore` (CRUD + `health` /
+  `diagnose` read API), `KeyPool` (rotation), `AccountRegistry` (named
+  accounts). TypeScript mirror: `@n24q02m/hull/storage` with the same models,
+  policy and table layout.
+- Persistence is additive in the existing `~/.hull/hull.db`:
+  `provider_accounts` and `provider_credentials` (`CREATE TABLE IF NOT
+  EXISTS`; legacy tables untouched). Keys are AES-256-GCM sealed with
+  `~/.hull/.credential-key` (32 bytes, `0600`, created once); rows store the
+  envelope plus a 4-char hint, never the key.
+- `CredentialStore.migrate_model_cells(...)` seeds the pool from the current
+  single-key cells (idempotent; one entry per distinct `base_url + api_key`,
+  existing order preserved).
+- Concurrency: an acquired credential is **leased** (default 60 s) so two
+  tasks cannot receive the same key; the lease is released on success,
+  failure, or any re-raised error.
+
+Rotation matrix (both languages; `classify_status` in Python /
+`classifyStatus` in TS):
+
+| Upstream result | Action |
+|---|---|
+| `401`, `403` | disable the credential (`disabled=1`), take the next one |
+| `429` | cooldown `Retry-After` (seconds or HTTP date), else `rate_limit_reset` (seconds or epoch), clamped to 1 s…1 h, default 60 s; take the next one |
+| `5xx` | retry the same credential up to `max5xxRetries` (default 1), then move to the next |
+| any other status / no status | re-raise the original error unchanged; credential state is not touched |
+| pool empty or all blocked | `PoolExhaustedError` with `total` / `disabled` / `coolingDown` counts and a **redacted** last error (keys never appear in messages, `toString`, `toJSON`, health snapshots, or logs) |
+
+Bounded attempts: `max(1, total × (1 + max5xxRetries))`, so an exhausted pool
+fails fast instead of retrying forever. `health()` returns the read-only view
+(`lastStatus`, `lastError` redacted, `failureCount`, `cooldownUntil`,
+`disabled`, `usable`, `keyHint`) that products consume.
 
 ## Embed/rerank service (owned elsewhere)
 

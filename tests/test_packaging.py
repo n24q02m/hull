@@ -1,9 +1,9 @@
 """Packaging contract: hull ships as ONE dist, ``n24q02m-hull``, with extras.
 
-Spec v4 addendum 2026-09-30: a single wheel carries the three import packages
-(``hull_core``, ``hull_web``, ``hull_embedding_daemon``); the scraping/browser
-stack is only pulled in by ``n24q02m-hull[web]`` and the embedding server stack
-only by ``n24q02m-hull[embedding]``.
+Spec v4 addendum 2026-09-30: a single wheel carries the two import packages
+(``hull_core``, ``hull_web``); the scraping/browser stack is only pulled in by
+``n24q02m-hull[web]``. Model runtimes are not hull's: the embed/rerank service
+ships as ``fastretrieval[server]``, so no extra here may declare one.
 """
 
 from __future__ import annotations
@@ -36,9 +36,7 @@ WEB_DEPS = {
     "pydantic",
     "pillow",
 }
-EMBEDDING_DEPS = {"fastapi", "uvicorn", "qwen3-embed", "onnxruntime", "numpy", "httpx", "pydantic"}
 WEB_ONLY = WEB_DEPS - BASE_DEPS
-EMBEDDING_ONLY = EMBEDDING_DEPS - BASE_DEPS
 
 
 def _uv() -> str:
@@ -95,7 +93,7 @@ def test_wheel_filename_is_n24q02m_hull(wheel: Path) -> None:
     assert wheel.name.startswith("n24q02m_hull-")
 
 
-@pytest.mark.parametrize("package", ["hull_core", "hull_web", "hull_embedding_daemon"])
+@pytest.mark.parametrize("package", ["hull_core", "hull_web"])
 def test_wheel_contains_import_package_at_top_level(names: list[str], package: str) -> None:
     assert f"{package}/__init__.py" in names
 
@@ -112,9 +110,12 @@ def test_metadata_name_is_n24q02m_hull(metadata) -> None:
     assert metadata["Name"] == "n24q02m-hull"
 
 
-def test_metadata_declares_web_and_embedding_extras(metadata) -> None:
+def test_metadata_declares_web_extra_and_no_model_runtime_extra(metadata) -> None:
     extras = set(metadata.get_all("Provides-Extra") or [])
-    assert {"web", "embedding"} <= extras
+    assert "web" in extras
+    # The embedding server moved to fastretrieval; no extra may re-declare it.
+    assert "embedding" not in extras
+    assert "embedding-gguf" not in extras
 
 
 def test_base_dependencies_are_core_only(requirements: list[Requirement]) -> None:
@@ -127,11 +128,6 @@ def test_web_extra_carries_every_web_dependency(requirements: list[Requirement])
     assert web == WEB_DEPS
 
 
-def test_embedding_extra_carries_every_embedding_dependency(requirements: list[Requirement]) -> None:
-    embedding = {canonicalize_name(r.name) for r in requirements if _in_extra(r, "embedding")}
-    assert embedding == EMBEDDING_DEPS
-
-
 @pytest.mark.parametrize("dep", sorted(WEB_ONLY))
 def test_web_only_dependency_is_gated_by_web_extra(requirements: list[Requirement], dep: str) -> None:
     matching = [r for r in requirements if canonicalize_name(r.name) == dep]
@@ -140,18 +136,6 @@ def test_web_only_dependency_is_gated_by_web_extra(requirements: list[Requiremen
         assert req.marker is not None, f"{dep} is an unconditional dependency"
         assert req.marker.evaluate({"extra": "web"}), f"{dep} not installed by [web]: {req}"
         assert not req.marker.evaluate({"extra": ""}), f"{dep} leaks into the base install: {req}"
-        assert not req.marker.evaluate({"extra": "embedding"}), f"{dep} leaks into [embedding]: {req}"
-
-
-@pytest.mark.parametrize("dep", sorted(EMBEDDING_ONLY))
-def test_embedding_only_dependency_is_gated_by_embedding_extra(requirements: list[Requirement], dep: str) -> None:
-    matching = [r for r in requirements if canonicalize_name(r.name) == dep]
-    assert matching, f"{dep} missing from Requires-Dist"
-    for req in matching:
-        assert req.marker is not None, f"{dep} is an unconditional dependency"
-        assert req.marker.evaluate({"extra": "embedding"}), f"{dep} not installed by [embedding]: {req}"
-        assert not req.marker.evaluate({"extra": ""}), f"{dep} leaks into the base install: {req}"
-        assert not req.marker.evaluate({"extra": "web"}), f"{dep} leaks into [web]: {req}"
 
 
 def test_console_scripts(wheel: Path, names: list[str]) -> None:
@@ -159,7 +143,8 @@ def test_console_scripts(wheel: Path, names: list[str]) -> None:
     with zipfile.ZipFile(wheel) as zf:
         text = zf.read(ep_path).decode("utf-8")
     assert "hull = hull_core.cli:main" in text
-    assert "hull-embedding-daemon = hull_embedding_daemon.__main__:main" in text
+    # The embedding server is fastretrieval-server, from the fastretrieval dist.
+    assert "embedding" not in text
 
 
 def test_litellm_import_package_has_one_owner() -> None:

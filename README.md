@@ -10,24 +10,26 @@
 
 It owns everything the three products share — token auth, per-task model
 configuration, per-user rate limiting, local SQLite storage, the HTTP MCP server
-lifecycle, web scraping/search infrastructure, and a local embedding daemon —
+lifecycle, and web scraping/search infrastructure —
 for **wet** (search), **crg** (code graph) and **mnemo** (memory).
 
 ## Install
 
-hull ships as one PyPI dist, **`n24q02m-hull`**. The wheel carries all three
+hull ships as one PyPI dist, **`n24q02m-hull`**. The wheel carries both python
 import packages; the heavy stacks are opt-in extras:
 
 ```bash
 pip install n24q02m-hull               # hull_core only (crg, mnemo)
 pip install "n24q02m-hull[web]"        # + hull_web scraping/browser stack (wet)
-pip install "n24q02m-hull[embedding]"  # + hull_embedding_daemon server stack
 pip install "n24q02m-hull[mteb]"       # + pyarrow for model_selection MTEB fetchers
-pip install "n24q02m-hull[embedding,embedding-gguf]"  # + llama.cpp runtime for *-GGUF models
 ```
 
 `import hull_web` without the `[web]` extra raises `ImportError` naming the
 missing modules and the install command.
+
+hull does not run models. The shared embed/rerank HTTP service is
+`pip install "fastretrieval[server]"` (`fastretrieval-server`, serving
+`/embed` + `/rerank`); hull callers reach it over HTTP.
 
 The TypeScript core ships to npm as **`@n24q02m/hull`**, at the same version as
 the PyPI dist (see [packages/core-ts](packages/core-ts/README.md)):
@@ -41,7 +43,6 @@ npm install @n24q02m/hull
 | Source dir | Import package | Extra | Purpose |
 |---|---|---|---|
 | `packages/core-py` | `hull_core` | (base; MTEB boards need `[mteb]`) | Auth (3 modes), per-task model cells, limiter, `~/.hull/` SQLite WAL storage, `server start` + `/mcp` endpoint, CLI, SSRF-safe HTTP, lifecycle lock, `model_selection` leaderboard picker + runtime registry (refresh → eval-on-change → promote) |
-| `packages/embedding-daemon` | `hull_embedding_daemon` | `[embedding]` | Local ONNX/GGUF embedding server (FastAPI) |
 | `packages/web` | `hull_web` | `[web]` | Search (SearXNG), scraping strategies, stealth browsers, fingerprinting, HTTP/SSRF security |
 | `packages/core-ts` | `@n24q02m/hull` (npm) | n/a | TypeScript core: MCP Streamable HTTP transport, token-table auth (`token`, `multi`), `buildCli` console builder, encrypted credential storage, lockfiles and cache |
 

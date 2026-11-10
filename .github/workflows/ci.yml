@@ -14,12 +14,6 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-    inputs:
-      wheel_version:
-        description: "Embedding-daemon smoke only: also smoke the published n24q02m-hull[embedding] wheel at this exact PyPI version (e.g. 0.4.0b8). Empty = source tree only."
-        required: false
-        type: string
-        default: ""
 
 permissions:
   contents: read
@@ -69,39 +63,6 @@ jobs:
         run: python scripts/repo-bootstrap/verify_readme_sync.py --repo-root=packages/core-ts
 
   # ============================================================================
-  # Embedding daemon real-model smoke (manual: downloads HF model artifacts).
-  # Asserts the /health /models /embed /rerank contract from docs/HANDOVER.md.
-  # ============================================================================
-  embedding-daemon-smoke:
-    name: Embedding daemon real-model smoke
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - name: Harden Runner
-        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
-        with:
-          egress-policy: audit
-
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
-        with:
-          python-version: "3.15"
-      - run: uv sync --locked --extra embedding
-      - name: Smoke the daemon against the real q4f16 models
-        run: uv run python scripts/smoke_embedding_daemon.py
-      - name: Smoke the published wheel from PyPI
-        if: inputs.wheel_version != ''
-        env:
-          WHEEL_VERSION: ${{ inputs.wheel_version }}
-        run: |
-          set -euo pipefail
-          [[ "$WHEEL_VERSION" =~ ^[0-9]+(\.[0-9]+)*((a|b|rc)[0-9]+)?$ ]] || { echo "::error::bad wheel_version"; exit 1; }
-          uv run --no-project --isolated --python 3.14 --with "n24q02m-hull[embedding]==${WHEEL_VERSION}" \
-            python scripts/smoke_embedding_daemon.py
-
-  # ============================================================================
   # Lint & Test (Python)
   # ============================================================================
   lint-and-test:
@@ -121,10 +82,10 @@ jobs:
           python-version: "3.15"
 
       # The extras are not optional for the checks: the shipped code imports
-      # filelock (search runner), patchright/crawl4ai/curl_cffi (scrapers) and
-      # fastapi (embedding daemon), and the test suite imports them too, so a
-      # base+dev environment can neither type-check nor collect the tests.
-      - run: uv sync --locked --group dev --extra web --extra embedding --extra llm --extra dspy
+      # filelock (search runner) and patchright/crawl4ai/curl_cffi (scrapers),
+      # and the test suite imports them too, so a base+dev environment can
+      # neither type-check nor collect the tests.
+      - run: uv sync --locked --group dev --extra web --extra llm --extra dspy
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run ty check

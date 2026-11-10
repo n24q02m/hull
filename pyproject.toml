@@ -5,12 +5,12 @@ build-backend = "hatchling.build"
 [project]
 name = "n24q02m-hull"
 version = "0.4.0"
-description = "Shared core for the wet / crg / mnemo self-hosted stack: auth, per-task model config, limiter, storage, HTTP MCP server; web and embedding stacks as extras"
+description = "Shared core for the wet / crg / mnemo self-hosted stack: auth, per-task model config, limiter, storage, HTTP MCP server; web stack as an extra"
 readme = "README.md"
 requires-python = ">=3.13"
 license = { text = "Apache-2.0" }
 authors = [{ name = "n24q02m" }]
-keywords = ["mcp", "auth", "multi-user", "openai-spec", "llm", "web", "scraping", "search", "embedding"]
+keywords = ["mcp", "auth", "multi-user", "openai-spec", "llm", "web", "scraping", "search"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
@@ -23,8 +23,9 @@ classifiers = [
     "Topic :: Software Development :: Libraries",
 ]
 # Base install = hull_core only. crg / mnemo install `n24q02m-hull`; wet installs
-# `n24q02m-hull[web]`. hull_web and hull_embedding_daemon ship in the same wheel
-# but need their extra at import/run time.
+# `n24q02m-hull[web]`. hull_web ships in the same wheel but needs its extra at
+# import/run time. Model runtimes are not hull's: the embed/rerank service is
+# `fastretrieval[server]` (fastretrieval.server).
 dependencies = [
     # FastMCP exposes `http_app(path, middleware, transport)` used to mount the
     # MCP Streamable HTTP endpoint; its transport layer is Starlette-based.
@@ -67,20 +68,6 @@ identity = [
 invisible = [
     "invisible-playwright>=0.39,<0.40",
 ]
-# hull_embedding_daemon: local ONNX embedding server (FastAPI) backed by
-# qwen3-embed (n24q02m's fastembed fork serving the n24q02m/Qwen3-* ONNX
-# exports). GPU: replace onnxruntime with onnxruntime-gpu in the target
-# environment; the two wheels ship the same `onnxruntime` module and must
-# not be co-installed. numpy is pinned to qwen3-embed's supported band.
-embedding = [
-    "fastapi>=0.141.1",
-    "uvicorn>=0.53.0",
-    "qwen3-embed>=1.14.0",
-    "onnxruntime>=1.30.0",
-    "numpy>=2.4.6,<2.5",
-    "httpx>=0.28.1",
-    "pydantic>=2.12.5,<3",
-]
 # model_selection MTEB leaderboard fetchers aggregate the public mteb/results
 # HF dataset, which ships as parquet — pyarrow is the reader (fail-open
 # without it, like every other source).
@@ -104,16 +91,8 @@ dspy = [
     "dspy>=3.4.1,<3.5.0",
 ]
 
-# Optional GGUF runtime for `*-GGUF` model names (llama.cpp backend).
-# llama-cpp-python ships source-only on PyPI (needs a C++ toolchain), so it
-# is opt-in instead of part of the base [embedding] stack.
-embedding-gguf = [
-    "llama-cpp-python>=0.3.34",
-]
-
 [project.scripts]
 hull = "hull_core.cli:main"
-hull-embedding-daemon = "hull_embedding_daemon.__main__:main"
 
 [project.urls]
 Repository = "https://github.com/n24q02m/hull"
@@ -148,7 +127,6 @@ exclude-dependencies = ["unclecode-litellm"]
 packages = [
     "packages/core-py/src/hull_core",
     "packages/web/src/hull_web",
-    "packages/embedding-daemon/src/hull_embedding_daemon",
 ]
 
 [tool.ruff]
@@ -157,22 +135,19 @@ target-version = "py313"
 src = [
     "packages/core-py/src",
     "packages/web/src",
-    "packages/embedding-daemon/src",
     "packages/core-py/tests",
     "packages/web/tests",
-    "packages/embedding-daemon/tests",
     "tests",
 ]
 
 [tool.ruff.lint]
 # hull_web (and repo-level tests) use the extended rule set it had as a
-# standalone package; core-py and embedding-daemon keep their original
-# E4/E7/E9/F baseline via the per-file ignores below.
+# standalone package; core-py keeps its original E4/E7/E9/F baseline via the
+# per-file ignore below.
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
 
 [tool.ruff.lint.per-file-ignores]
 "packages/core-py/**" = ["E501", "W", "I", "UP", "B", "SIM", "RUF"]
-"packages/embedding-daemon/**" = ["E501", "W", "I", "UP", "B", "SIM", "RUF"]
 
 [tool.ruff.format]
 exclude = ["*.md"]
@@ -186,11 +161,11 @@ unused-type-ignore-comment = "ignore"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["tests", "packages/core-py/tests", "packages/embedding-daemon/tests", "packages/web/tests"]
+testpaths = ["tests", "packages/core-py/tests", "packages/web/tests"]
 addopts = "-m 'not integration and not live' --timeout=120"
 
 [tool.coverage.run]
-source_pkgs = ["hull_core", "hull_web", "hull_embedding_daemon"]
+source_pkgs = ["hull_core", "hull_web"]
 branch = true
 
 [tool.coverage.report]

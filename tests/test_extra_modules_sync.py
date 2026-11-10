@@ -1,9 +1,11 @@
 """Import guards must track the extras declared in pyproject.toml.
 
-Each optional extra of the ``n24q02m-hull`` dist has an import guard listing the
-import names of its dependencies. This test derives those names from the
-root pyproject.toml so adding or dropping a dependency without updating the
-guard (or vice versa) fails CI.
+An optional extra that ships an import guard lists the import names of its
+dependencies there. This test derives those names from the root pyproject.toml
+so adding or dropping a dependency without updating the guard (or vice versa)
+fails CI. Only ``[web]`` carries a guard: the remaining extras (``identity``,
+``invisible``, ``mteb``, ``llm``, ``dspy``) are optional seams whose import
+error surfaces at use time.
 """
 
 from __future__ import annotations
@@ -14,7 +16,6 @@ from pathlib import Path
 import pytest
 from packaging.requirements import Requirement
 
-from hull_embedding_daemon import _extra as embedding_extra
 from hull_web import _extra as web_extra
 
 PYPROJECT = Path(__file__).resolve().parents[1] / "pyproject.toml"
@@ -35,10 +36,7 @@ def _extra_import_names(extra: str) -> list[str]:
 
 @pytest.mark.parametrize(
     ("extra", "guard_modules"),
-    [
-        ("web", web_extra.WEB_EXTRA_MODULES),
-        ("embedding", embedding_extra.EMBEDDING_EXTRA_MODULES),
-    ],
+    [("web", web_extra.WEB_EXTRA_MODULES)],
 )
 def test_guard_modules_match_pyproject_extra(extra: str, guard_modules: tuple[str, ...]) -> None:
     assert list(guard_modules) == _extra_import_names(extra)

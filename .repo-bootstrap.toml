@@ -7,9 +7,10 @@
 path = "Dockerfile"
 reason = """
 Not containerised yet. hull ships as one PyPI distribution (n24q02m-hull, with the
-[web] and [embedding] extras) that wet, mnemo and crg install as a library. The
+[web] extra) that wet, mnemo and crg install as a library. The
 template's image runs `python -m hull_core`, which is not an entrypoint here:
-the control plane is the `hull` console script (hull_core.cli) and the embedding
-server is `hull-embedding-daemon`. Whether either gets an image is a deployment
-decision, and an unused Dockerfile is a file that rots and then gets believed.
+the control plane is the `hull` console script (hull_core.cli). The embed/rerank
+server is not part of this repo any more (it is `fastretrieval-server` from the
+fastretrieval dist). Whether hull gets an image is a deployment decision, and an
+unused Dockerfile is a file that rots and then gets believed.
 """

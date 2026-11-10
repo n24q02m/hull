@@ -4,7 +4,7 @@
 # Setup: mise run setup
 
 [tools]
-python = "3.15.2"
+python = "3.14"  # inside requires-python (>=3.13,<3.15); 3.15 has no wheels yet
 node = "24"
 uv = "latest"
 
@@ -20,8 +20,9 @@ run = [
   "mise install",
   # `uv sync` prunes anything the lockfile does not ask for, so this is also
   # the clean-venv step; the extras are required because the shipped code and
-  # the test suite both import them.
-  "uv sync --locked --group dev --extra web --extra embedding",
+  # the test suite both import them. `embedding` is gone: the embed/rerank
+  # service ships as `fastretrieval[server]`, not as an extra here.
+  "uv sync --locked --group dev --extra web",
   "uv pip install pre-commit",
   "uv run pre-commit install",
   "uv run pre-commit install --hook-type commit-msg",

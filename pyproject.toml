@@ -7,7 +7,17 @@ name = "n24q02m-hull"
 version = "0.4.0"
 description = "Shared core for the wet / crg / mnemo self-hosted stack: auth, per-task model config, limiter, storage, HTTP MCP server; web stack as an extra"
 readme = "README.md"
-requires-python = ">=3.13"
+# Supported window: floor 3.13, ceiling <3.15. The ceiling is not decoration --
+# 3.15 is the newest released minor, but not the newest one that installs from
+# wheels. 3.15 shipped 2026-10-01 and several compiled dependencies still
+# publish no cp315 wheel: `pyyaml` 6.0.3 (dspy requires pyyaml>=6.0.1) fails the
+# resolve outright, and numpy/pyarrow/pydantic-core/shapely/xxhash would each
+# fall back to a source build. Promising 3.15 would mean promising a compiler
+# toolchain to every consumer, so 3.15 stays outside the window -- and therefore
+# outside the CI matrix, which derives its rows from this line.
+# Reproduce: uv pip compile pyproject.toml --python-version 3.15 --all-extras --only-binary :all:
+# Raise the ceiling once those wheels exist (same command must then pass).
+requires-python = ">=3.13,<3.15"
 license = { text = "Apache-2.0" }
 authors = [{ name = "n24q02m" }]
 keywords = ["mcp", "auth", "multi-user", "openai-spec", "llm", "web", "scraping", "search"]
@@ -18,6 +28,7 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Internet :: WWW/HTTP",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Software Development :: Libraries",

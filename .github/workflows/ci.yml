@@ -39,12 +39,46 @@ concurrency:
 
 jobs:
   # ============================================================================
+  # Support matrix: both interpreter matrices are DERIVED, not listed. The
+  # script reads the floors this repository already declares -- requires-python
+  # in pyproject.toml and engines.node in packages/core-ts/package.json -- and
+  # every job below consumes the result through needs.versions.outputs. A
+  # hand-pinned row used to be how the matrix fell behind a release; the guard
+  # test in tests/test_ci_versions.py now fails if a literal version is added
+  # back to this file.
+  # ============================================================================
+  versions:
+    name: Resolve support matrix
+    runs-on: ubuntu-latest
+    outputs:
+      python: ${{ steps.resolve.outputs.python }}
+      python-newest: ${{ steps.resolve.outputs.python-newest }}
+      node: ${{ steps.resolve.outputs.node }}
+      node-newest: ${{ steps.resolve.outputs.node-newest }}
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Deliberately NOT actions/setup-python: the resolver runs on the
+      # runner's stock python3, so no pinned version in this file can decide
+      # what the matrix says. scripts/ci_versions.py is stdlib-only for that
+      # reason, and --format github emits $GITHUB_OUTPUT syntax.
+      - name: Resolve supported interpreters
+        id: resolve
+        run: python3 scripts/ci_versions.py --format github >> "$GITHUB_OUTPUT"
+
+  # ============================================================================
   # README registry metadata: the package carries this repo's README to PyPI,
   # so a manifest naming a file that is not there publishes an empty project
   # page. Keep the local check in CI as well as pre-commit and CD.
   # ============================================================================
   readme-sync:
     name: Verify README registry metadata
+    needs: versions
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
@@ -55,7 +89,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: "3.15"
+          # Tooling, not support: the newest row of the resolved matrix.
+          python-version: ${{ needs.versions.outputs.python-newest }}
       - name: Verify README registry metadata
         run: python scripts/repo-bootstrap/verify_readme_sync.py --repo-root=.
       # packages/core-ts publishes its own README to npm (@n24q02m/hull).
@@ -63,12 +98,28 @@ jobs:
         run: python scripts/repo-bootstrap/verify_readme_sync.py --repo-root=packages/core-ts
 
   # ============================================================================
-  # Lint & Test (Python)
+  # Lint & Test (Python): one row per minor from the requires-python floor to
+  # the newest released minor, resolved by the `versions` job.
+  #
+  # The job name is NOT the required context. The main-branch ruleset requires
+  # exactly one check named "Lint & Test"; these rows only carry it as a
+  # prefix, so one aggregating job (lint-and-test-gate) publishes the required
+  # string and any red row turns it red.
   # ============================================================================
   lint-and-test:
-    name: Lint & Test
+    name: Lint & Test (Python ${{ matrix.python-version }})
+    needs: versions
     if: github.event_name == 'pull_request' || github.event_name == 'push'
     runs-on: ubuntu-latest
+    strategy:
+      # A floor row that fails is the finding, not a reason to cancel the others.
+      fail-fast: false
+      matrix:
+        python-version: ${{ fromJSON(needs.versions.outputs.python) }}
+    env:
+      # uv resolves .python-version (3.13) ahead of PATH, so without this every
+      # row would quietly test 3.13 and pass. UV_PYTHON outranks the dotfile.
+      UV_PYTHON: ${{ matrix.python-version }}
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
@@ -79,13 +130,26 @@ jobs:
       - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: "3.15"
+          python-version: ${{ matrix.python-version }}
 
       # The extras are not optional for the checks: the shipped code imports
       # filelock (search runner) and patchright/crawl4ai/curl_cffi (scrapers),
       # and the test suite imports them too, so a base+dev environment can
       # neither type-check nor collect the tests.
       - run: uv sync --locked --group dev --extra web --extra llm --extra dspy
+
+      # The row is a claim about which interpreter runs; prove it instead of
+      # trusting that setup-python and uv agreed.
+      - name: Assert the row is the interpreter under test
+        env:
+          ROW: ${{ matrix.python-version }}
+        run: |
+          actual="$(uv run --no-sync python -c 'import sys; print(f"{sys.version_info[0]}.{sys.version_info[1]}")')"
+          if [ "$actual" != "$ROW" ]; then
+            echo "::error::matrix row $ROW resolved to Python $actual"
+            exit 1
+          fi
+          echo "Testing Python $actual"
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run ty check
@@ -97,23 +161,55 @@ jobs:
         run: uv run pytest --tb=short --cov --cov-report=xml --cov-report=term
 
       - name: Upload coverage to Codecov
-        if: github.event_name == 'push'
+        # One upload is enough, and the newest row is the one whose coverage a
+        # reviewer acts on; the others still have to pass their own threshold.
+        if: github.event_name == 'push' && matrix.python-version == needs.versions.outputs.python-newest
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           files: coverage.xml
           token: ${{ secrets.CODECOV_TOKEN }}
 
+  # ============================================================================
+  # Required context aggregator. The ruleset requires the context
+  # "Lint & Test"; the matrix publishes per-row checks under other names, so
+  # this job is the single owner of the required name and turns any red row
+  # into a red gate. `always()` keeps it reporting when a row was cancelled.
+  # ============================================================================
+  lint-and-test-gate:
+    name: Lint & Test
+    needs: [lint-and-test]
+    if: always() && needs.lint-and-test.result != 'skipped'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        with:
+          egress-policy: audit
+
+      - name: Every Python row passed
+        env:
+          RESULT: ${{ needs.lint-and-test.result }}
+        run: |
+          if [ "$RESULT" != "success" ]; then
+            echo "::error::the Python matrix did not pass: $RESULT"
+            exit 1
+          fi
+          echo "Every Python matrix row passed."
+
 
   # ============================================================================
-  # Lint & Test TypeScript (packages/core-ts, ported from mcp-core)
+  # Lint & Test TypeScript (packages/core-ts, ported from mcp-core): one leg per
+  # (OS, LTS line) pair; the line set is resolved from engines.node.
   # ============================================================================
   lint-and-test-ts:
-    name: Lint & Test (TypeScript, ${{ matrix.os }})
+    name: Lint & Test (TypeScript, ${{ matrix.os }}, Node ${{ matrix.node-version }})
+    needs: versions
     if: github.event_name == 'pull_request' || github.event_name == 'push'
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
+        node-version: ${{ fromJSON(needs.versions.outputs.node) }}
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -131,10 +227,24 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
 
-      - name: Setup Node.js 24
+      - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "24"
+          node-version: ${{ matrix.node-version }}
+
+      # Bun runs the toolchain, so nothing else in this job would notice if
+      # setup-node resolved a different line than the matrix claims.
+      - name: Assert the Node line under test
+        env:
+          ROW: ${{ matrix.node-version }}
+        shell: bash
+        run: |
+          actual="$(node -p 'process.versions.node.split(".")[0]')"
+          if [ "$actual" != "$ROW" ]; then
+            echo "::error::matrix row $ROW resolved to Node $actual"
+            exit 1
+          fi
+          echo "Testing Node $(node --version)"
 
       - name: Install dependencies
         run: bun install --frozen-lockfile

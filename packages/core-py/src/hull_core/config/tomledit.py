@@ -40,7 +40,15 @@ def toml_scalar(raw: str) -> str:
 
 
 def looks_secret(key: str) -> bool:
+    """True when a CLI transcript must not echo ``key``'s value.
+
+    A ``*_hash`` key is a one-way digest, not the credential itself: ``config
+    show`` already prints it, and copying it into a ``users.toml`` is the
+    documented workflow, so masking it only makes the value harder to verify.
+    """
     lowered = key.lower()
+    if lowered.endswith("_hash"):
+        return False
     return any(hint in lowered for hint in _SECRET_HINTS)
 
 

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "n24q02m-hull"
-version = "0.5.0"
+version = "0.6.0"
 description = "Shared core for the wet / crg / mnemo self-hosted stack: auth, per-task model config, limiter, storage, HTTP MCP server; web stack as an extra"
 readme = "README.md"
 # Supported window: floor 3.13, ceiling <3.15. The ceiling is not decoration --

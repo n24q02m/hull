@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timezone
 from email.utils import format_datetime
 
@@ -191,6 +192,37 @@ async def test_arun_rotates_like_run(store: CredentialStore) -> None:
 
     assert await store.pool("openrouter").arun(call) == "async-ok"
     assert store.health("openrouter")[0].disabled is True
+
+
+async def test_arun_cancellation_releases_the_lease(store: CredentialStore) -> None:
+    """An outer deadline cancels the attempt: the lease returns untouched."""
+    (first,) = seed(store, 1)
+    pool = store.pool("openrouter", lease_seconds=60)
+
+    async def slow(credential):
+        await asyncio.sleep(30)
+        return "never"
+
+    with pytest.raises(asyncio.TimeoutError):
+        await asyncio.wait_for(pool.arun(slow), timeout=0.01)
+
+    assert pool.acquire().id == first.id
+    assert store.health("openrouter")[0].failure_count == 0
+
+
+def test_interrupted_run_releases_the_lease(store: CredentialStore) -> None:
+    """A non-Exception escape (KeyboardInterrupt) is not blamed on the credential."""
+    (first,) = seed(store, 1)
+    pool = store.pool("openrouter", lease_seconds=60)
+
+    def interrupt(credential):
+        raise KeyboardInterrupt
+
+    with pytest.raises(KeyboardInterrupt):
+        pool.run(interrupt)
+
+    assert pool.acquire().id == first.id
+    assert store.health("openrouter")[0].failure_count == 0
 
 
 def test_acquire_leases_each_credential_once(store: CredentialStore) -> None:

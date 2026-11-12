@@ -1,7 +1,7 @@
 """Host-side CLI: control plane + consumer.
 
 Subcommands: ``server start``, ``status``, ``doctor``, ``token hash``,
-``config init|path|show`` and ``db path``, plus ``--version``. With the server
+``config init|path|show|get|set`` and ``db path``, plus ``--version``. With the server
 down, consumers are told to start it first — there is no hidden local-core mode
 (spec §3).
 """
@@ -12,10 +12,13 @@ import argparse
 import getpass
 import os
 import sys
+import tomllib
+from pathlib import Path
 
 from hull_core import __version__
 from hull_core.auth.tokens import hash_token
 from hull_core.auth.users import UsersError, load_users
+from hull_core.config import tomledit
 from hull_core.config.settings import (
     CONFIG_TEMPLATE,
     ConfigError,
@@ -82,6 +85,34 @@ def _cmd_config_show(_args: argparse.Namespace) -> int:
         print(path.read_text(encoding="utf-8"), end="")
     else:
         print(CONFIG_TEMPLATE, end="")
+    return 0
+
+
+def _config_path(args: argparse.Namespace) -> Path:
+    return Path(args.config) if getattr(args, "config", None) else default_config_dir() / "config.toml"
+
+
+def _cmd_config_get(args: argparse.Namespace) -> int:
+    try:
+        value = tomledit.get_value(_config_path(args), args.key)
+    except (ConfigError, tomllib.TOMLDecodeError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    if tomledit.looks_secret(args.key):
+        print("*** (value not echoed)")
+    else:
+        print(tomledit.format_value(value))
+    return 0
+
+
+def _cmd_config_set(args: argparse.Namespace) -> int:
+    try:
+        tomledit.set_value(_config_path(args), args.key, args.value)
+    except (ConfigError, tomllib.TOMLDecodeError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    shown = "*** (value not echoed)" if tomledit.looks_secret(args.key) else tomledit.toml_scalar(args.value)
+    print(f"set {args.key} = {shown} in {_config_path(args)}")
     return 0
 
 
@@ -195,7 +226,17 @@ def build_parser() -> argparse.ArgumentParser:
     path_p = config_sub.add_parser("path", help="print the config file path")
     path_p.set_defaults(func=_cmd_config_path)
     show_p = config_sub.add_parser("show", help="print the effective config (template if absent)")
+    show_p.add_argument("--config", default=None, help=argparse.SUPPRESS)
     show_p.set_defaults(func=_cmd_config_show)
+    get_p = config_sub.add_parser("get", help="print one value (dotted key, e.g. server.port)")
+    get_p.add_argument("key")
+    get_p.add_argument("--config", default=None, help=argparse.SUPPRESS)
+    get_p.set_defaults(func=_cmd_config_get)
+    set_p = config_sub.add_parser("set", help="set one value in place, keeping comments")
+    set_p.add_argument("key")
+    set_p.add_argument("value")
+    set_p.add_argument("--config", default=None, help=argparse.SUPPRESS)
+    set_p.set_defaults(func=_cmd_config_set)
 
     db = sub.add_parser("db", help="storage utilities (path)")
     db_sub = db.add_subparsers(dest="db_command", required=True)

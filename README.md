@@ -79,6 +79,8 @@ user → `403`; over-limit → `429`.
 ```bash
 uv sync
 uv run hull config init               # write ~/.hull/config.toml (OpenRouter defaults)
+uv run hull config set server.port 8771   # edit one key in place, comments intact
+uv run hull config get server.port        # print one key (secrets are not echoed)
 printf '%s' "$TOKEN" | uv run hull token hash  # mint a token_hash for users.toml / config
 uv run hull status                    # auth mode, bind, DB path
 uv run hull doctor                    # python / config / users.toml checks

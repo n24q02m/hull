@@ -204,6 +204,10 @@ class KeyPool:
         """Record a 2xx: clears failures, cooldown and the lease."""
         self.store.record_success(credential.id)
 
+    def release(self, credential: Credential) -> None:
+        """Hand a lease back untouched (an interrupt or cancellation, not a failure)."""
+        self.store.release_lease(credential.id)
+
     def report_failure(
         self,
         credential: Credential,
@@ -286,6 +290,11 @@ class KeyPool:
                 if rotation.failed(credential, exc) == "fatal":
                     raise
                 continue
+            except BaseException:
+                # KeyboardInterrupt and friends are not provider answers: hand the
+                # lease back instead of stranding it for ``lease_seconds``.
+                self.release(credential)
+                raise
             self.report_success(credential)
             return result
         raise rotation.exhausted()
@@ -302,6 +311,11 @@ class KeyPool:
                 if rotation.failed(credential, exc) == "fatal":
                     raise
                 continue
+            except BaseException:
+                # Cancellation (an ``asyncio`` deadline, a shutdown) skips the
+                # error path above; release the lease so the next call is served.
+                self.release(credential)
+                raise
             self.report_success(credential)
             return result
         raise rotation.exhausted()

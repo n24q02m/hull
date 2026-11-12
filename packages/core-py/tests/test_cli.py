@@ -73,7 +73,7 @@ def test_version_prints_the_installed_version(flag: str, capsys: pytest.CaptureF
         ([], "{server,status,doctor,token,config,db}"),
         (["server"], "{start}"),
         (["token"], "{hash}"),
-        (["config"], "{init,path,show}"),
+        (["config"], "{init,path,show,get,set}"),
         (["db"], "{path}"),
     ],
 )

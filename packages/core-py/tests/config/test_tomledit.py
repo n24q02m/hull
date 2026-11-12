@@ -74,13 +74,22 @@ def test_cli_set_then_get_roundtrip_masks_secrets(tmp_path, monkeypatch, capsys)
     monkeypatch.setattr("hull_core.cli.default_config_dir", lambda: tmp_path)
     monkeypatch.setattr("hull_core.cli.CONFIG_TEMPLATE", CONFIG_TEMPLATE)
 
-    assert main(["config", "set", "server.token_hash", "scrypt$abc"]) == 0
+    assert main(["config", "set", "server.token", "s3cr3t"]) == 0
     out = capsys.readouterr().out
     assert "*** (value not echoed)" in out
-    assert "scrypt$abc" not in out
+    assert "s3cr3t" not in out
 
-    assert main(["config", "get", "server.token_hash"]) == 0
+    assert main(["config", "get", "server.token"]) == 0
     assert capsys.readouterr().out.strip() == "*** (value not echoed)"
+
+
+def test_a_hash_is_not_masked_while_a_token_is(tmp_path, monkeypatch, capsys):
+    _write(tmp_path)
+    monkeypatch.setattr("hull_core.cli.default_config_dir", lambda: tmp_path)
+    assert main(["config", "set", "server.token_hash", "scrypt$abc"]) == 0
+    assert "scrypt$abc" in capsys.readouterr().out  # a digest is not the secret
+    assert tomledit.looks_secret("server.token") is True
+    assert tomledit.looks_secret("server.token_hash") is False
 
 
 def test_cli_get_reports_an_unknown_key_on_stderr(tmp_path, monkeypatch, capsys):

@@ -125,12 +125,18 @@ class CredentialStore:
         self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         self._clock = clock
         self._cipher = cipher if cipher is not None else SecretCipher(self.path.parent / ".credential-key")
+        # One connection shared by every thread (``check_same_thread=False``),
+        # so every statement on it runs under this lock: a sqlite3 connection is
+        # not safe for concurrent use, and an unlocked read can also land inside
+        # another thread's open write transaction. Reads go through
+        # ``_read``/``_read_one``, writes through ``_immediate``; a test fails on
+        # any ``self._conn`` access outside the lock.
         self._lock = threading.RLock()
-        self._conn = sqlite3.connect(str(self.path), check_same_thread=False, isolation_level=None)
-        self._conn.row_factory = sqlite3.Row
-        self._conn.execute("PRAGMA journal_mode=WAL")
-        self._conn.execute("PRAGMA busy_timeout=5000")
         with self._lock:
+            self._conn = sqlite3.connect(str(self.path), check_same_thread=False, isolation_level=None)
+            self._conn.row_factory = sqlite3.Row
+            self._conn.execute("PRAGMA journal_mode=WAL")
+            self._conn.execute("PRAGMA busy_timeout=5000")
             self._conn.executescript(POOL_SCHEMA)
 
     # -- plumbing ---------------------------------------------------------
@@ -140,15 +146,26 @@ class CredentialStore:
 
     @contextmanager
     def _immediate(self) -> Generator[None, None, None]:
-        """One write transaction, serialized against other connections."""
-        self._conn.execute("BEGIN IMMEDIATE")
-        try:
-            yield
-        except BaseException:
-            self._conn.execute("ROLLBACK")
-            raise
-        else:
-            self._conn.execute("COMMIT")
+        """One write transaction: the lock serializes threads, BEGIN IMMEDIATE other connections."""
+        with self._lock:
+            self._conn.execute("BEGIN IMMEDIATE")
+            try:
+                yield
+            except BaseException:
+                self._conn.execute("ROLLBACK")
+                raise
+            else:
+                self._conn.execute("COMMIT")
+
+    def _read(self, sql: str, params: Iterable[Any] = ()) -> list[sqlite3.Row]:
+        """Run one query and fetch every row while holding the lock."""
+        with self._lock:
+            return self._conn.execute(sql, tuple(params)).fetchall()
+
+    def _read_one(self, sql: str, params: Iterable[Any] = ()) -> sqlite3.Row | None:
+        """Run one query and fetch its first row while holding the lock."""
+        with self._lock:
+            return self._conn.execute(sql, tuple(params)).fetchone()
 
     def _credential(self, row: sqlite3.Row) -> Credential:
         return Credential(
@@ -186,17 +203,13 @@ class CredentialStore:
         )
 
     def _row(self, credential_id: int) -> sqlite3.Row:
-        row = self._conn.execute(
-            f"SELECT {_COLUMNS} FROM provider_credentials WHERE id = ?", (credential_id,)
-        ).fetchone()
+        row = self._read_one(f"SELECT {_COLUMNS} FROM provider_credentials WHERE id = ?", (credential_id,))
         if row is None:
             raise CredentialNotFoundError(f"no provider credential with id {credential_id}")
         return row
 
     def _require_account(self, account_id: str, provider: str) -> sqlite3.Row:
-        row = self._conn.execute(
-            "SELECT account_id, provider FROM provider_accounts WHERE account_id = ?", (account_id,)
-        ).fetchone()
+        row = self._read_one("SELECT account_id, provider FROM provider_accounts WHERE account_id = ?", (account_id,))
         if row is None:
             raise AccountError(f"unknown account {account_id!r}; add it with the account registry first")
         if str(row["provider"]) != provider:
@@ -210,10 +223,10 @@ class CredentialStore:
         write transaction; undecryptable rows are skipped so one corrupt entry
         cannot block every insert.
         """
-        rows = self._conn.execute(
+        rows = self._read(
             "SELECT secret FROM provider_credentials WHERE provider = ? AND account_id IS ?",
             (provider, account_id),
-        ).fetchall()
+        )
         for row in rows:
             try:
                 existing = self._cipher.decrypt(str(row["secret"]))
@@ -247,7 +260,7 @@ class CredentialStore:
         model = _optional_text(model)
         secret = self._cipher.encrypt(api_key)
         hint = key_hint(api_key)
-        with self._lock, self._immediate():
+        with self._immediate():
             if account_id is not None:
                 self._require_account(account_id, provider)
             self._reject_duplicate(provider, account_id, api_key)
@@ -268,13 +281,13 @@ class CredentialStore:
         return self._credential(row)
 
     def remove_credential(self, credential_id: int) -> None:
-        with self._lock, self._immediate():
+        with self._immediate():
             cur = self._conn.execute("DELETE FROM provider_credentials WHERE id = ?", (credential_id,))
             if cur.rowcount == 0:
                 raise CredentialNotFoundError(f"no provider credential with id {credential_id}")
 
     def set_priority(self, credential_id: int, priority: int) -> None:
-        with self._lock, self._immediate():
+        with self._immediate():
             cur = self._conn.execute(
                 f"UPDATE provider_credentials SET priority = ?, {_TOUCH} WHERE id = ?",
                 (int(priority), credential_id),
@@ -284,7 +297,7 @@ class CredentialStore:
 
     def enable(self, credential_id: int) -> None:
         """Clear disabled/cooldown/failure state after an operator fixes the key."""
-        with self._lock, self._immediate():
+        with self._immediate():
             cur = self._conn.execute(
                 "UPDATE provider_credentials SET disabled = 0, last_status = NULL, failure_count = 0, "
                 f"cooldown_until = 0, lease_until = 0, {_TOUCH} WHERE id = ?",
@@ -294,7 +307,7 @@ class CredentialStore:
                 raise CredentialNotFoundError(f"no provider credential with id {credential_id}")
 
     def disable(self, credential_id: int) -> None:
-        with self._lock, self._immediate():
+        with self._immediate():
             cur = self._conn.execute(
                 f"UPDATE provider_credentials SET disabled = 1, lease_until = 0, {_TOUCH} WHERE id = ?",
                 (credential_id,),
@@ -312,7 +325,7 @@ class CredentialStore:
         if provider is not None:
             sql += " WHERE provider = ?"
             params = (provider,)
-        with self._lock, self._immediate():
+        with self._immediate():
             return int(self._conn.execute(sql, params).rowcount)
 
     # -- reads ------------------------------------------------------------
@@ -325,15 +338,14 @@ class CredentialStore:
             sql += " WHERE provider = ?"
             params = (provider,)
         sql += " ORDER BY provider, priority, id"
-        rows = self._conn.execute(sql, params).fetchall()
-        return [self._credential(row) for row in rows]
+        return [self._credential(row) for row in self._read(sql, params)]
 
     def pool_credentials(self, provider: str, account_id: str | None = None) -> list[Credential]:
         """The rotation pool for one provider/account scope, in priority order."""
-        rows = self._conn.execute(
+        rows = self._read(
             f"SELECT {_COLUMNS} FROM provider_credentials WHERE provider = ? AND account_id IS ? ORDER BY priority, id",
             (_text(provider, "provider"), _optional_text(account_id)),
-        ).fetchall()
+        )
         return [self._credential(row) for row in rows]
 
     def health(self, provider: str | None = None) -> list[CredentialHealth]:
@@ -345,14 +357,14 @@ class CredentialStore:
             params = (provider,)
         sql += " ORDER BY provider, priority, id"
         now = self.now()
-        return [self._health(row, now) for row in self._conn.execute(sql, params).fetchall()]
+        return [self._health(row, now) for row in self._read(sql, params)]
 
     def pool_health(self, provider: str, account_id: str | None = None) -> list[CredentialHealth]:
         now = self.now()
-        rows = self._conn.execute(
+        rows = self._read(
             f"SELECT {_COLUMNS} FROM provider_credentials WHERE provider = ? AND account_id IS ? ORDER BY priority, id",
             (_text(provider, "provider"), _optional_text(account_id)),
-        ).fetchall()
+        )
         return [self._health(row, now) for row in rows]
 
     def get_credential(self, credential_id: int) -> Credential:
@@ -361,11 +373,11 @@ class CredentialStore:
     def diagnose(self, provider: str, account_id: str | None = None) -> dict[str, Any]:
         """Pool counts + earliest cooldown, for an accurate exhaustion message."""
         now = self.now()
-        rows = self._conn.execute(
+        rows = self._read(
             "SELECT disabled, cooldown_until, lease_until FROM provider_credentials "
             "WHERE provider = ? AND account_id IS ?",
             (_text(provider, "provider"), _optional_text(account_id)),
-        ).fetchall()
+        )
         disabled = sum(1 for row in rows if int(row["disabled"]))
         cooling = [
             float(row["cooldown_until"])
@@ -408,7 +420,7 @@ class CredentialStore:
             sql += f" AND id NOT IN ({','.join('?' for _ in excluded)})"
             params.extend(excluded)
         sql += " ORDER BY priority, id LIMIT 1"
-        with self._lock, self._immediate():
+        with self._immediate():
             row = self._conn.execute(sql, params).fetchone()
             if row is None:
                 return None
@@ -420,7 +432,7 @@ class CredentialStore:
 
     def release_lease(self, credential_id: int) -> None:
         """Drop a lease without touching health (a non-HTTP failure)."""
-        with self._lock, self._immediate():
+        with self._immediate():
             cur = self._conn.execute(
                 f"UPDATE provider_credentials SET lease_until = 0, {_TOUCH} WHERE id = ?",
                 (credential_id,),
@@ -429,7 +441,7 @@ class CredentialStore:
                 raise CredentialNotFoundError(f"no provider credential with id {credential_id}")
 
     def record_success(self, credential_id: int) -> None:
-        with self._lock, self._immediate():
+        with self._immediate():
             cur = self._conn.execute(
                 "UPDATE provider_credentials SET last_status = 200, failure_count = 0, cooldown_until = 0, "
                 f"lease_until = 0, {_TOUCH} WHERE id = ?",
@@ -448,7 +460,7 @@ class CredentialStore:
         disable: bool = False,
     ) -> None:
         now = self.now() if now is None else now
-        with self._lock, self._immediate():
+        with self._immediate():
             cur = self._conn.execute(
                 "UPDATE provider_credentials SET last_status = ?, failure_count = failure_count + 1, "
                 "cooldown_until = COALESCE(?, cooldown_until), "
@@ -467,26 +479,25 @@ class CredentialStore:
         return AccountRegistry(self)
 
     def account_rows(self) -> list[sqlite3.Row]:
-        return self._conn.execute(
+        return self._read(
             "SELECT account_id, provider, name, email, workspace, labels FROM provider_accounts ORDER BY provider, name"
-        ).fetchall()
+        )
 
     def account_row(self, account_id: str) -> sqlite3.Row | None:
-        return self._conn.execute(
+        return self._read_one(
             "SELECT account_id, provider, name, email, workspace, labels FROM provider_accounts WHERE account_id = ?",
             (account_id,),
-        ).fetchone()
+        )
 
     def account_row_by_name(self, name: str) -> list[sqlite3.Row]:
-        rows = self._conn.execute(
+        return self._read(
             "SELECT account_id, provider, name, email, workspace, labels FROM provider_accounts WHERE name = ?",
             (name,),
-        ).fetchall()
-        return list(rows)
+        )
 
     def insert_account(self, account: Account) -> None:
         payload = json.dumps(account.labels, sort_keys=True)
-        with self._lock, self._immediate():
+        with self._immediate():
             try:
                 self._conn.execute(
                     "INSERT INTO provider_accounts (account_id, provider, name, email, workspace, labels) "
@@ -515,7 +526,7 @@ class CredentialStore:
         workspace: str | None,
         labels_json: str,
     ) -> None:
-        with self._lock, self._immediate():
+        with self._immediate():
             cur = self._conn.execute(
                 f"UPDATE provider_accounts SET name = ?, email = ?, workspace = ?, labels = ?, {_TOUCH} "
                 "WHERE account_id = ?",
@@ -525,7 +536,7 @@ class CredentialStore:
                 raise AccountError(f"unknown account {account_id!r}")
 
     def delete_account_row(self, account_id: str, *, drop_credentials: bool) -> None:
-        with self._lock, self._immediate():
+        with self._immediate():
             count = int(
                 self._conn.execute(
                     "SELECT COUNT(*) AS n FROM provider_credentials WHERE account_id = ?", (account_id,)

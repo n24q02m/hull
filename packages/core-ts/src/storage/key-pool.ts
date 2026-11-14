@@ -16,7 +16,7 @@
  * key back cannot leak it through hull.
  */
 
-import type { CredentialStore } from './key-pool-store.js'
+import type { CredentialStore, PoolDiagnostics } from './key-pool-store.js'
 
 export const DEFAULT_COOLDOWN_SECONDS = 60
 export const MIN_COOLDOWN_SECONDS = 1
@@ -308,13 +308,16 @@ export class KeyPool {
     return `KeyPool(provider=${JSON.stringify(this.provider)}, accountId=${JSON.stringify(this.accountId)}, credentials=${total})`
   }
 
+  /** Lease the next usable credential or throw `PoolExhaustedError`. */
   acquire(options: { exclude?: number[] } = {}): Credential {
-    const credential = this.store.leaseFirst(this.provider, this.accountId, {
+    const [credential, detail] = this.store.leaseFirstOrDiagnose(this.provider, this.accountId, {
       now: this.clock(),
       leaseSeconds: this.leaseSeconds,
       exclude: options.exclude ?? []
     })
-    if (credential === null) throw this.exhaustedError()
+    // The counts read with the refusal, not a later read: a holder that
+    // releases in between would make a busy pool look exhausted.
+    if (credential === null) throw buildExhaustedError(this, detail, null)
     return credential
   }
 
@@ -364,25 +367,9 @@ export class KeyPool {
     return typeof status === 'number' && Number.isInteger(status) ? status : null
   }
 
+  /** Build the pool's final error from live counts; never holds a key. */
   exhaustedError(lastError?: string | null): PoolExhaustedError {
-    const detail = this.store.diagnose(this.provider, this.accountId)
-    let message = `no usable ${JSON.stringify(this.provider)} credential`
-    if (this.accountId !== null) message += ` for account ${JSON.stringify(this.accountId)}`
-    message += ` (total=${detail.total}, disabled=${detail.disabled}, cooling_down=${detail.coolingDown}, leased=${detail.leased}`
-    if (detail.retryAfter !== null) message += `, retry in ${Math.round(detail.retryAfter)}s`
-    message += ')'
-    const redacted = this.redact(lastError)
-    if (redacted) message += `; last error: ${redacted.slice(0, 500)}`
-    return new PoolExhaustedError(message, {
-      provider: this.provider,
-      accountId: this.accountId,
-      total: detail.total,
-      disabled: detail.disabled,
-      coolingDown: detail.coolingDown,
-      leased: detail.leased,
-      retryAfter: detail.retryAfter,
-      lastError: redacted || null
-    })
+    return buildExhaustedError(this, null, lastError ?? null)
   }
 
   run<T>(call: (credential: Credential) => T, options: { statusOf?: (error: unknown) => number | null } = {}): T {
@@ -419,6 +406,32 @@ export class KeyPool {
   }
 }
 
+/** `detail` is the snapshot read with a refused lease; `null` reads the counts now. */
+function buildExhaustedError(
+  pool: KeyPool,
+  detail: PoolDiagnostics | null,
+  lastError: string | null
+): PoolExhaustedError {
+  const counts = detail ?? pool.store.diagnose(pool.provider, pool.accountId)
+  let message = `no usable ${JSON.stringify(pool.provider)} credential`
+  if (pool.accountId !== null) message += ` for account ${JSON.stringify(pool.accountId)}`
+  message += ` (total=${counts.total}, disabled=${counts.disabled}, cooling_down=${counts.coolingDown}, leased=${counts.leased}`
+  if (counts.retryAfter !== null) message += `, retry in ${Math.round(counts.retryAfter)}s`
+  message += ')'
+  const redacted = pool.redact(lastError)
+  if (redacted) message += `; last error: ${redacted.slice(0, 500)}`
+  return new PoolExhaustedError(message, {
+    provider: pool.provider,
+    accountId: pool.accountId,
+    total: counts.total,
+    disabled: counts.disabled,
+    coolingDown: counts.coolingDown,
+    leased: counts.leased,
+    retryAfter: counts.retryAfter,
+    lastError: redacted || null
+  })
+}
+
 class Rotation {
   private readonly pool: KeyPool
   private readonly statusOf: (error: unknown) => number | null
@@ -427,6 +440,7 @@ class Rotation {
   private readonly retried = new Map<number, number>()
   private readonly skip = new Set<number>()
   lastError: string | null = null
+  private refusal: PoolDiagnostics | null = null
 
   constructor(pool: KeyPool, statusOf: (error: unknown) => number | null) {
     this.pool = pool
@@ -441,8 +455,15 @@ class Rotation {
     try {
       credential = this.pool.acquire({ exclude: [...this.skip] })
     } catch (error) {
-      if (error instanceof PoolExhaustedError) return null
-      throw error
+      if (!(error instanceof PoolExhaustedError)) throw error
+      this.refusal = {
+        total: error.total,
+        disabled: error.disabled,
+        coolingDown: error.coolingDown,
+        leased: error.leased,
+        retryAfter: error.retryAfter
+      }
+      return null
     }
     this.attempts += 1
     return credential
@@ -470,6 +491,8 @@ class Rotation {
   }
 
   exhausted(): PoolExhaustedError {
-    return this.pool.exhaustedError(this.lastError)
+    // A refused lease ends the rotation: report the counts read with it, not
+    // a fresh read that a concurrent release may already have changed.
+    return buildExhaustedError(this.pool, this.refusal, this.lastError)
   }
 }

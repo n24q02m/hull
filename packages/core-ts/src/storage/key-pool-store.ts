@@ -415,7 +415,10 @@ export class CredentialStore {
   }
 
   diagnose(provider: string, accountId: string | null = null): PoolDiagnostics {
-    const now = this.clock()
+    return this.diagnoseAt(provider, accountId, this.clock())
+  }
+
+  private diagnoseAt(provider: string, accountId: string | null, now: number): PoolDiagnostics {
     const rows = this.db
       .prepare<[string, string | null], Pick<CredentialRow, 'disabled' | 'cooldown_until' | 'lease_until'>>(
         'SELECT disabled, cooldown_until, lease_until FROM provider_credentials WHERE provider = ? AND account_id IS ?'
@@ -441,6 +444,22 @@ export class CredentialStore {
     accountId: string | null,
     options: { now: number; leaseSeconds: number; exclude?: number[] }
   ): Credential | null {
+    return this.leaseFirstOrDiagnose(provider, accountId, options)[0]
+  }
+
+  /**
+   * Lease like {@link leaseFirst}; on a refusal, also return the pool counts behind it.
+   *
+   * The counts are read inside the refused transaction, so they describe the
+   * state that caused the refusal. A separate {@link diagnose} afterwards can
+   * already see another process release its lease and report `leased=0` for a
+   * pool that was busy. Returns `[credential, null]` or `[null, counts]`.
+   */
+  leaseFirstOrDiagnose(
+    provider: string,
+    accountId: string | null,
+    options: { now: number; leaseSeconds: number; exclude?: number[] }
+  ): [Credential, null] | [null, PoolDiagnostics] {
     const excluded = [...new Set(options.exclude ?? [])]
     let sql = `SELECT ${COLUMNS} FROM provider_credentials WHERE provider = ? AND account_id IS ? AND disabled = 0 AND cooldown_until <= ? AND lease_until <= ?`
     const params: unknown[] = [required(provider, 'provider'), optional(accountId), options.now, options.now]
@@ -449,13 +468,13 @@ export class CredentialStore {
       params.push(...excluded)
     }
     sql += ' ORDER BY priority, id LIMIT 1'
-    const lease = this.db.transaction((): Credential | null => {
+    const lease = this.db.transaction((): [Credential, null] | [null, PoolDiagnostics] => {
       const row = this.db.prepare<unknown[], CredentialRow>(sql).get(...params)
-      if (!row) return null
+      if (!row) return [null, this.diagnoseAt(provider, accountId, options.now)]
       this.db
         .prepare<[number, number]>(`UPDATE provider_credentials SET lease_until = ?, ${TOUCH} WHERE id = ?`)
         .run(options.now + options.leaseSeconds, row.id)
-      return this.toCredential(row)
+      return [this.toCredential(row), null]
     })
     return lease.immediate()
   }

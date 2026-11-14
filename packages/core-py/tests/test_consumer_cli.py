@@ -366,12 +366,12 @@ def test_doctor_corrupt_config_fails(home: Path, capsys: pytest.CaptureFixture[s
 def test_doctor_old_python_fails(
     home: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    monkeypatch.setattr(sys, "version_info", (3, 12, 9, "final", 0))
+    monkeypatch.setattr(sys, "version_info", (3, 11, 4, "final", 0))
     run, _ = _cli()
     rc = run(["doctor"])
     monkeypatch.undo()
     assert rc == 1
-    assert "[fail] python 3.12 (hull requires >= 3.13)" in capsys.readouterr().out
+    assert "[fail] python 3.11.4 (hull requires >= 3.11.5)" in capsys.readouterr().out
 
 
 def test_doctor_bad_backend_fails(

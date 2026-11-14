@@ -16,6 +16,7 @@ import tomllib
 from pathlib import Path
 
 from hull_core import __version__
+from hull_core._runtime import python_check
 from hull_core.auth.tokens import hash_token
 from hull_core.auth.users import UsersError, load_users
 from hull_core.config import tomledit
@@ -27,8 +28,6 @@ from hull_core.config.settings import (
     write_default_config,
 )
 from hull_core.server.run import ServerConfigError, run_server
-
-_MIN_PYTHON = (3, 13)
 
 # Mirrors the refusal in ``consumer_cli``: a token on argv lands in shell
 # history, so both CLIs read it from stdin or a hidden prompt instead.
@@ -146,13 +145,8 @@ def _cmd_status(_args: argparse.Namespace) -> int:
 
 def _cmd_doctor(_args: argparse.Namespace) -> int:
     """Same ``[ok]/[warn]/[fail]`` shape the consumer CLIs print."""
-    ok = True
-    major, minor = sys.version_info[:2]
-    if (major, minor) >= _MIN_PYTHON:
-        print(f"[ok] python {major}.{minor}")
-    else:
-        print(f"[fail] python {major}.{minor} (hull requires >= {_MIN_PYTHON[0]}.{_MIN_PYTHON[1]})")
-        ok = False
+    ok, line = python_check()
+    print(line)
 
     config_dir = default_config_dir()
     path = config_dir / "config.toml"

@@ -23,7 +23,7 @@ URL guard on the interact session opener (`hull_web.browsers.open_interact_sessi
     fastretrieval.server`), the dist that owns the model runtime. hull reaches
     it over HTTP like any other OpenAI-spec provider.
   - TypeScript: `@n24q02m/hull` (`packages/core-ts` on npm) — token-table auth (`token`, `multi` with `users.toml`), Streamable HTTP `/mcp` transport, `buildCli` console builder, encrypted `PerPluginStore` storage (`~/.<plugin>/`), the `@n24q02m/hull/storage` key-pool/account mirror over `~/.hull/hull.db`, lockfiles and cache. All relay, OAuth AS/delegated, and CfKvBackend residue is removed from the source tree; the published npm 0.4.0 tarball still carries it (see "Unreleased" below).
-- Runtime: Python 3.13; dev with `uv`, always-on with docker.
+- Runtime: Python 3.11 to 3.15 (CI tests each supported minor); dev with `uv`, always-on with docker.
 - Surfaces: `hull` CLI (control plane + consumer: `config`, `db`, `token`,
   `status`, `doctor`, `--version`), `hull server start`
   (the only way to run a server — MCP is an HTTP endpoint at

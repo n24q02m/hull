@@ -4,7 +4,7 @@
 # Setup: mise run setup
 
 [tools]
-python = "3.14"  # inside requires-python (>=3.13,<3.15); 3.15 has no wheels yet
+python = "3.14"  # dev interpreter; CI covers every supported minor (requires-python >=3.11.5)
 node = "24"
 uv = "latest"
 

@@ -3,7 +3,7 @@
 [![CI](https://github.com/n24q02m/hull/actions/workflows/ci.yml/badge.svg)](https://github.com/n24q02m/hull/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/n24q02m/hull/actions/workflows/codeql.yml/badge.svg)](https://github.com/n24q02m/hull/actions/workflows/codeql.yml)
 
-[![Python](https://img.shields.io/badge/python-3.13-3776AB.svg)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/python-3.11--3.15-3776AB.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green.svg)](LICENSE)
 
 **hull is the shared monorepo core for the wet, crg and mnemo self-hosted stack.**
@@ -48,7 +48,7 @@ npm install @n24q02m/hull
 
 ## Runtime model
 
-- Python 3.13. Dev with `uv`, always-on with docker.
+- Python 3.11 to 3.15 (every minor upstream still supports; CI tests each). Dev with `uv`, always-on with docker.
 - `hull server start` is the only way to run a server; MCP is an HTTP endpoint
   at `http://host:port/mcp` — never a spawned subprocess.
 - The CLI is the control plane + consumer. With the server down the CLI tells

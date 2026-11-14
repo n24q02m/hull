@@ -11,14 +11,17 @@ Both halves are cheap: no network, no subprocess, and no YAML dependency -- the
 repository does not carry PyYAML, so the workflow is read as text and only the
 few expressions that matter are matched.
 
-Freshness rule for ``scripts/ci_versions.py``: its two version tables and its
-``LAST_VERIFIED`` date are the only hand-maintained input. Extend them (and the
-date) when CPython ships a minor or a Node.js line enters/leaves LTS; a table
-older than six months is a defect.
+Freshness rule for ``scripts/ci_versions.py``: its two version tables (with
+their start and end-of-life dates) and its ``LAST_VERIFIED`` date are the only
+hand-maintained input. Extend them (and the date) when CPython ships a minor or
+a Node.js line is scheduled; a table older than six months is a defect. Every
+date-dependent test below pins ``today`` so the suite does not change verdict
+as the calendar moves.
 """
 
 from __future__ import annotations
 
+import datetime as dt
 import importlib.util
 import json
 import re
@@ -99,80 +102,132 @@ def _values(text: str, key: str) -> list[str]:
 # The derivation
 # ---------------------------------------------------------------------------
 
+# The day these assertions describe. Pinned, so the suite keeps its verdict as
+# the calendar moves; the date-moving tests below pin their own days.
+DAY = dt.date(2026, 11, 14)
+
 
 def _minor(row: str) -> tuple[int, int]:
     major, minor = row.split(".")
     return int(major), int(minor)
 
 
+def test_upstream_python_window_on_the_verified_day(ci_versions: ModuleType) -> None:
+    """3.10 left support on 2026-10-01; 3.15 entered it on 2026-10-09."""
+    assert ci_versions.supported_python_minors(DAY) == [(3, 11), (3, 12), (3, 13), (3, 14), (3, 15)]
+
+
+def test_upstream_node_window_on_the_verified_day(ci_versions: ModuleType) -> None:
+    """Node 20 left support on 2026-04-30; Node 26 entered LTS on 2026-10-28."""
+    assert ci_versions.supported_node_lines(DAY) == [22, 24, 26]
+
+
 def test_python_matrix_is_the_declared_window(ci_versions: ModuleType) -> None:
     floor = ci_versions.python_floor(ROOT)
     ceiling = ci_versions.python_ceiling(ROOT)
-    rows = ci_versions.python_matrix(ROOT)
+    rows = ci_versions.python_matrix(ROOT, DAY)
     minors = [_minor(row) for row in rows]
+    supported = ci_versions.supported_python_minors(DAY)
 
     assert 1 <= len(rows) <= ci_versions.MAX_ROWS
-    # Row one is the declared floor and no minor inside the window is skipped:
-    # CPython never skips a minor, so a gap means the table lost an entry.
-    assert minors == [(floor[0], floor[1] + index) for index in range(len(minors))]
+    # Row one is the declared floor, or the oldest supported minor when the
+    # floor sits on an end-of-life line; no minor inside the window is skipped.
+    first = max(floor, supported[0])
+    assert minors == [(first[0], first[1] + index) for index in range(len(minors))]
     if ceiling is None:
-        assert minors[-1] == ci_versions.PYTHON_RELEASED_MINORS[-1]
+        assert minors[-1] == supported[-1]
     else:
-        # The declared ceiling is a promise to consumers: the minor it excludes
-        # is not a row, and the newest row sits directly below it.
         assert all(minor < ceiling for minor in minors)
-        assert (minors[-1][0], minors[-1][1] + 1) == ceiling
 
 
-def test_the_declared_ceiling_keeps_3_15_out(ci_versions: ModuleType) -> None:
-    """hull's window is >=3.13,<3.15 until the cp315 wheels exist.
+def test_hull_covers_every_supported_python(ci_versions: ModuleType) -> None:
+    """Q34: a library runs CI on every CPython minor upstream still supports.
 
-    The ceiling exists because a 3.15 install has to build pyyaml (dspy's
-    dependency) and several other compiled packages from source; see the
-    requires-python comment in pyproject.toml for the reproduction command.
+    hull declares ``>=3.11.5`` with no ceiling, so on the verified day the rows
+    are exactly the upstream window. A 3.15 install builds pyyaml (pure-Python
+    fallback) and zstandard from source until their cp315 wheels exist; the
+    3.15 row is the proof that it still works.
     """
-    rows = ci_versions.python_matrix(ROOT)
-
-    assert "3.15" not in rows
-    assert rows[-1] == "3.14"
+    assert ci_versions.python_ceiling(ROOT) is None
+    assert ci_versions.python_matrix(ROOT, DAY) == ["3.11", "3.12", "3.13", "3.14", "3.15"]
 
 
-def test_node_matrix_covers_the_engines_floor(ci_versions: ModuleType) -> None:
-    floor_major, _ = ci_versions.node_floor(ROOT)
-    rows = ci_versions.node_matrix(ROOT)
-    lines = [int(row) for row in rows]
+def test_hull_covers_every_supported_node(ci_versions: ModuleType) -> None:
+    assert ci_versions.node_matrix(ROOT, DAY) == ["22", "24", "26"]
 
-    assert 1 <= len(rows) <= ci_versions.MAX_ROWS
-    assert lines == sorted(set(lines)), "rows must be unique and ascending"
-    assert all(line >= floor_major for line in lines), "a row below engines.node would fail the install"
-    assert lines[-1] == ci_versions.NODE_LTS_LINES[-1], "the newest LTS line is always tested"
-    if floor_major in ci_versions.NODE_LTS_LINES:
-        assert floor_major in lines, "the floor's own line must be exercised when it is an LTS line"
+
+def test_an_end_of_life_minor_drops_out_on_its_date(ci_versions: ModuleType) -> None:
+    before = ci_versions.python_matrix(ROOT, dt.date(2027, 10, 31))
+    after = ci_versions.python_matrix(ROOT, dt.date(2027, 11, 1))
+
+    assert before[0] == "3.11"
+    assert after == ["3.12", "3.13", "3.14", "3.15"]
+
+
+def test_a_minor_is_not_a_row_before_its_release(ci_versions: ModuleType) -> None:
+    assert ci_versions.supported_python_minors(dt.date(2026, 10, 8))[-1] == (3, 14)
+    assert ci_versions.supported_python_minors(dt.date(2026, 10, 9))[-1] == (3, 15)
+
+
+def test_a_node_line_counts_from_lts_and_drops_at_eol(ci_versions: ModuleType) -> None:
+    assert ci_versions.supported_node_lines(dt.date(2026, 10, 27)) == [22, 24]
+    assert ci_versions.node_matrix(ROOT, dt.date(2027, 5, 1)) == ["24", "26"]
 
 
 def test_node_matrix_follows_a_moved_engines_floor(ci_versions: ModuleType, tmp_path: Path) -> None:
-    source = json.loads((ROOT / "packages" / "core-ts" / "package.json").read_text(encoding="utf-8"))
-    source["engines"]["node"] = ">=26.0.0"
+    root = _package_with(tmp_path, ">=26.0.0")
+
+    assert ci_versions.node_matrix(root, DAY) == ["26"]
+
+
+def test_a_node_floor_on_an_end_of_life_line_drops_that_row(ci_versions: ModuleType, tmp_path: Path) -> None:
+    root = _package_with(tmp_path, ">=20.0.0")
+
+    assert ci_versions.node_matrix(root, DAY) == ["22", "24", "26"]
+
+
+def test_a_node_floor_outside_the_table_fails_closed(ci_versions: ModuleType, tmp_path: Path) -> None:
+    with pytest.raises(ci_versions.MatrixError, match="extend the table back"):
+        ci_versions.node_matrix(_package_with(tmp_path, ">=18.0.0"), DAY)
+    with pytest.raises(ci_versions.MatrixError, match="newer than the newest LTS line"):
+        ci_versions.node_matrix(_package_with(tmp_path, ">=28.0.0"), DAY)
+
+
+def test_a_node_spec_without_a_floor_fails_closed(ci_versions: ModuleType, tmp_path: Path) -> None:
+    with pytest.raises(ci_versions.MatrixError, match="no '>=X' lower bound"):
+        ci_versions.node_floor(_package_with(tmp_path, "^24.0.0"))
+
+
+def test_a_package_without_engines_fails_closed(ci_versions: ModuleType, tmp_path: Path) -> None:
     package_dir = tmp_path / "packages" / "core-ts"
     package_dir.mkdir(parents=True)
-    (package_dir / "package.json").write_text(json.dumps(source), encoding="utf-8")
+    (package_dir / "package.json").write_text(json.dumps({"name": "x"}), encoding="utf-8")
 
-    assert ci_versions.node_matrix(tmp_path) == [str(ci_versions.NODE_LTS_LINES[-1])]
+    with pytest.raises(ci_versions.MatrixError, match=re.escape("declares no engines.node")):
+        ci_versions.node_floor(tmp_path)
 
 
 def test_version_tables_are_consistent(ci_versions: ModuleType) -> None:
-    python_minors = ci_versions.PYTHON_RELEASED_MINORS
-    node_lines = ci_versions.NODE_LTS_LINES
+    python_minors = [minor for minor, _, _ in ci_versions.PYTHON_MINORS]
+    node_lines = [line for line, _, _ in ci_versions.NODE_LTS_LINES]
 
     assert len(python_minors) == len(set(python_minors))
-    assert list(python_minors) == sorted(python_minors)
+    assert python_minors == sorted(python_minors)
+    # CPython never skips a minor, so a gap means the table lost an entry.
+    assert python_minors == [(3, python_minors[0][1] + index) for index in range(len(python_minors))]
     assert len(node_lines) == len(set(node_lines))
-    assert list(node_lines) == sorted(node_lines)
+    assert node_lines == sorted(node_lines)
     assert all(line % 2 == 0 for line in node_lines), "odd Node majors never enter LTS"
+    for _, start, end in (*ci_versions.PYTHON_MINORS, *ci_versions.NODE_LTS_LINES):
+        assert dt.date.fromisoformat(start) < dt.date.fromisoformat(end)
     assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", ci_versions.LAST_VERIFIED)
 
 
-DECLARED_WINDOW = 'requires-python = ">=3.13,<3.15"'
+def test_today_is_utc(ci_versions: ModuleType) -> None:
+    assert ci_versions._today() == dt.datetime.now(dt.UTC).date()
+
+
+DECLARED_WINDOW = 'requires-python = ">=3.11.5"'
 
 
 def _pyproject_with(tmp_path: Path, window: str) -> Path:
@@ -184,44 +239,88 @@ def _pyproject_with(tmp_path: Path, window: str) -> Path:
     return tmp_path
 
 
-def test_python_matrix_follows_a_moved_floor(ci_versions: ModuleType, tmp_path: Path) -> None:
-    root = _pyproject_with(tmp_path, 'requires-python = ">=3.14,<3.15"')
+def _package_with(tmp_path: Path, spec: str) -> Path:
+    """A copy of the real core-ts package.json carrying a different engines.node."""
+    source = json.loads((ROOT / "packages" / "core-ts" / "package.json").read_text(encoding="utf-8"))
+    source["engines"]["node"] = spec
+    package_dir = tmp_path / "packages" / "core-ts"
+    package_dir.mkdir(parents=True, exist_ok=True)
+    (package_dir / "package.json").write_text(json.dumps(source), encoding="utf-8")
+    return tmp_path
 
-    assert ci_versions.python_matrix(root) == ci_versions.python_matrix(ROOT)[1:]
+
+def test_python_matrix_follows_a_moved_floor(ci_versions: ModuleType, tmp_path: Path) -> None:
+    root = _pyproject_with(tmp_path, 'requires-python = ">=3.14"')
+
+    assert ci_versions.python_matrix(root, DAY) == ["3.14", "3.15"]
 
 
 def test_python_matrix_follows_a_moved_ceiling(ci_versions: ModuleType, tmp_path: Path) -> None:
-    root = _pyproject_with(tmp_path, 'requires-python = ">=3.13,<3.14"')
+    root = _pyproject_with(tmp_path, 'requires-python = ">=3.13,<3.15"')
 
-    assert ci_versions.python_matrix(root) == ["3.13"]
+    assert ci_versions.python_matrix(root, DAY) == ["3.13", "3.14"]
+
+
+def test_a_floor_on_an_end_of_life_minor_drops_that_row(ci_versions: ModuleType, tmp_path: Path) -> None:
+    root = _pyproject_with(tmp_path, 'requires-python = ">=3.10"')
+
+    assert ci_versions.python_matrix(root, DAY) == ["3.11", "3.12", "3.13", "3.14", "3.15"]
 
 
 def test_an_inclusive_ceiling_excludes_the_next_minor(ci_versions: ModuleType, tmp_path: Path) -> None:
     root = _pyproject_with(tmp_path, 'requires-python = ">=3.13,<=3.13"')
 
     assert ci_versions.python_ceiling(root) == (3, 14)
-    assert ci_versions.python_matrix(root) == ["3.13"]
+    assert ci_versions.python_matrix(root, DAY) == ["3.13"]
+
+
+def test_a_major_only_ceiling_fails_closed(ci_versions: ModuleType, tmp_path: Path) -> None:
+    root = _pyproject_with(tmp_path, 'requires-python = ">=3.13,<4"')
+
+    with pytest.raises(ci_versions.MatrixError, match="caps on a major only"):
+        ci_versions.python_ceiling(root)
 
 
 def test_a_floor_below_the_table_fails_closed(ci_versions: ModuleType, tmp_path: Path) -> None:
-    root = _pyproject_with(tmp_path, 'requires-python = ">=3.9,<3.15"')
+    root = _pyproject_with(tmp_path, 'requires-python = ">=3.9"')
 
     with pytest.raises(ci_versions.MatrixError, match="extend the table back"):
-        ci_versions.python_matrix(root)
+        ci_versions.python_matrix(root, DAY)
+
+
+def test_a_window_without_a_floor_fails_closed(ci_versions: ModuleType, tmp_path: Path) -> None:
+    root = _pyproject_with(tmp_path, 'requires-python = "~=3.13"')
+
+    with pytest.raises(ci_versions.MatrixError, match=re.escape("no '>=X.Y' lower bound")):
+        ci_versions.python_floor(root)
+
+
+def test_a_pyproject_without_requires_python_fails_closed(ci_versions: ModuleType, tmp_path: Path) -> None:
+    (tmp_path / "pyproject.toml").write_text('[project]\nname = "x"\n', encoding="utf-8")
+
+    with pytest.raises(ci_versions.MatrixError, match=re.escape("declares no project.requires-python")):
+        ci_versions.python_floor(tmp_path)
 
 
 def test_an_empty_window_fails_closed(ci_versions: ModuleType, tmp_path: Path) -> None:
     root = _pyproject_with(tmp_path, 'requires-python = ">=3.15,<3.15"')
 
     with pytest.raises(ci_versions.MatrixError, match="excludes everything"):
-        ci_versions.python_matrix(root)
+        ci_versions.python_matrix(root, DAY)
 
 
 def test_a_ceiling_past_the_table_fails_closed(ci_versions: ModuleType, tmp_path: Path) -> None:
     root = _pyproject_with(tmp_path, 'requires-python = ">=3.13,<3.18"')
 
     with pytest.raises(ci_versions.MatrixError, match="extend the table"):
-        ci_versions.python_matrix(root)
+        ci_versions.python_matrix(root, DAY)
+
+
+def test_a_window_with_no_supported_minor_fails_closed(ci_versions: ModuleType, tmp_path: Path) -> None:
+    root = _pyproject_with(tmp_path, 'requires-python = ">=3.10,<3.11"')
+
+    with pytest.raises(ci_versions.MatrixError, match="no upstream-supported interpreter"):
+        ci_versions.python_matrix(root, DAY)
 
 
 def test_a_span_wider_than_the_cap_keeps_the_ends(ci_versions: ModuleType) -> None:
@@ -231,12 +330,40 @@ def test_a_span_wider_than_the_cap_keeps_the_ends(ci_versions: ModuleType) -> No
 
 
 def test_github_output_carries_every_ci_key(ci_versions: ModuleType) -> None:
-    rendered = ci_versions.github_output(ci_versions.matrix(ROOT))
+    rendered = ci_versions.github_output(ci_versions.matrix(ROOT, DAY))
 
     for key in ci_versions.GITHUB_KEYS:
         assert re.search(rf"^{re.escape(key)}(?:=|<<)", rendered, re.MULTILINE), rendered
-    assert json.dumps(ci_versions.python_matrix(ROOT)) in rendered
-    assert json.dumps(ci_versions.node_matrix(ROOT)) in rendered
+    assert json.dumps(ci_versions.python_matrix(ROOT, DAY)) in rendered
+    assert json.dumps(ci_versions.node_matrix(ROOT, DAY)) in rendered
+
+
+def test_matrix_reports_the_day_it_resolved_for(ci_versions: ModuleType) -> None:
+    resolved = ci_versions.matrix(ROOT, DAY)
+
+    assert resolved["today"] == "2026-11-14"
+    assert resolved["python-newest"] == "3.15"
+    assert resolved["node-newest"] == "26"
+
+
+@pytest.mark.parametrize("fmt", ["json", "text", "github"])
+def test_main_renders_every_format(ci_versions: ModuleType, capsys: pytest.CaptureFixture[str], fmt: str) -> None:
+    assert ci_versions.main(["--format", fmt, "--today", "2026-11-14", "--repo-root", str(ROOT)]) == 0
+    out = capsys.readouterr().out
+
+    assert "3.15" in out
+    if fmt == "json":
+        assert json.loads(out)["python"] == ["3.11", "3.12", "3.13", "3.14", "3.15"]
+
+
+def test_main_reports_a_matrix_error(
+    ci_versions: ModuleType, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    root = _pyproject_with(tmp_path, 'requires-python = ">=3.9"')
+    _package_with(tmp_path, ">=24.0.0")
+
+    assert ci_versions.main(["--repo-root", str(root), "--today", "2026-11-14"]) == 2
+    assert "ci_versions:" in capsys.readouterr().err
 
 
 # ---------------------------------------------------------------------------

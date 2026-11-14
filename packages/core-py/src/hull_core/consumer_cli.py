@@ -46,6 +46,7 @@ import sys
 from collections.abc import Callable
 from typing import cast
 
+from hull_core._runtime import python_check
 from hull_core.auth.tokens import hash_token
 from hull_core.storage.backends import LocalFsBackend, backend_from_env
 from hull_core.storage.data_dir import data_dir, legacy_data_dirs
@@ -137,13 +138,8 @@ def _logout_handler(server_name: str, plugin_name: str) -> ExtraHandler:
 
 def _doctor_handler(server_name: str, plugin_name: str) -> ExtraHandler:
     def handler(_ns: argparse.Namespace) -> int:
-        ok = True
-        major, minor = sys.version_info[:2]
-        if (major, minor) >= (3, 13):
-            print(f"[ok] python {major}.{minor}")
-        else:
-            print(f"[fail] python {major}.{minor} (hull requires >= 3.13)")
-            ok = False
+        ok, line = python_check()
+        print(line)
 
         try:
             backend = backend_from_env()

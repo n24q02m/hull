@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -53,6 +53,23 @@ describe('refreshLockTimestamp', () => {
     const path = join(tmp, 'missing.lock')
     expect(() => refreshLockTimestamp(path)).not.toThrow()
   })
+
+  it('silent no-op on a timestamp that does not parse', () => {
+    const path = join(tmp, 'demo-1235.lock')
+    writeFileSync(path, '9999\n1235\ntoken\nnot-a-date\n')
+
+    expect(() => refreshLockTimestamp(path)).not.toThrow()
+    expect(readFileSync(path, 'utf-8')).toBe('9999\n1235\ntoken\nnot-a-date\n')
+  })
+
+  it('silent no-op when the path exists but cannot be read', () => {
+    // A directory exists, and reading it as a file fails with EISDIR.
+    const path = join(tmp, 'demo-1236.lock')
+    mkdirSync(path)
+
+    expect(() => refreshLockTimestamp(path)).not.toThrow()
+    expect(lstatSync(path).isDirectory()).toBe(true)
+  })
 })
 
 describe('sweepStaleLocks', () => {
@@ -91,6 +108,44 @@ describe('sweepStaleLocks', () => {
     writeFileSync(p, 'NOT_AN_INT\n1234\nt\n2026-04-28T19:00:00Z\n')
 
     expect(sweepStaleLocks('demo', DEFAULT_LOCK_TTL_HOURS, tmp)).toBe(1)
+  })
+
+  it('removes a lock whose timestamp does not parse', () => {
+    const p = join(tmp, 'demo-6002.lock')
+    writeFileSync(p, '9999\n6002\nt\nnot-a-date\n')
+
+    expect(sweepStaleLocks('demo', DEFAULT_LOCK_TTL_HOURS, tmp)).toBe(1)
+    expect(existsSync(p)).toBe(false)
+  })
+
+  it('removes a lock entry that cannot be read', () => {
+    // A link to a directory fails to read as a file, but the link itself unlinks.
+    // 'junction' needs no privilege on Windows; other platforms ignore the type.
+    const target = join(tmp, 'elsewhere')
+    mkdirSync(target)
+    const p = join(tmp, 'demo-6003.lock')
+    symlinkSync(target, p, 'junction')
+
+    expect(sweepStaleLocks('demo', DEFAULT_LOCK_TTL_HOURS, tmp)).toBe(1)
+    expect(existsSync(p)).toBe(false)
+    expect(existsSync(target)).toBe(true)
+  })
+
+  it('skips an unreadable lock entry that cannot be removed either', () => {
+    // A real directory: reading fails with EISDIR and unlinking a directory fails too.
+    const p = join(tmp, 'demo-6004.lock')
+    mkdirSync(p)
+    writeLockWithAge(join(tmp, 'demo-6005.lock'), 999999, 6005, 25)
+
+    expect(sweepStaleLocks('demo', DEFAULT_LOCK_TTL_HOURS, tmp)).toBe(1)
+    expect(lstatSync(p).isDirectory()).toBe(true)
+  })
+
+  it('returns zero when the locks root is not a directory', () => {
+    const root = join(tmp, 'not-a-dir')
+    writeFileSync(root, '')
+
+    expect(sweepStaleLocks('demo', DEFAULT_LOCK_TTL_HOURS, root)).toBe(0)
   })
 
   it('returns zero when locks dir missing', () => {

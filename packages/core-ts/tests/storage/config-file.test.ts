@@ -1,7 +1,8 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   clearKeyCacheForTesting,
   deleteConfig,
@@ -9,14 +10,17 @@ import {
   importConfig,
   listConfigs,
   readConfig,
+  scheduleReloadExit,
   setConfigPath,
   writeConfig
 } from '../../src/storage/config-file.js'
 import {
+  decryptData,
   deriveFileKey,
   derivePassphraseKey,
   encryptData,
   LEGACY_EXPORT_SALT,
+  LEGACY_PBKDF2_ITERATIONS,
   LEGACY_SALT,
   PBKDF2_ITERATIONS
 } from '../../src/storage/encryption.js'
@@ -215,5 +219,138 @@ describe('migration', () => {
     const { readFile } = await import('node:fs/promises')
     const migratedData = await readFile(join(tempDir, 'config.enc'))
     expect(migratedData.length).toBe(encrypted.length + 16)
+  })
+
+  it('migrates a legacy file written with the old PBKDF2 iteration count', async () => {
+    const store = { version: 1, servers: { older: { data: 'val' } } }
+    const [machineId, username] = await Promise.all([getMachineId(), getUsername()])
+    const key = await deriveFileKey(machineId, username, LEGACY_SALT, LEGACY_PBKDF2_ITERATIONS)
+    const encrypted = await encryptData(key, JSON.stringify(store))
+    await writeFile(join(tempDir, 'config.enc'), encrypted)
+
+    expect(await readConfig('older')).toEqual({ data: 'val' })
+
+    // Rewritten in the salted, current-iteration format, which reads back directly.
+    const migrated = await readFile(join(tempDir, 'config.enc'))
+    expect(migrated.length).toBe(encrypted.length + 16)
+    clearKeyCacheForTesting()
+    const current = await deriveFileKey(machineId, username, migrated.subarray(0, 16))
+    expect(JSON.parse(await decryptData(current, migrated.subarray(16)))).toEqual(store)
+  }, 60000)
+
+  it('rejects a legacy old-iteration file with an invalid schema without rewriting it', async () => {
+    const [machineId, username] = await Promise.all([getMachineId(), getUsername()])
+    const key = await deriveFileKey(machineId, username, LEGACY_SALT, LEGACY_PBKDF2_ITERATIONS)
+    const encrypted = await encryptData(key, JSON.stringify({ version: 2, servers: {} }))
+    await writeFile(join(tempDir, 'config.enc'), encrypted)
+
+    await expect(readConfig('any')).rejects.toThrow()
+    expect(await readFile(join(tempDir, 'config.enc'))).toEqual(encrypted)
+  }, 60000)
+})
+
+describe('salted format validation', () => {
+  async function writeSalted(store: unknown): Promise<void> {
+    const salt = crypto.getRandomValues(new Uint8Array(16))
+    const [machineId, username] = await Promise.all([getMachineId(), getUsername()])
+    const key = await deriveFileKey(machineId, username, salt)
+    const encrypted = await encryptData(key, JSON.stringify(store))
+    await writeFile(join(tempDir, 'config.enc'), Buffer.concat([Buffer.from(salt), encrypted]))
+  }
+
+  it('rejects a salted file whose schema is invalid', async () => {
+    await writeSalted({ version: 2, servers: {} })
+
+    await expect(readConfig('any')).rejects.toThrow()
+  }, 60000)
+
+  it('rejects a server entry that is not an object', async () => {
+    await writeSalted({ version: 1, servers: { bad: 'not-an-object' } })
+
+    await expect(readConfig('bad')).rejects.toThrow()
+  }, 60000)
+})
+
+describe('importConfig validation', () => {
+  async function exportOf(payload: unknown, passphrase: string): Promise<Buffer> {
+    const salt = crypto.getRandomValues(new Uint8Array(16))
+    const key = await derivePassphraseKey(passphrase, salt)
+    return Buffer.concat([Buffer.from(salt), await encryptData(key, JSON.stringify(payload))])
+  }
+
+  it('rejects an export whose payload is not a config object', async () => {
+    await expect(importConfig('pass', await exportOf(null, 'pass'))).rejects.toThrow(
+      'Invalid config schema in imported data'
+    )
+    expect(await listConfigs()).toEqual([])
+  }, 60000)
+
+  it('imports a salted export written with the old PBKDF2 iteration count', async () => {
+    const salt = crypto.getRandomValues(new Uint8Array(16))
+    const key = await derivePassphraseKey('pass', salt, LEGACY_PBKDF2_ITERATIONS)
+    const store = { version: 1, servers: { moved: { k: 'v' } } }
+    const data = Buffer.concat([Buffer.from(salt), await encryptData(key, JSON.stringify(store))])
+
+    await importConfig('pass', data)
+    expect(await readConfig('moved')).toEqual({ k: 'v' })
+  }, 60000)
+})
+
+describe('config directory', () => {
+  it('creates a missing parent directory on the first write', async () => {
+    const nested = join(tempDir, 'fresh', 'nested', 'config.enc')
+    setConfigPath(nested)
+
+    await writeConfig('first', { k: 'v' })
+
+    expect(existsSync(nested)).toBe(true)
+    expect(await readConfig('first')).toEqual({ k: 'v' })
+  }, 60000)
+})
+
+describe('scheduleReloadExit', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllEnvs()
+    vi.restoreAllMocks()
+  })
+
+  function exitSpy() {
+    return vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never)
+  }
+
+  it('exits the process a second later outside tests', () => {
+    vi.useFakeTimers()
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('MCP_NO_RELOAD', '')
+    const exit = exitSpy()
+
+    scheduleReloadExit()
+    vi.advanceTimersByTime(999)
+    expect(exit).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(1)
+    expect(exit).toHaveBeenCalledWith(0)
+  })
+
+  it('does nothing when MCP_NO_RELOAD is set', () => {
+    vi.useFakeTimers()
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('MCP_NO_RELOAD', '1')
+    const exit = exitSpy()
+
+    scheduleReloadExit()
+    vi.advanceTimersByTime(5000)
+    expect(exit).not.toHaveBeenCalled()
+  })
+
+  it('does nothing under the test runner', () => {
+    vi.useFakeTimers()
+    vi.stubEnv('NODE_ENV', 'test')
+    vi.stubEnv('MCP_NO_RELOAD', '')
+    const exit = exitSpy()
+
+    scheduleReloadExit()
+    vi.advanceTimersByTime(5000)
+    expect(exit).not.toHaveBeenCalled()
   })
 })

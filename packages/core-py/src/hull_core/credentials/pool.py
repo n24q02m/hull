@@ -189,7 +189,7 @@ class KeyPool:
 
     def acquire(self, *, exclude: Collection[int] = ()) -> Credential:
         """Lease the next usable credential or raise ``PoolExhaustedError``."""
-        credential = self.store.lease_first(
+        credential, detail = self.store.lease_first_or_diagnose(
             self.provider,
             self.account_id,
             now=self._clock(),
@@ -197,7 +197,9 @@ class KeyPool:
             exclude=exclude,
         )
         if credential is None:
-            raise self.exhausted_error()
+            # The counts read with the refusal, not a later read: a holder that
+            # releases in between would make a busy pool look exhausted.
+            raise self._exhausted_error(detail, None)
         return credential
 
     def report_success(self, credential: Credential) -> None:
@@ -250,7 +252,12 @@ class KeyPool:
 
     def exhausted_error(self, *, last_error: str | None = None) -> PoolExhaustedError:
         """Build the pool's final error from live counts; never holds a key."""
-        detail = self.store.diagnose(self.provider, self.account_id)
+        return self._exhausted_error(None, last_error)
+
+    def _exhausted_error(self, detail: dict[str, Any] | None, last_error: str | None) -> PoolExhaustedError:
+        """``detail`` is the snapshot read with a refused lease; ``None`` reads the counts now."""
+        if detail is None:
+            detail = self.store.diagnose(self.provider, self.account_id)
         message = f"no usable {self.provider!r} credential"
         if self.account_id is not None:
             message += f" for account {self.account_id!r}"
@@ -333,13 +340,21 @@ class _Rotation:
         self.retried: dict[int, int] = {}
         self.skip: set[int] = set()
         self.last_error: str | None = None
+        self.refusal: dict[str, Any] | None = None
 
     def next_credential(self) -> Credential | None:
         if self.attempts >= self.limit:
             return None
         try:
             credential = self.pool.acquire(exclude=self.skip)
-        except PoolExhaustedError:
+        except PoolExhaustedError as exc:
+            self.refusal = {
+                "total": exc.total,
+                "disabled": exc.disabled,
+                "cooling_down": exc.cooling_down,
+                "leased": exc.leased,
+                "retry_after": exc.retry_after,
+            }
             return None
         self.attempts += 1
         return credential
@@ -369,4 +384,6 @@ class _Rotation:
         return action
 
     def exhausted(self) -> PoolExhaustedError:
-        return self.pool.exhausted_error(last_error=self.last_error)
+        # A refused lease ends the rotation: report the counts read with it, not
+        # a fresh read that a concurrent release may already have changed.
+        return self.pool._exhausted_error(self.refusal, self.last_error)

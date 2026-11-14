@@ -22,7 +22,12 @@ import { usePoolFixture } from './key-pool-helpers.js'
 
 const fixture = usePoolFixture()
 
-const ROUNDS = 3000
+// Each refusal is one chance for the holder to release between the refused
+// lease and the counts; the old code lost about one in a thousand of them.
+const REFUSALS = 10_000
+// SQLite's busy handler is not fair: the holder can starve for a while behind
+// this process's writes, so the loop runs to a refusal count, not a round count.
+const DEADLINE_MS = 90_000
 const HOLDER = fileURLToPath(new URL('../fixtures/lease-holder.mjs', import.meta.url))
 
 type EntryPoint = (pool: KeyPool) => Promise<void>
@@ -51,9 +56,13 @@ afterEach(() => {
 
 /** Start the other process and wait until its own connection is open. */
 async function startHolder(dbPath: string, credentialId: number, now: number): Promise<ChildProcess> {
-  const holder = spawn(process.execPath, [HOLDER, dbPath, String(credentialId), String(now), '120000'], {
-    stdio: ['ignore', 'pipe', 'inherit']
-  })
+  const holder = spawn(
+    process.execPath,
+    [HOLDER, dbPath, String(credentialId), String(now), String(DEADLINE_MS + 30_000)],
+    {
+      stdio: ['ignore', 'pipe', 'inherit']
+    }
+  )
   holders.push(holder)
   await new Promise<void>((resolve, reject) => {
     holder.once('error', reject)
@@ -85,7 +94,8 @@ describe('a refusal under cross-process contention', () => {
       const holder = await startHolder(store.path, id, clock.value)
       const pool = store.pool('openrouter')
       const refusals: PoolExhaustedError[] = []
-      for (let round = 0; round < ROUNDS; round += 1) {
+      const deadline = Date.now() + DEADLINE_MS
+      while (refusals.length < REFUSALS && Date.now() < deadline) {
         try {
           await ENTRY_POINTS[entry](pool)
         } catch (error) {
@@ -96,10 +106,10 @@ describe('a refusal under cross-process contention', () => {
       await stopped(holder)
 
       // The other process really held the key: otherwise nothing was tested.
-      expect(refusals.length).toBeGreaterThan(0)
+      expect(refusals.length).toBe(REFUSALS)
       expect(refusals.filter(unexplained).map((error) => error.message)).toEqual([])
     },
-    120_000
+    DEADLINE_MS + 30_000
   )
 })
 

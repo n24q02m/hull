@@ -1,5 +1,5 @@
 import { createCipheriv, randomBytes } from 'node:crypto'
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -38,7 +38,7 @@ vi.mock('node:fs', async (importOriginal) => {
 })
 
 import { LocalFsBackend, PerPluginStore, setConfigPath, setHomeDirForTesting, writeConfig } from '../storage/index.js'
-import { buildCli } from './build-cli.js'
+import { buildCli, MIN_NODE } from './build-cli.js'
 
 const SERVER = 'w51-test'
 
@@ -447,14 +447,33 @@ describe('buildCli — doctor subcommand', () => {
 
   it('fails on a runtime below the supported Node floor', async () => {
     const descriptor = Object.getOwnPropertyDescriptor(process.versions, 'node') as PropertyDescriptor
-    Object.defineProperty(process.versions, 'node', { ...descriptor, value: '18.0.0' })
+    Object.defineProperty(process.versions, 'node', { ...descriptor, value: '22.11.9' })
     try {
       const run = buildCli(SERVER, { serve: () => 0 })
       expect(await run(['doctor'])).toBe(1)
-      expect(logs.join('\n')).toContain('[fail] node 18.0.0 (expected >=24)')
+      expect(logs.join('\n')).toContain('[fail] node 22.11.9 (expected >=22.12.0)')
     } finally {
       Object.defineProperty(process.versions, 'node', descriptor)
     }
+  })
+
+  it.each(['22.12.0', '22.13.0', '24.0.0'])('accepts Node %s at or above the floor', async (value) => {
+    const descriptor = Object.getOwnPropertyDescriptor(process.versions, 'node') as PropertyDescriptor
+    Object.defineProperty(process.versions, 'node', { ...descriptor, value })
+    try {
+      const run = buildCli(SERVER, { serve: () => 0 })
+      await run(['doctor'])
+      expect(logs.join('\n')).toContain(`[ok] node ${value}`)
+    } finally {
+      Object.defineProperty(process.versions, 'node', descriptor)
+    }
+  })
+
+  it('keeps the doctor floor equal to package.json engines.node', () => {
+    const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf-8')) as {
+      engines: { node: string }
+    }
+    expect(pkg.engines.node).toBe(`>=${MIN_NODE.join('.')}`)
   })
 
   it('reports a broken credential backend without crashing the remaining checks', async () => {

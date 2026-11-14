@@ -41,11 +41,19 @@ import { dataDir, legacyDataDirs } from '../storage/data-dir.js'
 import { PerPluginStore } from '../storage/per-plugin-store.js'
 import { tokenCliHandler } from '../token-auth/cli.js'
 
-// Minimum Node major the stack supports (mcp-core package.json `engines`
-// pins `>=24.18.0`). Doctor's runtime check is the TS analogue of core-py's
-// exact `python == 3.13` line; TS uses a floor because the package supports
-// Node 24+ (its @types/node targets 26).
-const MIN_NODE_MAJOR = 24
+// Node floor the package supports: mirrors `engines.node` in package.json
+// (`>=22.12.0`), and a test pins the two together so the doctor cannot reject a
+// runtime the package itself accepts. TS analogue of core-py's `MIN_PYTHON`.
+export const MIN_NODE: readonly [number, number, number] = [22, 12, 0]
+
+function meetsNodeFloor(version: string): boolean {
+  const parts = version.split('.').map(Number)
+  for (let i = 0; i < MIN_NODE.length; i++) {
+    const part = parts[i] ?? 0
+    if (part !== MIN_NODE[i]) return part > MIN_NODE[i]
+  }
+  return true
+}
 
 /** A server's start entry point. Returns an exit code, or nothing for 0. */
 export type ServeFn = (argv: string[]) => number | void | Promise<number | void>
@@ -151,10 +159,10 @@ async function runDoctor(serverName: string, pluginName: string): Promise<number
   let ok = true
 
   const nodeVersion = process.versions.node
-  if (Number(nodeVersion.split('.')[0]) >= MIN_NODE_MAJOR) {
+  if (meetsNodeFloor(nodeVersion)) {
     console.log(`[ok] node ${nodeVersion}`)
   } else {
-    console.log(`[fail] node ${nodeVersion} (expected >=${MIN_NODE_MAJOR})`)
+    console.log(`[fail] node ${nodeVersion} (expected >=${MIN_NODE.join('.')})`)
     ok = false
   }
 

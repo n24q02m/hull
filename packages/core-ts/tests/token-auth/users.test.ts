@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, parse } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -258,4 +258,20 @@ describe('ensurePathAllowed', () => {
       PathNotAllowedError
     )
   })
+
+  // Only Windows has a filesystem root that can be missing: a drive letter with no volume.
+  const freeDrive = process.platform === 'win32' ? unmountedDriveLetter() : null
+  it.runIf(freeDrive !== null)('keeps a path on a drive that does not exist as it is written', () => {
+    const target = `${freeDrive}:\\nowhere\\file.txt`
+    expect(() => ensurePathAllowed({ uid: 'alice', allowedRoots: [dir] }, target)).toThrow(
+      `path ${target} is outside allowed roots for user 'alice'`
+    )
+  })
 })
+
+function unmountedDriveLetter(): string | null {
+  for (const letter of 'ZYXWVUTSRQPONMLKJIHGFEDCBA') {
+    if (!existsSync(`${letter}:\\`)) return letter
+  }
+  return null
+}

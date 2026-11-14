@@ -460,5 +460,52 @@ describe('tryOpenBrowser', () => {
         expect.any(Function)
       )
     })
+
+    /** On WSL, make each listed command fail and every other one succeed. */
+    function onWslWhere(failing: string[]): void {
+      Object.defineProperty(process, 'platform', { value: 'linux' })
+      vi.mocked(readFile).mockResolvedValue('Linux version 5.15.0-microsoft-standard-WSL2')
+      vi.mocked(execFile).mockClear()
+      vi.mocked(execFile).mockImplementation(((...args: unknown[]) => {
+        const cmd = String(args[0])
+        const callback = args.findLast((arg): arg is (error: Error | null) => void => typeof arg === 'function')
+        callback?.(failing.includes(cmd) ? new Error(`${cmd} failed`) : null)
+        return {}
+      }) as unknown as typeof execFile)
+    }
+
+    function commandsRun(): string[] {
+      return vi.mocked(execFile).mock.calls.map((call) => call[0] as string)
+    }
+
+    it('uses wslview on WSL when powershell.exe fails', async () => {
+      onWslWhere(['powershell.exe'])
+
+      const url = `https://example.com/wslview-${Date.now()}`
+      expect(await tryOpenBrowser(url)).toBe(true)
+
+      expect(commandsRun()).toEqual(['powershell.exe', 'wslview'])
+      expect(execFile).toHaveBeenCalledWith('wslview', [url], expect.any(Function))
+    })
+
+    it('detects WSL from a kernel string that names WSL but not Microsoft', async () => {
+      onWslWhere(['powershell.exe'])
+      vi.mocked(readFile).mockResolvedValue('Linux version 6.6.36 (custom-wsl-kernel)')
+
+      const url = `https://example.com/wsl-only-${Date.now()}`
+      expect(await tryOpenBrowser(url)).toBe(true)
+
+      expect(commandsRun()).toEqual(['powershell.exe', 'wslview'])
+    })
+
+    it('falls through to xdg-open on WSL when powershell.exe and wslview both fail', async () => {
+      onWslWhere(['powershell.exe', 'wslview'])
+
+      const url = `https://example.com/wsl-xdg-${Date.now()}`
+      expect(await tryOpenBrowser(url)).toBe(true)
+
+      expect(commandsRun()).toEqual(['powershell.exe', 'wslview', 'xdg-open'])
+      expect(execFile).toHaveBeenCalledWith('xdg-open', [url], expect.any(Function))
+    })
   })
 })

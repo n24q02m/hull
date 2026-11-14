@@ -18,6 +18,16 @@ describe('AES-256-GCM encryption', () => {
     expect(decrypted).toBe(plaintext)
   })
 
+  it('decrypts a ciphertext that carries its tag at the end', async () => {
+    const key = await makeKey()
+    const { ciphertext, iv, tag } = await encrypt(key, 'tag inline')
+    const combined = new Uint8Array(ciphertext.length + tag.length)
+    combined.set(ciphertext, 0)
+    combined.set(tag, ciphertext.length)
+
+    expect(await decrypt(key, combined, iv)).toBe('tag inline')
+  })
+
   it('IV is 12 bytes', async () => {
     const key = await makeKey()
     const { iv } = await encrypt(key, 'test')

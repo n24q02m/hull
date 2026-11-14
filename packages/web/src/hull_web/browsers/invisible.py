@@ -54,7 +54,7 @@ class InvisibleProvider:
         # Lazy import: this is a heavy optional dep and the slim container has
         # neither the engine nor a display. It must be able to fail here without
         # the chain noticing - see the strategy's except branch.
-        from invisible_playwright.async_api import (  # ty: ignore[unresolved-import]  # optional [invisible] extra
+        from invisible_playwright.async_api import (  # ty: ignore[import-not-found]  # optional [invisible] extra
             InvisiblePlaywright,
         )
 

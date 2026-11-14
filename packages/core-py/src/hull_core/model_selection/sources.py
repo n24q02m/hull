@@ -509,7 +509,7 @@ class UGISource(_BaseSource):
 def _read_parquet_rows(blob: bytes) -> list[dict[str, Any]]:
     """Read a parquet blob into row dicts; needs ``pandas`` or ``pyarrow``."""
     try:
-        import pandas as pd  # ty: ignore[unresolved-import]  # optional reader; absent -> pyarrow path
+        import pandas as pd  # ty: ignore[import-not-found]  # optional reader; absent -> pyarrow path
     except ImportError:
         pd = None
     if pd is not None:

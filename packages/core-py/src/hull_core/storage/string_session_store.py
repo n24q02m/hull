@@ -67,7 +67,7 @@ _save_on_change_cls: type | None = None
 
 def _build_save_on_change_cls() -> type:
     try:
-        from telethon.sessions import StringSession  # ty: ignore[unresolved-import]
+        from telethon.sessions import StringSession  # ty: ignore[import-not-found]
     except ImportError as exc:
         raise ImportError(TELETHON_INSTALL_HINT) from exc
 

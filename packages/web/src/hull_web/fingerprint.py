@@ -150,12 +150,12 @@ def build_identity(
     (invisible-core) is not installed.
     """
     try:
-        from invisible_core import (  # ty: ignore[unresolved-import]  # optional [identity] extra
+        from invisible_core import (  # ty: ignore[import-not-found]  # optional [identity] extra
             decide_session_locale,
             generate_profile,
             resolve_session_timezone,
         )
-        from invisible_core.constants import (  # ty: ignore[unresolved-import]
+        from invisible_core.constants import (  # ty: ignore[import-not-found]
             OSCPU_OVERRIDE,
             PLATFORM_OVERRIDE,
             USER_AGENT,

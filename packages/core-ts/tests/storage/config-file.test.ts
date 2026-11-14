@@ -294,6 +294,23 @@ describe('importConfig validation', () => {
     await importConfig('pass', data)
     expect(await readConfig('moved')).toEqual({ k: 'v' })
   }, 60000)
+
+  it('rejects an export too short to hold a salt and an IV', async () => {
+    await expect(importConfig('pass', Buffer.alloc(10, 7))).rejects.toThrow()
+    expect(await listConfigs()).toEqual([])
+  }, 60000)
+})
+
+describe('truncated config file', () => {
+  it('refuses a config file too short to hold a salt and an IV, and leaves it in place', async () => {
+    // A torn write can leave a few bytes; neither format can decrypt them.
+    const path = join(tempDir, 'config.enc')
+    const torn = Buffer.alloc(10, 7)
+    await writeFile(path, torn)
+
+    await expect(readConfig('any')).rejects.toThrow()
+    expect(await readFile(path)).toEqual(torn)
+  }, 60000)
 })
 
 describe('config directory', () => {

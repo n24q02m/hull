@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -88,6 +88,24 @@ describe('credential key file', () => {
     expect(() => loadOrCreateKey(path)).toThrow(/will not overwrite/)
     expect(readFileSync(path).toString()).toBe('0123456789abcdef')
   })
+
+  // A read-only directory refuses the create with EACCES. Windows ignores the
+  // POSIX mode bits and root bypasses them, so only a non-root POSIX run can see it.
+  it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)(
+    'surfaces a create failure other than an existing file',
+    () => {
+      const locked = join(dir, 'locked')
+      mkdirSync(locked, { mode: 0o500 })
+      chmodSync(locked, 0o500)
+      try {
+        expect(() => loadOrCreateKey(join(locked, '.credential-key'))).toThrow(
+          expect.objectContaining({ code: 'EACCES' })
+        )
+      } finally {
+        chmodSync(locked, 0o700)
+      }
+    }
+  )
 })
 
 describe('key hint', () => {

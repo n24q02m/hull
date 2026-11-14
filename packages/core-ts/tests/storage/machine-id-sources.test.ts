@@ -142,7 +142,10 @@ describe('getMachineId on Windows', () => {
 
   it('falls back when reg query prints no MachineGuid', async () => {
     onPlatform('win32')
-    os.execFile.mockResolvedValue({ stdout: '\r\nHKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Cryptography\r\n', stderr: '' })
+    os.execFile.mockResolvedValue({
+      stdout: '\r\nHKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Cryptography\r\n',
+      stderr: ''
+    })
 
     expect(await getMachineId()).toBe('build-host-unknown')
   })

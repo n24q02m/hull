@@ -1,3 +1,4 @@
+import Database from 'better-sqlite3'
 import { describe, expect, it } from 'vitest'
 import {
   type Credential,
@@ -194,6 +195,51 @@ describe('rotation policy', () => {
     pool.reportSuccess(fixture().store.getCredential(first))
     expect(pool.acquire().id).toBe(first)
   })
+
+  it('reads Retry-After through a fetch Headers object on 429', () => {
+    // A fetch `Response.headers` is a `Headers`: values come from `get()`, not own properties.
+    const pool = fixture().store.pool('openrouter')
+    const [first] = fixture().seed(2)
+    pool.run((credential) => {
+      if (credential.id === first) {
+        throw Object.assign(new Error('provider returned 429'), {
+          status: 429,
+          headers: new Headers({ 'Retry-After': '45' })
+        })
+      }
+      return 'ok'
+    })
+    expect(fixture().store.health('openrouter')[0].cooldownUntil).toBeCloseTo(fixture().clock.value + 45)
+  })
+
+  it('falls back to own properties when a header getter has no value', () => {
+    const pool = fixture().store.pool('openrouter')
+    const [first] = fixture().seed(2)
+    const headers = { get: (): null => null, 'Retry-After': '35' }
+    pool.run((credential) => {
+      if (credential.id === first) {
+        throw Object.assign(new Error('provider returned 429'), { status: 429, headers })
+      }
+      return 'ok'
+    })
+    expect(fixture().store.health('openrouter')[0].cooldownUntil).toBeCloseTo(fixture().clock.value + 35)
+  })
+
+  it('enables a disabled credential again', () => {
+    const pool = fixture().store.pool('openrouter')
+    const [only] = fixture().seed(1)
+    expect(() =>
+      pool.run(() => {
+        throw new ProviderFailure(401, 'invalid api key')
+      })
+    ).toThrow(PoolExhaustedError)
+    expect(fixture().store.health('openrouter')[0].disabled).toBe(true)
+
+    pool.enable(only)
+
+    expect(fixture().store.health('openrouter')[0].disabled).toBe(false)
+    expect(pool.acquire().id).toBe(only)
+  })
 })
 
 describe('secret hygiene', () => {
@@ -310,4 +356,118 @@ describe('policy helpers', () => {
     expect(() => new KeyPool(store, 'openrouter', { max5xxRetries: -1 })).toThrow(/max5xxRetries/)
     expect(() => new KeyPool(store, 'openrouter', { leaseSeconds: 0 })).toThrow(/leaseSeconds/)
   })
+
+  it('reads a blank rate_limit_reset as no hint', () => {
+    expect(parseRateLimitReset('   ')).toBeNull()
+  })
+
+  it('measures the cooldown against the wall clock when no time is given', () => {
+    const resetAt = Date.now() / 1000 + 120
+    const seconds = cooldownSeconds({ rateLimitReset: resetAt })
+    expect(seconds).toBeGreaterThan(115)
+    expect(seconds).toBeLessThanOrEqual(120)
+  })
+
+  it('falls back to the default provider for a URL without a host', () => {
+    expect(providerFromBaseUrl('file:///srv/models')).toBe('default')
+  })
+
+  it('reads a status only from an object with an integer status', () => {
+    expect(KeyPool.statusOf(null)).toBeNull()
+    expect(KeyPool.statusOf('provider returned 500')).toBeNull()
+    expect(KeyPool.statusOf({ status: '500' })).toBeNull()
+    expect(KeyPool.statusOf({ status: 500.5 })).toBeNull()
+    expect(KeyPool.statusOf({ status: 503 })).toBe(503)
+  })
+
+  it('defaults the counts of a PoolExhaustedError built by hand', () => {
+    const error = new PoolExhaustedError('nothing left', { provider: 'openrouter' })
+    expect(error).toMatchObject({
+      provider: 'openrouter',
+      accountId: null,
+      total: 0,
+      disabled: 0,
+      coolingDown: 0,
+      leased: 0,
+      retryAfter: null,
+      lastError: null
+    })
+  })
+
+  it('builds the exhausted error without a last error', () => {
+    fixture().seed(1)
+    const pool = fixture().store.pool('openrouter')
+    pool.acquire()
+
+    const error = pool.exhaustedError()
+
+    expect(error.lastError).toBeNull()
+    expect(error.leased).toBe(1)
+  })
+})
+
+describe('failures that are not provider errors', () => {
+  it('rethrows a fatal status from runAsync without rotating', async () => {
+    const [first] = fixture().seed(2)
+    const seen: number[] = []
+    const failure = new ProviderFailure(400, 'bad request')
+
+    await expect(
+      fixture()
+        .store.pool('openrouter')
+        .runAsync(async (credential) => {
+          seen.push(credential.id)
+          throw failure
+        })
+    ).rejects.toBe(failure)
+    expect(seen).toEqual([first])
+  })
+
+  it('rethrows a thrown null as it is', () => {
+    fixture().seed(1)
+
+    const thrown = capture(() =>
+      fixture()
+        .store.pool('openrouter')
+        .run(() => {
+          throw null
+        })
+    )
+
+    expect(thrown).toBeNull()
+  })
+
+  it('ignores headers that are not an object', () => {
+    const pool = fixture().store.pool('openrouter')
+    const [first] = fixture().seed(2)
+    pool.run((credential) => {
+      if (credential.id === first) {
+        throw Object.assign(new Error('provider returned 429'), { status: 429, headers: 'Retry-After: 45' })
+      }
+      return 'ok'
+    })
+    expect(fixture().store.health('openrouter')[0].cooldownUntil).toBeCloseTo(
+      fixture().clock.value + DEFAULT_COOLDOWN_SECONDS
+    )
+  })
+
+  it('lets a lease that cannot get the write lock fail as busy, not as exhaustion', () => {
+    // Another process holds the write lock past the store's 5 s busy_timeout:
+    // the pool counts still read (WAL), the lease transaction cannot start.
+    fixture().seed(1)
+    const pool = fixture().store.pool('openrouter')
+    const holder = new Database(fixture().store.path)
+    holder.exec('BEGIN IMMEDIATE')
+    try {
+      const calls: number[] = []
+      const thrown = capture(() => pool.run((credential) => calls.push(credential.id)))
+
+      expect(thrown).not.toBeInstanceOf(PoolExhaustedError)
+      expect(thrown).toMatchObject({ code: 'SQLITE_BUSY' })
+      expect(calls).toEqual([])
+    } finally {
+      holder.exec('ROLLBACK')
+      holder.close()
+    }
+  }, 30_000)
 })

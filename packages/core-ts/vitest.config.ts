@@ -8,6 +8,9 @@ export default defineConfig({
     testTimeout: 60000,
     hookTimeout: 60000,
     coverage: {
+      // Measure every source file, imported by a test or not, so a new module
+      // without tests counts against the thresholds instead of being invisible.
+      include: ['src/**/*.ts'],
       // `--coverage` fails below these. Statements and lines hold the repo's
       // 95% floor; branches and functions are ratchets set to the whole-number
       // part of the lowest level the CI matrix measured, so they may only rise.

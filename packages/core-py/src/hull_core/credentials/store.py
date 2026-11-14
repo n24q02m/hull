@@ -372,7 +372,9 @@ class CredentialStore:
 
     def diagnose(self, provider: str, account_id: str | None = None) -> dict[str, Any]:
         """Pool counts + earliest cooldown, for an accurate exhaustion message."""
-        now = self.now()
+        return self._diagnose(provider, account_id, self.now())
+
+    def _diagnose(self, provider: str, account_id: str | None, now: float) -> dict[str, Any]:
         rows = self._read(
             "SELECT disabled, cooldown_until, lease_until FROM provider_credentials "
             "WHERE provider = ? AND account_id IS ?",
@@ -409,6 +411,26 @@ class CredentialStore:
         exclude: Iterable[int] = (),
     ) -> Credential | None:
         """Atomically lease the highest-priority usable entry, or return ``None``."""
+        return self.lease_first_or_diagnose(
+            provider, account_id, now=now, lease_seconds=lease_seconds, exclude=exclude
+        )[0]
+
+    def lease_first_or_diagnose(
+        self,
+        provider: str,
+        account_id: str | None,
+        *,
+        now: float,
+        lease_seconds: float,
+        exclude: Iterable[int] = (),
+    ) -> tuple[Credential | None, dict[str, Any] | None]:
+        """Lease like :meth:`lease_first`; on a refusal, also return the pool counts behind it.
+
+        The counts are read inside the refused transaction, so they describe the
+        state that caused the refusal. A separate :meth:`diagnose` afterwards can
+        already see a concurrent holder's release and report ``leased=0`` for a
+        pool that was busy. Returns ``(credential, None)`` or ``(None, counts)``.
+        """
         excluded = sorted({int(value) for value in exclude})
         sql = (
             f"SELECT {_COLUMNS} FROM provider_credentials "
@@ -423,12 +445,12 @@ class CredentialStore:
         with self._immediate():
             row = self._conn.execute(sql, params).fetchone()
             if row is None:
-                return None
+                return None, self._diagnose(provider, account_id, now)
             self._conn.execute(
                 f"UPDATE provider_credentials SET lease_until = ?, {_TOUCH} WHERE id = ?",
                 (now + lease_seconds, int(row["id"])),
             )
-        return self._credential(row)
+        return self._credential(row), None
 
     def release_lease(self, credential_id: int) -> None:
         """Drop a lease without touching health (a non-HTTP failure)."""

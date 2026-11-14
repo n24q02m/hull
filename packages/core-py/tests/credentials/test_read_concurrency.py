@@ -113,6 +113,7 @@ def test_every_public_read_is_covered() -> None:
         "disable",
         "reset_health",
         "lease_first",
+        "lease_first_or_diagnose",
         "release_lease",
         "record_success",
         "record_failure",

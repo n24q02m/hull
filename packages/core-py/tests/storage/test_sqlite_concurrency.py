@@ -22,6 +22,11 @@ from hull_core.storage.sqlite import HullDatabase
 
 ITERATIONS = 3000
 READERS = 3
+# The writer does a fixed amount of work too. ``threading.Lock`` is not fair: a
+# writer looping until the readers finish can re-take the lock every time it
+# drops it and starve them (seen on CI, Python 3.11), so a time-bound loop
+# makes the test's runtime depend on the scheduler instead of the work.
+WRITES = 300
 
 READS: dict[str, Callable[[HullDatabase], Any]] = {
     "journal_mode": lambda db: db.journal_mode,
@@ -63,10 +68,10 @@ def _hammer(db: HullDatabase, read: Callable[[HullDatabase], Any]) -> list[str]:
 
     def writer() -> None:
         start.wait(timeout=10)
-        value = 0
-        while not stop.is_set():
+        for value in range(WRITES):
+            if stop.is_set():
+                return
             try:
-                value += 1
                 db.kv_put("ns", "k1", str(value))
             except BaseException as exc:
                 record(exc)

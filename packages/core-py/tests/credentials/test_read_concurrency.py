@@ -25,6 +25,11 @@ from hull_core.credentials.store import CredentialStore
 BASE_URL = "https://openrouter.ai/api/v1"
 ITERATIONS = 3000
 READERS = 2
+# The writer does a fixed amount of work too. The store's lock is not fair: a
+# writer looping until the readers finish can re-take it every time it drops it
+# and starve them (seen on CI, Python 3.11), so a time-bound loop makes the
+# test's runtime depend on the scheduler instead of the work.
+WRITES = 300
 
 
 def _seed(store: CredentialStore) -> int:
@@ -71,10 +76,10 @@ def _hammer(store: CredentialStore, read: Callable[[CredentialStore, int], Any],
 
     def writer() -> None:
         start.wait(timeout=10)
-        priority = 0
-        while not stop.is_set():
+        for priority in range(1, WRITES + 1):
+            if stop.is_set():
+                return
             try:
-                priority += 1
                 store.set_priority(credential_id, priority)
                 store.record_success(credential_id)
             except BaseException as exc:

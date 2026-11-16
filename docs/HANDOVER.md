@@ -170,8 +170,9 @@ classification, decision, embedding, rerank, translation, …) from public
 boards; it is scan-only (no evals, no paid calls) and never writes a model
 into any config.
 
-- Workflow `Model Candidates Publish` (`model-candidates.yml`): Mondays 04:41
-  UTC or `workflow_dispatch`. It force-pushes `data/model-candidates.json` to
+- Job `Publish candidates snapshot` in `ci.yml`: dispatch-only, nothing starts
+  it by itself (`gh workflow run ci.yml -R n24q02m/hull --ref main -f
+  model_candidates=true`). It force-pushes `data/model-candidates.json` to
   the `data/model-candidates` branch (the read surface for consumers, not
   `main`) and updates the single sticky issue
   `[model-candidates] weekly leaders (all profiles)`.

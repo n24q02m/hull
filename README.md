@@ -1,10 +1,35 @@
 # hull — shared core for the wet / crg / mnemo self-hosted stack
 
 [![CI](https://github.com/n24q02m/hull/actions/workflows/ci.yml/badge.svg)](https://github.com/n24q02m/hull/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/n24q02m/hull/actions/workflows/codeql.yml/badge.svg)](https://github.com/n24q02m/hull/actions/workflows/codeql.yml)
+[![codecov](https://codecov.io/gh/n24q02m/hull/graph/badge.svg)](https://codecov.io/gh/n24q02m/hull)
 
 [![Python](https://img.shields.io/badge/python-3.11--3.15-3776AB.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green.svg)](LICENSE)
+
+<!-- BEGIN: AUTO-GENERATED-CROSS-PROMO -->
+<details>
+  <summary><strong>Sister projects from n24q02m</strong> (click to expand)</summary>
+
+| Project | Tagline | Tag |
+|---|---|---|
+| [better-semantic-release](https://github.com/n24q02m/better-semantic-release) | Drop-in python-semantic-release fork with built-in release-safety guards (orp... | Tooling |
+| [claude-plugins](https://github.com/n24q02m/claude-plugins) | Claude Code plugin marketplace for the n24q02m MCP servers -- install web sea... | Marketplace |
+| [crg](https://github.com/n24q02m/crg) | Knowledge graph for token-efficient code reviews -- semantic search and call-... | MCP |
+| [email](https://github.com/n24q02m/email) | IMAP/SMTP email for AI agents -- read, send, organize folders, and manage att... | MCP |
+| [fastretrieval](https://github.com/n24q02m/fastretrieval) | Fast multi-model retrieval runtime: ONNX and GGUF embeddings, reranking, and ... | Tooling |
+| [hull](https://github.com/n24q02m/hull) | hull is the shared monorepo core for the wet, crg and mnemo self-hosted stack | MCP |
+| [jules-task-archiver](https://github.com/n24q02m/jules-task-archiver) | Chrome Extension for bulk operations on Jules tasks via batchexecute API -- a... | Tooling |
+| [mnemo](https://github.com/n24q02m/mnemo) | Persistent AI memory with hybrid search. Open, free, unlimited. | MCP |
+| [notion](https://github.com/n24q02m/notion) | Markdown-first Notion for AI agents -- pages, databases, blocks, and comments... | MCP |
+| [skret](https://github.com/n24q02m/skret) | Secrets without the server. | CLI |
+| [tacet](https://github.com/n24q02m/tacet) | A self-distilling neuro-symbolic cascade that amortises LLM cost across knowl... | Tooling |
+| [telegram](https://github.com/n24q02m/telegram) | Telegram for AI agents -- messages, chats, media, and contacts across both bo... | MCP |
+| [tools-docs](https://github.com/n24q02m/tools-docs) | Documentation portal for the n24q02m open-source tools skret and better-seman... | Tooling |
+| [wet](https://github.com/n24q02m/wet) | Open-source MCP server for AI agents: web search, content extraction, and lib... | MCP |
+| [workspace](https://github.com/n24q02m/workspace) | Google Workspace MCP server (Docs/Drive/Calendar/Gmail/Sheets/Slides/Tasks/Ch... | MCP |
+
+</details>
+<!-- END: AUTO-GENERATED-CROSS-PROMO -->
 
 **hull is the shared monorepo core for the wet, crg and mnemo self-hosted stack.**
 
@@ -12,6 +37,16 @@ It owns everything the three products share — token auth, per-task model
 configuration, per-user rate limiting, local SQLite storage, the HTTP MCP server
 lifecycle, and web scraping/search infrastructure —
 for **wet** (search), **crg** (code graph) and **mnemo** (memory).
+
+## Table of contents
+
+- [Install](#install)
+- [Packages](#packages)
+- [Runtime model](#runtime-model)
+- [Auth — one mechanism, three modes](#auth--one-mechanism-three-modes)
+- [Quick start](#quick-start)
+- [Development](#development)
+- [License](#license)
 
 ## Install
 

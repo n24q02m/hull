@@ -2,16 +2,19 @@
 
 from __future__ import annotations
 
+import asyncio
+import time
 from pathlib import Path
 from types import SimpleNamespace
 
+import httpx
 from starlette.applications import Starlette
 from starlette.routing import Route
 from starlette.testclient import TestClient
 
 from hull_core.auth.asgi import HullAuthMiddleware
-from hull_core.auth.context import current_user
-from hull_core.auth.middleware import Authenticator
+from hull_core.auth.context import AuthContext, current_user
+from hull_core.auth.middleware import Authenticator, AuthOutcome
 from hull_core.auth.tokens import hash_token
 from hull_core.config.settings import HullSettings, ServerSettings
 
@@ -116,3 +119,38 @@ def test_public_paths_default_empty(tmp_path: Path) -> None:
     middleware = HullAuthMiddleware(star, Authenticator(_token_settings(tmp_path)))
     assert middleware.public_paths == frozenset()
     assert TestClient(middleware).get("/health").status_code == 401
+
+
+class _SlowAuthenticator:
+    """Authenticator whose check blocks its thread as long as a real scrypt verification does."""
+
+    def __init__(self, seconds: float) -> None:
+        self.seconds = seconds
+
+    def authenticate(self, authz):  # noqa: ANN001
+        time.sleep(self.seconds)
+        return AuthOutcome(context=AuthContext.local())
+
+
+async def _concurrent_gets(n: int, seconds: float) -> tuple[list[int], float]:
+    star = Starlette(routes=[Route("/whoami", _endpoint, methods=["GET"])])
+    # ty: the stub stands in for a real Authenticator whose check takes `seconds`.
+    app = HullAuthMiddleware(star, _SlowAuthenticator(seconds))  # ty: ignore[invalid-argument-type]
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://hull.test") as client:
+        start = time.perf_counter()
+        responses = await asyncio.gather(*(client.get("/whoami") for _ in range(n)))
+        return [r.status_code for r in responses], time.perf_counter() - start
+
+
+async def test_token_check_runs_off_the_event_loop() -> None:
+    """Four requests whose checks take 0.5 s each finish together, not one after another."""
+    codes, elapsed = await _concurrent_gets(4, 0.5)
+    assert codes == [200] * 4
+    assert elapsed < 1.5, f"4 checks of 0.5 s took {elapsed:.2f} s: they ran in turn on the event loop"
+
+
+async def test_token_checks_in_flight_are_capped_at_four() -> None:
+    """Each scrypt check holds 32 MiB, so at most four run at once: eight 0.3 s checks need two rounds."""
+    codes, elapsed = await _concurrent_gets(8, 0.3)
+    assert codes == [200] * 8
+    assert 0.55 <= elapsed < 1.5, f"8 checks of 0.3 s took {elapsed:.2f} s"

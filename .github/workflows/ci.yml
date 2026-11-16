@@ -14,6 +14,17 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      sha:
+        description: "Commit for the main-integrity job to verify (default: the tip of the dispatched ref)"
+        required: false
+        type: string
+        default: ""
+      model_candidates:
+        description: "Also publish the model-candidates snapshot (data/model-candidates branch + leaders issue)"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -33,8 +44,10 @@ concurrency:
   #    bot PR's in-flight CI — bot PRs chronically showed CANCELLED checks and
   #    could never be merged on a green gate. Per-PR groups let each PR's
   #    runs proceed independently.
+  # 3. A dispatch with model_candidates=true gets its own group, so a plain
+  #    CI dispatch on the same ref cannot cancel a snapshot publish in flight.
   group: >-
-    ${{ format('ci-{0}-{1}-{2}', github.workflow, github.event_name, github.event.pull_request.number || github.ref) }}
+    ${{ format('ci-{0}-{1}-{2}{3}', github.workflow, github.event_name, github.event.pull_request.number || github.ref, inputs.model_candidates && '-model-candidates' || '') }}
   cancel-in-progress: true
 
 jobs:
@@ -50,6 +63,7 @@ jobs:
   versions:
     name: Resolve support matrix
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       python: ${{ steps.resolve.outputs.python }}
       python-newest: ${{ steps.resolve.outputs.python-newest }}
@@ -80,6 +94,7 @@ jobs:
     name: Verify README registry metadata
     needs: versions
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
@@ -109,8 +124,8 @@ jobs:
   lint-and-test:
     name: Lint & Test (Python ${{ matrix.python-version }})
     needs: versions
-    if: github.event_name == 'pull_request' || github.event_name == 'push'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       # A floor row that fails is the finding, not a reason to cancel the others.
       fail-fast: false
@@ -180,6 +195,7 @@ jobs:
     needs: [lint-and-test]
     if: always() && needs.lint-and-test.result != 'skipped'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
@@ -204,7 +220,7 @@ jobs:
   lint-and-test-ts:
     name: Lint & Test (TypeScript, ${{ matrix.os }}, Node ${{ matrix.node-version }})
     needs: versions
-    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -265,10 +281,33 @@ jobs:
           files: ./packages/core-ts/coverage/coverage-final.json
           token: ${{ secrets.CODECOV_TOKEN }}
 
-  # SAST is NOT a job here. Private repos scan with Semgrep via
-  # templates/visibility/private/.github/workflows/semgrep.yml; public repos scan with
-  # CodeQL. Putting a semgrep job in this file would ship Semgrep to public repos too,
-  # which is the rule inverted -- see test_public_repos_do_not_get_semgrep.
+  # ============================================================================
+  # SAST for a PUBLIC repo: CodeQL, and only CodeQL (repo-bootstrap fragment
+  # templates/fragments/codeql-job.yml). It used to be a third workflow file
+  # (codeql.yml, with a weekly cron); the two-file standard (ci.yml + cd.yml)
+  # keeps it here, so it runs on every push to main, every pull request and
+  # every dispatch of this workflow. The main-branch ruleset requires CodeQL
+  # results, and code-scanning default setup is off on this repo, so this job is
+  # their only producer. Private repos scan with Semgrep instead.
+  # ============================================================================
+  codeql:
+    name: Analyze
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        # Omit languages so CodeQL uses its supported repository autodetection.
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
 
   # ============================================================================
   # Dependency Review
@@ -277,6 +316,7 @@ jobs:
     name: Dependency Review
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
@@ -293,3 +333,130 @@ jobs:
         # unrelated work on a finding the PR did not introduce. The PR comment is
         # the deliverable here.
         continue-on-error: true
+
+  # ============================================================================
+  # Model candidates snapshot: the leaderboard-driven candidate lists (public
+  # boards + OpenRouter catalog, scan-only: no evals, no paid calls). It used to
+  # be a third workflow file (model-candidates.yml) on a Monday cron. The
+  # two-file standard folds it in here as a dispatch-only job that nothing
+  # starts by itself; whoever wants a fresh snapshot dispatches it:
+  #   gh workflow run ci.yml -R n24q02m/hull --ref main -f model_candidates=true
+  # It sits in ci.yml, not cd.yml, because it cuts no release: a cd.yml
+  # dispatch always runs semantic-release.
+  #
+  # AA_API_KEY (free tier, skret /hull/prod/AA_API_KEY) unlocks the AA /free
+  # model-list source; no other secrets. The committed
+  # data/model-candidates.json is the neutral, cross-repo contract: consumer
+  # stacks (crg/wet/mnemo) pull this file's raw URL and propose per-task model
+  # config pins through label-gated PRs and sticky issues. Model defaults in
+  # code stay empty and fail-closed everywhere; this snapshot never carries
+  # human-managed fields (tiers / active / nsfw decisions live in each
+  # consumer's own registry, reviewed by humans).
+  #
+  # Canonical read surface: the `data/model-candidates` BRANCH, not main.
+  # Personal repos cannot grant GITHUB_TOKEN pull-request creation (repo-level
+  # setting, not exposed via REST — verified by run 37461764776 failing at
+  # gh pr create), so the branch is force-pushed on every publish and stays the
+  # latest always-green contract for consumers. Humans review the diff on the
+  # branch directly.
+  # ============================================================================
+  model-candidates:
+    name: Publish candidates snapshot
+    if: github.event_name == 'workflow_dispatch' && inputs.model_candidates
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      issues: write # central leaders sticky issue
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # No python-version input: uv resolves .python-version, and
+      # tests/test_ci_versions.py rejects a literal version in this file.
+      - name: Setup uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+
+      - name: Install dependencies
+        run: uv sync --locked --extra mteb
+
+      - name: Build snapshot
+        env:
+          AA_API_KEY: ${{ secrets.AA_API_KEY }}
+        run: uv run --no-sync python scripts/publish_candidates.py
+
+      - name: Push snapshot branch
+        id: publish
+        run: |
+          BRANCH=data/model-candidates
+          git config user.name "hull-publish-bot"
+          git config user.email "hull-publish-bot@users.noreply.github.com"
+          git checkout -B "$BRANCH"
+          git add data/model-candidates.json
+          if git diff --cached --quiet; then
+            echo "Snapshot unchanged; nothing to publish."
+            exit 0
+          fi
+          git commit -m "fix: weekly model-candidates snapshot"
+          # Canonical read surface is the BRANCH, not main: personal repos do
+          # not allow GITHUB_TOKEN to open pull requests (repo-level setting
+          # not exposed via REST, verified 2026-10-06 run 37461764776), so a
+          # PR-per-week design would silently go stale. Consumers pull
+          # raw.githubusercontent.com/n24q02m/hull/data/model-candidates/data/model-candidates.json
+          # which always reflects the latest scan; human review happens on
+          # the branch diff, not on main.
+          git push --force origin "$BRANCH"
+          echo "published=true" >> "${GITHUB_OUTPUT}"
+          echo "Published to $BRANCH. Raw URL: https://raw.githubusercontent.com/n24q02m/hull/$BRANCH/data/model-candidates.json"
+
+      - name: Upsert central leaders issue
+        if: steps.publish.outputs.published == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STICKY_TITLE: "[model-candidates] weekly leaders (all profiles)"
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+
+          data = json.load(open("data/model-candidates.json"))
+          rows = []
+          for name in sorted(data.get("tasks", {})):
+              task = data["tasks"][name]
+              if task.get("or_backbone_empty"):
+                  rows.append((name, "(backbone empty — scan skipped)"))
+                  continue
+              strong = [
+                  c for c in (task.get("candidates") or [])
+                  if c.get("pareto_rank") == 0 and c.get("weak_evidence") is False
+              ]
+              if strong:
+                  lead = strong[0]
+                  cost = lead.get("cost_1m_blended")
+                  cost_s = f", {cost} $/1M" if cost is not None else ""
+                  rows.append((name, f"`{lead['or_slug']}` ({lead.get('quality', 0):.1f} q{cost_s})"))
+              else:
+                  weak_rows = len(task.get("candidates") or [])
+                  rows.append((name, f"(none strong — {weak_rows} weak rows trail unranked)"))
+          lines = "\n".join(f"| {n} | {v} |" for n, v in rows)
+          body = (
+              "## [model-candidates] weekly leaders (all profiles)\n\n"
+              f"Snapshot `data/model-candidates` @ `{data.get('generated_at', 'unknown')}` "
+              "(schema_version 1). Single central note per the 2026-10-08 directive —\n"
+              "consumer configs read this when usage/config lands; nothing is applied\n"
+              "by CI and no credentials are involved.\n\n"
+              "| task profile | hull leader (pareto 0, strong) |\n| --- | --- |\n"
+              f"{lines}\n\n"
+              f"<!--model-candidates:generated={data.get('generated_at', 'unknown')}-->\n"
+          )
+          with open("issue-body.md", "w", encoding="utf-8") as f:
+              f.write(body)
+          PY
+          num="$(gh issue list --repo n24q02m/hull --state open --limit 200 --json number,title \
+            | python3 -c 'import json,os,sys;t=os.environ["STICKY_TITLE"];items=[i for i in json.load(sys.stdin) if i["title"]==t];print(items[0]["number"] if items else "")')"
+          if [ -z "${num}" ]; then
+            gh issue create --repo n24q02m/hull --title "${STICKY_TITLE}" --body-file issue-body.md
+          else
+            gh issue edit "${num}" --repo n24q02m/hull --body-file issue-body.md >/dev/null
+            echo "Updated central issue #${num}"
+          fi

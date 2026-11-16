@@ -8,12 +8,19 @@ can scope storage access per user. Rejections are JSON:
 ``public_paths`` is an exact-match allow-list of request paths that skip
 authentication (e.g. an unauthenticated ``/health`` probe). Those requests run
 with no identity bound, so a public route must never touch per-user state.
+
+Checking a bearer token runs scrypt, which blocks its thread for about half a
+second and allocates 32 MiB. The check runs on a small dedicated thread pool so
+the event loop keeps serving other requests in the meantime, the way the
+TypeScript core awaits its async scrypt on the libuv pool.
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import Iterable
+from concurrent.futures import ThreadPoolExecutor
 
 from hull_core.auth.context import set_current_user, reset_current_user
 from hull_core.auth.middleware import Authenticator
@@ -24,6 +31,10 @@ _STATUS_TEXT = {
     429: "rate limit exceeded",
     500: "server misconfiguration",
 }
+
+# Four workers, matching the default libuv pool the TypeScript core verifies on;
+# this also caps the scrypt memory held at once to 4 x 32 MiB.
+_VERIFY_POOL = ThreadPoolExecutor(max_workers=4, thread_name_prefix="hull-auth")
 
 
 class HullAuthMiddleware:
@@ -45,7 +56,7 @@ class HullAuthMiddleware:
                 authz = value.decode("latin-1")
                 break
 
-        outcome = self.authenticator.authenticate(authz)
+        outcome = await asyncio.get_running_loop().run_in_executor(_VERIFY_POOL, self.authenticator.authenticate, authz)
         if not outcome.ok:
             await self._reject(send, outcome.status or 500, outcome.detail)
             return

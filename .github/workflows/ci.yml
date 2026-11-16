@@ -135,6 +135,11 @@ jobs:
       # uv resolves .python-version (3.13) ahead of PATH, so without this every
       # row would quietly test 3.13 and pass. UV_PYTHON outranks the dotfile.
       UV_PYTHON: ${{ matrix.python-version }}
+    permissions:
+      contents: read
+      pull-requests: write
+      # The Codecov upload authenticates with this job's OIDC token.
+      id-token: write
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
@@ -175,6 +180,10 @@ jobs:
         # threshold stays in one place (fail_under).
         run: uv run pytest --tb=short --cov --cov-report=xml --cov-report=term
 
+      # Codecov refuses a tokenless upload for the default branch, and no upload token
+      # is stored, so the upload authenticates with OIDC and fails the job when Codecov
+      # refuses it. Pull requests skip it: a fork or Dependabot run cannot always mint
+      # an OIDC token, and the required check must not depend on Codecov being reachable.
       - name: Upload coverage to Codecov
         # One upload is enough, and the newest row is the one whose coverage a
         # reviewer acts on; the others still have to pass their own threshold.
@@ -182,7 +191,8 @@ jobs:
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           files: coverage.xml
-          token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: true
+          fail_ci_if_error: true
 
   # ============================================================================
   # Required context aggregator. The ruleset requires the context
@@ -230,6 +240,11 @@ jobs:
     defaults:
       run:
         working-directory: packages/core-ts
+    permissions:
+      contents: read
+      pull-requests: write
+      # The Codecov upload authenticates with this job's OIDC token.
+      id-token: write
     steps:
       - name: Harden Runner
         if: matrix.os == 'ubuntu-latest'
@@ -274,12 +289,17 @@ jobs:
         run: bun run test:coverage
         shell: bash
 
+      # Codecov refuses a tokenless upload for the default branch, and no upload token
+      # is stored, so the upload authenticates with OIDC and fails the job when Codecov
+      # refuses it. Pull requests skip it: a fork or Dependabot run cannot always mint
+      # an OIDC token, and the required check must not depend on Codecov being reachable.
       - name: Upload coverage to Codecov
         if: github.event_name == 'push' && matrix.os == 'ubuntu-latest'
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           files: ./packages/core-ts/coverage/coverage-final.json
-          token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: true
+          fail_ci_if_error: true
 
   # ============================================================================
   # SAST for a PUBLIC repo: CodeQL, and only CodeQL (repo-bootstrap fragment

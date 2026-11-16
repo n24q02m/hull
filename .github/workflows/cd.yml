@@ -171,12 +171,12 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
-          gh api repos/n24q02m/n24q02m/dispatches \
-            -f event_type=core-update \
-            -f 'client_payload[core]=n24q02m-hull' \
-            -f 'client_payload[version]=${{ needs.release.outputs.version }}' \
-            -f 'client_payload[tag]=${{ needs.release.outputs.tag }}' \
-            -f 'client_payload[release_url]=https://github.com/${{ github.repository }}/releases/tag/${{ needs.release.outputs.tag }}'
+          gh workflow run cd.yml -R n24q02m/n24q02m \
+            -f job=core-update \
+            -f 'core=n24q02m-hull' \
+            -f 'version=${{ needs.release.outputs.version }}' \
+            -f 'tag=${{ needs.release.outputs.tag }}' \
+            -f 'release_url=https://github.com/${{ github.repository }}/releases/tag/${{ needs.release.outputs.tag }}'
 
   # ============================================================================
   # Publish to PyPI

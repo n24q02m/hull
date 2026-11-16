@@ -77,7 +77,7 @@ web = [
 # Identity layer: seeded coherent browser profiles (fingerprint.build_identity).
 # Optional: hull_web imports and all legacy strategy behavior work without it.
 identity = [
-    "invisible-core>=50.47,<51",
+    "invisible-core>=59.57,<60",
 ]
 # Stealth engine tier (dots' InvisiblePlaywright) behind BrowserProvider.
 # Optional and heavy: downloads its own sealed Firefox build on first launch

@@ -76,8 +76,12 @@ web = [
 ]
 # Identity layer: seeded coherent browser profiles (fingerprint.build_identity).
 # Optional: hull_web imports and all legacy strategy behavior work without it.
+# Floor only: invisible-playwright ([invisible]) pins invisible-core to one exact
+# version, so a ceiling here makes every playwright bump unresolvable. The lock
+# follows that pin; test_build_identity_against_real_invisible_core runs the
+# real API in CI and is what catches a breaking invisible-core release.
 identity = [
-    "invisible-core>=58.55,<59",
+    "invisible-core>=58.55",
 ]
 # Stealth engine tier (dots' InvisiblePlaywright) behind BrowserProvider.
 # Optional and heavy: downloads its own sealed Firefox build on first launch

@@ -155,8 +155,9 @@ jobs:
       # The extras are not optional for the checks: the shipped code imports
       # filelock (search runner) and patchright/crawl4ai/curl_cffi (scrapers),
       # and the test suite imports them too, so a base+dev environment can
-      # neither type-check nor collect the tests.
-      - run: uv sync --locked --group dev --extra web --extra llm --extra dspy
+      # neither type-check nor collect the tests. identity installs the real
+      # invisible-core so its API test runs instead of skipping.
+      - run: uv sync --locked --group dev --extra web --extra llm --extra dspy --extra identity
 
       # The row is a claim about which interpreter runs; prove it instead of
       # trusting that setup-python and uv agreed.

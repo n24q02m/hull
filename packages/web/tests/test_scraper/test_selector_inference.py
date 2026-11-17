@@ -305,8 +305,8 @@ async def test_infer_logs_provider_annotations():
 
     inferred = [r for r in records if r.message == "domain_selector_inferred"]
     assert inferred, "expected a domain_selector_inferred record"
-    assert inferred[0].provider == "custom-provider"  # ty: ignore[unresolved-attribute]  # extra LogRecord attrs
-    assert inferred[0].model == "custom-model"  # ty: ignore[unresolved-attribute]
+    assert inferred[0].provider == "custom-provider"  # ty: ignore[missing-attribute]  # extra LogRecord attrs
+    assert inferred[0].model == "custom-model"  # ty: ignore[missing-attribute]
 
 
 # -----------------------------------------------------------------------------

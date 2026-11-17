@@ -50,8 +50,8 @@ class _FakeStringSession:
 def fake_telethon(monkeypatch: pytest.MonkeyPatch) -> type:
     telethon = types.ModuleType("telethon")
     sessions = types.ModuleType("telethon.sessions")
-    sessions.StringSession = _FakeStringSession  # ty: ignore[unresolved-attribute]
-    telethon.sessions = sessions  # ty: ignore[unresolved-attribute]
+    sessions.StringSession = _FakeStringSession  # ty: ignore[missing-attribute]
+    telethon.sessions = sessions  # ty: ignore[missing-attribute]
     monkeypatch.setitem(sys.modules, "telethon", telethon)
     monkeypatch.setitem(sys.modules, "telethon.sessions", sessions)
     return _FakeStringSession

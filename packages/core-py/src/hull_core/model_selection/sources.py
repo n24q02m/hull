@@ -1067,7 +1067,7 @@ def _aggregate_tables(tables: list[Any]) -> dict[str, dict[str, float]]:
     sums: dict[str, dict[str, float]] = {}
     counts: dict[str, dict[str, int]] = {}
     for table in tables:
-        filtered = table.filter(pc.equal(table.column("split"), "test"))  # ty: ignore[unresolved-attribute]  # stubs omit pc.equal
+        filtered = table.filter(pc.equal(table.column("split"), "test"))  # ty: ignore[missing-attribute]  # stubs omit pc.equal
         grouped = filtered.group_by(["model_name", "task_name"]).aggregate([("score", "mean")])
         models = grouped.column("model_name").to_pylist()
         tasks = grouped.column("task_name").to_pylist()

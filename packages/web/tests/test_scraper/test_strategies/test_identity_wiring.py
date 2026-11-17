@@ -118,8 +118,8 @@ class TestHeadlessIdentity:
             def __init__(self, **kwargs):
                 self.kwargs = kwargs
 
-        mod.BrowserConfig = BrowserConfig  # ty: ignore[unresolved-attribute]
-        mod.CrawlerRunConfig = CrawlerRunConfig  # ty: ignore[unresolved-attribute]
+        mod.BrowserConfig = BrowserConfig  # ty: ignore[missing-attribute]
+        mod.CrawlerRunConfig = CrawlerRunConfig  # ty: ignore[missing-attribute]
         return mod
 
     def test_identity_sets_ua_and_viewport(self, monkeypatch: pytest.MonkeyPatch):

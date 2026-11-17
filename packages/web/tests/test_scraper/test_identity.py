@@ -49,15 +49,15 @@ def _install_fake_invisible_core(monkeypatch: pytest.MonkeyPatch, seed_echo: dic
         return types.SimpleNamespace(primary="de-DE")
 
     mod = types.ModuleType("invisible_core")
-    mod.generate_profile = generate_profile  # ty: ignore[unresolved-attribute]
-    mod.resolve_session_timezone = resolve_session_timezone  # ty: ignore[unresolved-attribute]
-    mod.decide_session_locale = decide_session_locale  # ty: ignore[unresolved-attribute]
+    mod.generate_profile = generate_profile  # ty: ignore[missing-attribute]
+    mod.resolve_session_timezone = resolve_session_timezone  # ty: ignore[missing-attribute]
+    mod.decide_session_locale = decide_session_locale  # ty: ignore[missing-attribute]
     constants = types.ModuleType("invisible_core.constants")
     firefox_ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:147.0) Gecko/20100101 Firefox/147.0"
-    constants.USER_AGENT = firefox_ua  # ty: ignore[unresolved-attribute]
-    constants.OSCPU_OVERRIDE = "Windows NT 10.0; Win64; x64"  # ty: ignore[unresolved-attribute]
-    constants.PLATFORM_OVERRIDE = "Win32"  # ty: ignore[unresolved-attribute]
-    mod.constants = constants  # ty: ignore[unresolved-attribute]
+    constants.USER_AGENT = firefox_ua  # ty: ignore[missing-attribute]
+    constants.OSCPU_OVERRIDE = "Windows NT 10.0; Win64; x64"  # ty: ignore[missing-attribute]
+    constants.PLATFORM_OVERRIDE = "Win32"  # ty: ignore[missing-attribute]
+    mod.constants = constants  # ty: ignore[missing-attribute]
     monkeypatch.setitem(sys.modules, "invisible_core", mod)
     monkeypatch.setitem(sys.modules, "invisible_core.constants", constants)
 

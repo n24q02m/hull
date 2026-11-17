@@ -43,8 +43,8 @@ class TestInvisibleProvider:
 
         mod = types.ModuleType("invisible_playwright")
         async_api = types.ModuleType("invisible_playwright.async_api")
-        async_api.InvisiblePlaywright = FakeInvisiblePlaywright  # ty: ignore[unresolved-attribute]
-        mod.async_api = async_api  # ty: ignore[unresolved-attribute]
+        async_api.InvisiblePlaywright = FakeInvisiblePlaywright  # ty: ignore[missing-attribute]
+        mod.async_api = async_api  # ty: ignore[missing-attribute]
         monkeypatch.setitem(sys.modules, "invisible_playwright", mod)
         monkeypatch.setitem(sys.modules, "invisible_playwright.async_api", async_api)
 

@@ -30,12 +30,11 @@
       "minimumReleaseAge": "7 days"
     },
     {
-      "description": "invisible-playwright pins invisible-core to an exact version, so the two can only move together",
+      "description": "invisible-playwright pins invisible-core to an exact version and the lock follows that pin, so only invisible-playwright gets update PRs",
       "matchPackageNames": [
-        "invisible-core",
-        "invisible-playwright"
+        "invisible-core"
       ],
-      "groupName": "invisible stack"
+      "enabled": false
     },
     {
       "description": "Release runs on the better-semantic-release fork \u2014 never let an update swap it back to upstream python-semantic-release",

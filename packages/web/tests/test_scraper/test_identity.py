@@ -80,6 +80,37 @@ def test_build_identity_coherent_and_seeded(monkeypatch: pytest.MonkeyPatch) -> 
     assert identity.raw is not None
 
 
+def test_build_identity_against_real_invisible_core(caplog: pytest.LogCaptureFixture) -> None:
+    """Run build_identity on the installed invisible-core, not the fake above.
+
+    The [identity] extra only sets a floor on invisible-core; the version comes
+    from whatever invisible-playwright pins. This test is what catches a release
+    that renames or drops a name build_identity uses. Explicit locale and
+    timezone touch no network, so the geo fallback must not fire: a fallback
+    here means an invisible-core call raised (a changed signature, for example)
+    and build_identity swallowed it.
+    """
+    pytest.importorskip("invisible_core")
+
+    with caplog.at_level(logging.WARNING, logger="hull_web.fingerprint"):
+        identity = build_identity(seed=42, timezone="Asia/Tokyo", locale="ja-JP")
+        again = build_identity(seed=42, timezone="Asia/Tokyo", locale="ja-JP")
+
+    assert not caplog.records
+    assert identity.timezone_id == "Asia/Tokyo"
+    assert identity.locale == "ja-JP"
+    assert "Firefox/" in identity.user_agent
+    assert identity.oscpu
+    assert identity.platform
+    assert identity.viewport_width > 0
+    assert identity.viewport_height > 0
+    assert identity.webgl_vendor
+    assert identity.webgl_renderer
+    assert identity.raw is not None
+    seeded = (identity.viewport_width, identity.viewport_height, identity.webgl_renderer)
+    assert seeded == (again.viewport_width, again.viewport_height, again.webgl_renderer)
+
+
 def test_build_identity_missing_extra_raises_with_hint(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setitem(sys.modules, "invisible_core", None)  # forces ImportError
     with pytest.raises(ImportError, match=r"n24q02m-hull\[identity\]"):

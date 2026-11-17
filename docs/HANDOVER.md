@@ -1,12 +1,13 @@
 # hull Handover
 
 Operational handover for [hull](https://github.com/n24q02m/hull) — the shared
-monorepo core for the wet / crg / mnemo self-hosted stack. Current stable
-line: **n24q02m-hull 0.4.0** (PyPI) / **@n24q02m/hull 0.4.0** (npm).
-Next, unreleased: **0.5.0** — add a provider key pool + multi-account registry
-(`hull_core.credentials`, `@n24q02m/hull/storage`) and an optional per-request
-URL guard on the interact session opener (`hull_web.browsers.open_interact_session`
-`url_guard=`), both additive to the 0.4.0 surface.
+monorepo core for the wet / crg / mnemo self-hosted stack.
+
+**Version:** `project.version` in `pyproject.toml` is the only source. The release
+tooling stamps the same value into `packages/core-ts/package.json`, so one tag
+publishes `n24q02m-hull` (PyPI) and `@n24q02m/hull` (npm) together; the published
+versions are the latest releases on PyPI and npm. This file does not repeat the
+number, so a release never leaves it stale.
 
 ## Current operation
 
@@ -22,7 +23,7 @@ URL guard on the interact session opener (`hull_web.browsers.open_interact_sessi
     `fastretrieval[server]` (`fastretrieval-server`, `python -m
     fastretrieval.server`), the dist that owns the model runtime. hull reaches
     it over HTTP like any other OpenAI-spec provider.
-  - TypeScript: `@n24q02m/hull` (`packages/core-ts` on npm) — token-table auth (`token`, `multi` with `users.toml`), Streamable HTTP `/mcp` transport, `buildCli` console builder, encrypted `PerPluginStore` storage (`~/.<plugin>/`), the `@n24q02m/hull/storage` key-pool/account mirror over `~/.hull/hull.db`, lockfiles and cache. All relay, OAuth AS/delegated, and CfKvBackend residue is removed from the source tree; the published npm 0.4.0 tarball still carries it (see "Unreleased" below).
+  - TypeScript: `@n24q02m/hull` (`packages/core-ts` on npm) — token-table auth (`token`, `multi` with `users.toml`), Streamable HTTP `/mcp` transport, `buildCli` console builder, encrypted `PerPluginStore` storage (`~/.<plugin>/`), the `@n24q02m/hull/storage` key-pool/account mirror over `~/.hull/hull.db`, lockfiles and cache. All relay, OAuth AS/delegated, and CfKvBackend residue was removed in 0.5.0 (see "`@n24q02m/hull` removals in 0.5.0" below).
 - Runtime: Python 3.11 to 3.15 (CI tests each supported minor); dev with `uv`, always-on with docker.
 - Surfaces: `hull` CLI (control plane + consumer: `config`, `db`, `token`,
   `status`, `doctor`, `--version`), `hull server start`
@@ -207,19 +208,17 @@ into any config.
   blocked navigation raises `UrlGuardBlockedError` naming the URL; `url_guard`
   absent keeps the pre-0.5.0 behaviour (no interception at all).
 
-## Unreleased: `@n24q02m/hull` removals since 0.4.0
+## `@n24q02m/hull` removals in 0.5.0
 
-The npm 0.4.0 tarball still ships the relay-era surface. The next npm release
-(0.4.1 or whichever version the release tooling picks) drops the public API
-listed below; consumers must update as described in the "Consumer bump after the
-release" item below. Importers that deep-import these paths must stop
-first:
+The npm 0.4.0 tarball was the last to ship the relay-era surface; 0.5.0 dropped
+the public API listed below. Importers that deep-import these paths must not
+pin below 0.5.0:
 
 - Public exports removed: `getMode`, `setLocalMode`, `clearMode`, `ServerMode`,
   `acquireSessionLock`, `writeSessionLock`, `releaseSessionLock`, `SessionInfo`,
   `setLockDir`, `markSetupComplete`, `deriveJwtSigningSeed`, and every type of the
   `./schema` subpath (the subpath itself is gone too).
-- Also absent from the monorepo build (still in the 0.4.0 tarball): the
+- Also removed (last shipped in the 0.4.0 tarball): the
   `CfKvBackend` storage backend (`storage` exports only `backendFromEnv`,
   `InMemoryBackend`, `LocalFsBackend`), the `auth/`, `oauth/` and `relay/`
   runtime modules, and the OAuth middleware.
@@ -227,15 +226,10 @@ first:
 - Kept on purpose: the fixed key-derivation inputs `mcp-relay-config`,
   `mcp-relay-export` and `mcp-relay` (HKDF info). Changing them would change
   derived keys and break stored `config.enc` files.
-- Consumer check (origin/main of notion, email, workspace, telegram, mnemo,
-  wet, crg): none imports a removed symbol or `CfKvBackend`. telegram, mnemo,
-  wet and crg are Python and do not depend on `@n24q02m/hull`.
-- Consumer bump after the release: notion, email and workspace all declare
-  `"@n24q02m/hull": "^0.4.0"`, so any 0.4.x is picked up on the next install.
-  Run `bun update @n24q02m/hull`, then type-check and test each. No source change
-  is needed (a local pack of this tree passed notion 922/922, email 733/733,
-  workspace 334/334). email also already dropped the removed `openBrowser`
-  option from its `runHttpServer` call.
+- Consumers: notion, email and workspace are the TypeScript consumers; telegram,
+  mnemo, wet and crg are Python and do not depend on `@n24q02m/hull`. Each
+  consumer's hull range lives in its own `package.json` or `pyproject.toml`;
+  this file does not repeat it.
 
 ## In-flight and rollback
 

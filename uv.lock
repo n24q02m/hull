@@ -1186,29 +1186,27 @@ wheels = [
 
 [[package]]
 name = "dspy"
-version = "3.4.1"
+version = "3.5.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
     { name = "cachetools" },
+    { name = "certifi" },
     { name = "cloudpickle" },
     { name = "diskcache" },
     { name = "gepa", marker = "python_full_version < '3.15'" },
     { name = "json-repair" },
     { name = "jsonschema" },
-    { name = "litellm", marker = "python_full_version < '3.15'" },
-    { name = "openai" },
     { name = "orjson" },
     { name = "pydantic" },
     { name = "pyyaml" },
     { name = "regex" },
     { name = "requests" },
-    { name = "tenacity" },
     { name = "tqdm" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/00/5c/260210d87e0604b9086735a8dc1ef8ca4edd61bc9e8042a013ca36cf8b7e/dspy-3.4.1.tar.gz", hash = "sha256:6803449c11818efd10537da22e509a87af1bd30796053d1a6c82421f2afaa461", size = 926321, upload-time = "2026-10-12T23:07:25.395Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/38/02/61d7b473b32d304900f504c8d3321583265585a793a7d7cd28e11f4e4375/dspy-3.5.0.tar.gz", hash = "sha256:1ffb057e45ea5e0e16217680fd48794164c7eac6119bb9b1bc9a122c1d658036", size = 1070847, upload-time = "2026-11-10T16:24:10.63Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ad/2f/656f16206c9ba4e359b639e2605cf196a4e5c678c6d9aed0fae537701ec2/dspy-3.4.1-py3-none-any.whl", hash = "sha256:afda9e7f8b3d46be0829af19ac1153a6feaa6db5923f2b1011eef547fb15ce2d", size = 1027332, upload-time = "2026-10-12T23:07:23.761Z" },
+    { url = "https://files.pythonhosted.org/packages/67/ab/0104d0ffed26493858758f378777747bb8e205b339443dbc6f7a636e0d48/dspy-3.5.0-py3-none-any.whl", hash = "sha256:4e7b7eb62058b614f8debcbd907aa4252b539fccd555b077068b050141ab6fdd", size = 1188661, upload-time = "2026-11-10T16:24:08.845Z" },
 ]
 
 [[package]]
@@ -2920,7 +2918,7 @@ requires-dist = [
     { name = "crawl4ai", marker = "extra == 'web'", specifier = ">=0.9.3" },
     { name = "cryptography", specifier = ">=44" },
     { name = "curl-cffi", marker = "extra == 'web'", specifier = ">=0.16.3" },
-    { name = "dspy", marker = "extra == 'dspy'", specifier = ">=3.4.1,<3.5.0" },
+    { name = "dspy", marker = "extra == 'dspy'", specifier = ">=3.5.0,<3.6.0" },
     { name = "fastmcp", specifier = ">=4.1.1,<5" },
     { name = "filelock", marker = "extra == 'web'", specifier = ">=3" },
     { name = "httpcore", specifier = ">=1.0.9" },
@@ -2944,7 +2942,7 @@ provides-extras = ["web", "identity", "invisible", "mteb", "llm", "dspy"]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "dspy", specifier = ">=3.4.1,<3.5.0" },
+    { name = "dspy", specifier = ">=3.5.0,<3.6.0" },
     { name = "litellm", specifier = ">=1.102.0" },
     { name = "pyarrow", specifier = ">=15.0.0" },
     { name = "pytest", specifier = ">=9.1.1" },

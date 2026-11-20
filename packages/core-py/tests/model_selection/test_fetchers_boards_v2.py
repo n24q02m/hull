@@ -1,11 +1,11 @@
 """boards-v2 fetcher tests — fixture files captured live 2026-10-09, no network.
 
 Covers the 2026-10-09 boards-v2 wave: AgentSet embed/rerank (closed-inclusive),
-Hindsight reranker/embeddings, LMArena agent arena, WMT25 General MT anchor,
+Hindsight reranker/embeddings (per-model boards retired upstream 2026-11-03,
+recorded as unimplemented_access), LMArena agent arena, WMT25 General MT anchor,
 OR usage (quadrant tie-break only), and the versioned board_aliases mapping
 (unmapped names reported, never guessed). Live-fixture provenance:
 - agentset_benchmarks.json / agentset_rerankers.html — verbatim today
-- hindsight_*_listing.json + hindsight_*.json — verbatim today
 - arena_agent.parquet — verbatim today (8 KB release shard)
 - wmt25_gmtr.html — verbatim rows, row-trimmed to 2 language pairs
 - or_rankings_models.json — verbatim rows, embed/rerank families + first 60
@@ -32,7 +32,6 @@ from hull_core.model_selection.sources import (
     AgentSetEmbedSource,
     AgentSetRerankSource,
     ArenaAgentSource,
-    HindsightSource,
     OrUsageSource,
     SourceRecord,
     Wmt25GmtrSource,
@@ -228,58 +227,33 @@ def test_agentset_rerank_table_missing_records_reason():
         assert src.missing_reason == "agentset_rerank_table_empty"
 
 
-# --- Hindsight --------------------------------------------------------------------------
+# --- Hindsight (per-model boards retired upstream) -------------------------------------
 
 
-def test_hindsight_reranker_listing_and_files():
-    listing = _json_fixture("hindsight_reranker_listing.json")
-    served = {
-        name: _json_fixture(f"hindsight_reranker_{name}") for name in ("cohere-rerank-v4-pro.json", "flashrank.json")
+@pytest.mark.parametrize(
+    ("profile", "board"),
+    [("rerank", "hindsight_reranker"), ("embedding", "hindsight_embeddings")],
+)
+def test_retired_hindsight_board_is_recorded_gap_without_fetch(profile, board):
+    """vectorize-io/hindsight-benchmarks@523bd283f (2026-11-03) deleted every
+    per-model file under results/leaderboard/; the Hindsight 1.2.0 boards rank
+    LLMs only. The snapshot must record the gap as unimplemented_access with
+    that reason, never call the retired URLs, and never invent rows."""
+    sources = {
+        "openrouter_models": _CatalogStub({"a/one": _or_row("a/one")}),
+        board: SOURCE_REGISTRY[board],  # the shipped registry entry, unmodified
     }
-
-    def _by_url(url, **_kw):
-        if "commits?" in url:
-            return _resp(_github_commit_payload("2026-08-31T19:30:00Z"))
-        if "/contents/" in url:
-            return _resp(listing)
-        name = url.rsplit("/", 1)[-1]
-        if name in served:
-            return _resp(served[name])
-        raise ConnectionError(f"unavailable {name}")  # rest of the listing 500s -> skipped
-
-    with patch("httpx.Client.get", side_effect=_by_url):
-        src = HindsightSource("hindsight_reranker", "reranker", "reranker_id")
-        recs = src.fetch()
-    assert set(recs) == {"cohere-rerank-v4-pro", "flashrank"}
-    assert recs["cohere-rerank-v4-pro"].score == pytest.approx(0.678)
-    assert src.board_updated_at == "2026-08-31"
-    assert all(r.board_version == "2026-08-31" for r in recs.values())
-
-
-def test_hindsight_embeddings_fixture_parse():
-    listing = _json_fixture("hindsight_embeddings_listing.json")
-    served = {name: _json_fixture(f"hindsight_embeddings_{name}") for name in ("text-embedding-3-small.json",)}
-
-    def _by_url(url, **_kw):
-        if "commits?" in url:
-            raise ConnectionError("rate limited")
-        if "/contents/" in url:
-            return _resp(listing)
-        name = url.rsplit("/", 1)[-1]
-        if name in served:
-            return _resp(served[name])
-        raise ConnectionError(f"unavailable {name}")
-
-    with patch("httpx.Client.get", side_effect=_by_url):
-        recs = HindsightSource("hindsight_embeddings", "embeddings", "embedding_id").fetch()
-    assert recs["text-embedding-3-small"].score == pytest.approx(0.7639)
-
-
-def test_hindsight_empty_listing_records_reason():
-    with patch("httpx.Client.get", return_value=_resp([])):
-        src = HindsightSource("hindsight_reranker", "reranker", "reranker_id")
-        assert src.fetch() == {}
-        assert src.missing_reason == "hindsight_listing_empty"
+    status: dict = {}
+    with patch("httpx.Client.get", side_effect=AssertionError("retired board must not be fetched")) as get:
+        cands = candidates(profile, sources=sources, status_out=status)
+    entry = status[board]
+    assert entry["status"] == "unimplemented_access"
+    assert entry["row_count"] == 0
+    assert "per-model" in entry["reason"]
+    assert "523bd283f" in entry["reason"]
+    assert "2026-11-03" in entry["reason"]
+    get.assert_not_called()
+    assert cands == []  # no board rows -> no scored candidate, nothing faked
 
 
 # --- LMArena agent arena ------------------------------------------------------------------

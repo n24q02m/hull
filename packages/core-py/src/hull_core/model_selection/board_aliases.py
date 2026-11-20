@@ -52,19 +52,13 @@ BOARD_ALIASES: dict[str, dict[str, str]] = {
         "voyage-ai-rerank-2-5-lite": "voyageai/rerank-2.5-lite",
         "qwen3-reranker-8b": "qwen/qwen3-reranker-8b",
     },
-    # Hindsight benchmarks (vectorize-io), per-model JSON, key = file stem /
-    # model id inside the JSON. Mapped: 2 of 10 rerankers, 4 of 7 embeddings;
-    # the rest are legacy generations (rerank v2/v3-multilingual, voyage-2) or
-    # local baselines (flashrank, minilm, rrf) absent from the OR catalog.
-    "hindsight_reranker": {
-        "cohere-rerank-v4-pro": "cohere/rerank-4-pro",
-        "cohere-rerank-v4-fast": "cohere/rerank-4-fast",
-    },
-    "hindsight_embeddings": {
-        "text-embedding-3-small": "openai/text-embedding-3-small",
-        "bge-base-en-v1-5": "baai/bge-base-en-v1.5",
-        "bge-large-en-v1-5": "baai/bge-large-en-v1.5",
-    },
+    # "hindsight_reranker" / "hindsight_embeddings" were removed 2026-11-20:
+    # vectorize-io/hindsight-benchmarks@523bd283f (2026-11-03) deleted every
+    # per-model file under results/leaderboard/, and the Hindsight 1.2.0
+    # boards rank LLMs only with the embedding model and reranker held fixed.
+    # Both sources are now UnimplementedSource, so no row reaches the join and
+    # the mapped evidence (cohere rerank-4-pro/-fast, openai
+    # text-embedding-3-small, baai bge-base/-large-en-v1.5) is gone, not moved.
     # WMT25 General MT preliminary ranking (arXiv 2508.14909v2, mean AutoRank
     # across 31 language pairs). Only systems verifiably present on today's OR
     # text catalog are mapped; anonymous baselines (ONLINE-*), team systems

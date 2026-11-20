@@ -25,7 +25,6 @@ from hull_core.model_selection.normalize import ModelCandidate, passes_constrain
 from hull_core.model_selection.pareto import knee_point, pick as pareto_pick, quadrants
 from hull_core.model_selection.sources import (
     ArenaSource,
-    AaAgenticIndexSource,
     AaCapabilitySource,
     BridgeSource,
     EqBench4Source,
@@ -33,7 +32,6 @@ from hull_core.model_selection.sources import (
     GaiaSource,
     InHouseAnchorSource,
     MedhelmSource,
-    OpenMedicalLLMSource,
     _BaseSource,
     _parse_benchlm_md,
     _parse_bfcl_csv,
@@ -325,54 +323,14 @@ def test_bridge_fetch_skips_non_dict_mode_payloads():
     assert recs["model-a"].raw["modes"] == {"mode1": 55.0}
 
 
-# --- Open Medical LLM -----------------------------------------------------------
+# --- AA capability --------------------------------------------------------------
 
 
-def _open_medical_client(side_effects: list) -> MagicMock:
-    client = MagicMock()
-    client.__enter__ = MagicMock(return_value=client)
-    client.__exit__ = MagicMock(return_value=False)
-    client.get.side_effect = side_effects
-    return client
-
-
-def _open_medical_resp(payload) -> MagicMock:
+def _json_resp(payload) -> MagicMock:
     r = MagicMock()
     r.json.return_value = payload
     r.raise_for_status.return_value = None
     return r
-
-
-def test_open_medical_skips_failing_and_scoreless_files():
-    tree = [
-        {"type": "file", "path": "org/bad/results.json"},
-        {"type": "file", "path": "org/good/results.json"},
-        {"type": "file", "path": "org/noscore/results.json"},
-    ]
-    client = _open_medical_client(
-        [
-            RuntimeError("boom"),  # fetch error -> skip file
-            _open_medical_resp({"results": {"task_a": {"acc,none": 0.5}}}),
-            _open_medical_resp({}),  # no results dict -> no score -> skip
-        ]
-    )
-    with (
-        patch("hull_core.model_selection.sources._get_json", return_value=tree),
-        patch("hull_core.model_selection.sources.get_ssrf_safe_sync_client", return_value=client),
-    ):
-        recs = OpenMedicalLLMSource().fetch()
-    assert set(recs) == {"org-good"}
-    assert recs["org-good"].score == pytest.approx(0.5)
-
-
-def test_open_medical_mean_accuracy_guards():
-    assert OpenMedicalLLMSource._mean_accuracy({}) is None  # results not a dict
-    assert OpenMedicalLLMSource._mean_accuracy({"results": "nope"}) is None
-    blob = {"results": {"broken": "not-a-dict", "ok": {"acc,none": 0.4}}}
-    assert OpenMedicalLLMSource._mean_accuracy(blob) == pytest.approx(0.4)
-
-
-# --- AA capability / agentic ----------------------------------------------------
 
 
 def test_aa_capability_skips_non_dict_and_slugless_rows(monkeypatch):
@@ -385,30 +343,10 @@ def test_aa_capability_skips_non_dict_and_slugless_rows(monkeypatch):
             {"slug": "GPT-6", "name": "GPT-6", "evaluations": {field: 51.2}},
         ]
     }
-    with patch("httpx.Client.get", return_value=_open_medical_resp(payload)):
+    with patch("httpx.Client.get", return_value=_json_resp(payload)):
         recs = AaCapabilitySource("aa_healthcare_index", "healthcare_and_medical", api_key="k").fetch()
     assert set(recs) == {"GPT-6"}
     assert recs["GPT-6"].score == 51.2
-
-
-def test_aa_agentic_with_key_delegates_to_capability_fetch(monkeypatch):
-    monkeypatch.delenv("AA_API_KEY", raising=False)
-    payload = {
-        "data": [{"slug": "agent-pro", "name": "Agent Pro", "evaluations": {"artificial_analysis_agentic_index": 70.0}}]
-    }
-    with patch("httpx.Client.get", return_value=_open_medical_resp(payload)) as get:
-        recs = AaAgenticIndexSource(api_key="k").fetch()
-    assert get.call_args.kwargs["headers"] == {"x-api-key": "k"}
-    assert set(recs) == {"agent-pro"}
-    assert recs["agent-pro"].score == 70.0
-
-
-def test_aa_agentic_without_key_is_honest_missing(monkeypatch):
-    """No AA_API_KEY -> recorded gap; the OR-embedded copy is NEVER board evidence."""
-    monkeypatch.delenv("AA_API_KEY", raising=False)
-    src = AaAgenticIndexSource()
-    assert src.fetch() == {}
-    assert src.missing_reason == "aa_api_key_required"
 
 
 # --- In-house anchors -----------------------------------------------------------

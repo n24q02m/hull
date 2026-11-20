@@ -29,7 +29,6 @@ import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from urllib.parse import quote
 from typing import Any, Protocol, runtime_checkable
 
 from hull_core.http import get_ssrf_safe_sync_client
@@ -109,8 +108,6 @@ GAIA_RESULTS_URL = (
     "https://huggingface.co/datasets/gaia-benchmark/results_public/"
     "resolve/refs%2Fconvert%2Fparquet/2023/test/0000.parquet"
 )
-OPEN_MEDICAL_RESULTS_TREE_URL = "https://huggingface.co/api/datasets/openlifescienceai/results/tree/main?recursive=true"
-OPEN_MEDICAL_RESULT_FILE_URL = "https://huggingface.co/datasets/openlifescienceai/results/resolve/main/{path}"
 MEDHELM_RELEASES_URL = (
     "https://storage.googleapis.com/storage/v1/b/crfm-helm-public/o"
     "?prefix=medhelm/benchmark_output/releases/&delimiter=/"
@@ -1787,65 +1784,6 @@ class BridgeSource(_BaseSource):
         return records
 
 
-class OpenMedicalLLMSource(_BaseSource):
-    """Open Medical LLM Leaderboard (HF space openlifescienceai/...) — the
-    space computes its table from the public ``openlifescienceai/results``
-    dataset: one small JSON per model repo (``<org>/<model>/results_*.json``,
-    lm-eval style ``results.<task>.acc,none``). Score = mean per-task accuracy;
-    join key = the HF repo id (first two path segments). Bounded: at most
-    ``max_files`` result files per pull (request budget, not quality)."""
-
-    name = "open_medical_llm"
-    ttl_seconds = WEEK
-    max_files = 400
-
-    def __init__(self, max_files: int = 400) -> None:
-        super().__init__()
-        self.max_files = max_files
-
-    def _fetch(self) -> dict[str, SourceRecord]:
-        data = _get_json(OPEN_MEDICAL_RESULTS_TREE_URL)
-        entries = data if isinstance(data, list) else []
-        files = sorted(
-            str(e.get("path"))
-            for e in entries
-            if isinstance(e, dict) and e.get("type") == "file" and str(e.get("path", "")).endswith(".json")
-        )
-        if not files:
-            self.missing_reason = "open_medical_results_empty"
-            return {}
-        records: dict[str, SourceRecord] = {}
-        with get_ssrf_safe_sync_client(timeout=DEFAULT_TIMEOUT, follow_redirects=True) as client:
-            for path in files[: self.max_files]:
-                hf_id = "/".join(path.split("/")[:2])
-                try:
-                    resp = client.get(OPEN_MEDICAL_RESULT_FILE_URL.format(path=quote(path, safe="/")))
-                    resp.raise_for_status()
-                    blob = resp.json()
-                except Exception as exc:  # one bad file must not kill the board
-                    logger.info("model_selection open_medical file skipped: path=%s error=%s", path, exc)
-                    continue
-                score = self._mean_accuracy(blob)
-                if score is None or not hf_id:
-                    continue
-                records[slugify(hf_id)] = SourceRecord(key=slugify(hf_id), name=hf_id, score=score, raw={"path": path})
-        return records
-
-    @staticmethod
-    def _mean_accuracy(blob: Any) -> float | None:
-        results = blob.get("results") if isinstance(blob, dict) else None
-        if not isinstance(results, dict):
-            return None
-        vals = []
-        for task in results.values():
-            if not isinstance(task, dict):
-                continue
-            acc = _float(task.get("acc,none"))
-            if acc is not None:
-                vals.append(acc)
-        return sum(vals) / len(vals) if vals else None
-
-
 class GaiaSource(_BaseSource):
     """GAIA assistant benchmark board via the public results dataset
     ``gaia-benchmark/results_public`` (the leaderboard space reads the same;
@@ -1925,17 +1863,6 @@ class AaCapabilitySource(_BaseSource):
                 raw=row,
             )
         return records
-
-
-class AaAgenticIndexSource(AaCapabilitySource):
-    """AA Agentic Index via the Data API (``AA_API_KEY``). Absent key ->
-    ``missing_reason=aa_api_key_required`` (recorded gap). The OR-embedded
-    ``benchmarks.artificial_analysis.agentic_index`` copy is catalog metadata,
-    not a fetched board — it is never substituted for real AA evidence.
-    """
-
-    def __init__(self, api_key: str | None = None) -> None:
-        super().__init__("aa_agentic_index", "agentic", api_key)
 
 
 class InHouseAnchorSource(_BaseSource):
@@ -2057,7 +1984,16 @@ SOURCE_REGISTRY: dict[str, Source] = {
     "tau2_bench_or": Tau2BenchORSource(),
     "bfcl": BFCLSource(),
     "gaia": GaiaSource(),
-    "aa_agentic_index": AaAgenticIndexSource(),
+    # Artificial Analysis stopped publishing the Agentic Index; the name stays
+    # registered so the permissive profile still resolves it and every
+    # snapshot records the gap.
+    "aa_agentic_index": UnimplementedSource(
+        "aa_agentic_index",
+        "Artificial Analysis no longer publishes an Agentic Index: the Data API reference marks "
+        "artificial_analysis_agentic_index on GET /api/v2/language/models/free deprecated and always null, "
+        "and Intelligence Index v5.0 (October 2026) renamed the Agents category to Knowledge Work "
+        "(probed 2026-11-20)",
+    ),
     # healthcare/medical (research §2.6)
     "aa_healthcare_index": AaCapabilitySource("aa_healthcare_index", "healthcare_and_medical"),
     "healthbench": LLMStatsSource("healthbench", "healthbench"),
@@ -2067,7 +2003,19 @@ SOURCE_REGISTRY: dict[str, Source] = {
         "clinician-voted board requires Doximity sign-in; no public leaderboard "
         "endpoint found (probed 2026-10-07: JS-only shell, no data table)",
     ),
-    "open_medical_llm": OpenMedicalLLMSource(),
+    # The Open Medical LLM board is frozen and none of its models is served by
+    # OpenRouter today, so every fetch joined nothing (zero_join). The name
+    # stays registered so healthcare-advice still resolves it and every
+    # snapshot records the gap.
+    "open_medical_llm": UnimplementedSource(
+        "open_medical_llm",
+        "no model on the Open Medical LLM board is servable on OpenRouter: openlifescienceai/results "
+        "(last commit 2025-01-29) holds 185 models keyed by config.model_name; none of its 180 open "
+        "checkpoints joins the OR catalog, and the paper-reported rows have no live OR route: GPT-4 "
+        "(arXiv 2303.13375, March 2023) is the gpt-4-0314 snapshot whose route openai/gpt-4-0314 is "
+        "delisted, openai/gpt-3.5-turbo-1106 is delisted, and Gemini-1.0, Med-PaLM 2 and Flan-PaLM have "
+        "no route (probed 2026-11-20)",
+    ),
     "bridge": BridgeSource(),
     # vision/manga text-in-image (research §2.5)
     "ocrbench": LLMStatsSource("ocrbench", "ocrbench"),

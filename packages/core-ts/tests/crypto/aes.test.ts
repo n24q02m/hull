@@ -10,7 +10,7 @@ describe('AES-256-GCM encryption', () => {
 
   it('encrypt + decrypt roundtrip works', async () => {
     const key = await makeKey()
-    const plaintext = 'hello, mcp-relay!'
+    const plaintext = 'hello, hull!'
 
     const { ciphertext, iv, tag } = await encrypt(key, plaintext)
     const decrypted = await decrypt(key, ciphertext, iv, tag)

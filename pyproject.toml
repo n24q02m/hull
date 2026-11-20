@@ -143,6 +143,11 @@ dev = [
 # 'List' in litellm/fine_tuning/main.py). Upstream litellm is already a
 # direct dependency here, so drop the fork and let crawl4ai import upstream.
 exclude-dependencies = ["unclecode-litellm"]
+# Resolve only releases at least 7 days old, the same hold Renovate's
+# minimumReleaseAge puts on every package. Without it Renovate's artifact step
+# (`uv lock`) and lock file maintenance (`uv lock --upgrade`) pick up releases
+# younger than the hold, and Renovate rejects the branch.
+exclude-newer = "7 days"
 
 [tool.hatch.build.targets.wheel]
 packages = [

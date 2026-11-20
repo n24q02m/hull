@@ -4,12 +4,12 @@ Source order (per the 22/09 directive): specialized per-task boards FIRST,
 aggregate boards SECOND, OpenRouter as the constraint/tiebreak layer. Every
 source name declared here resolves in ``SOURCE_REGISTRY`` — live fetchers,
 InHouseAnchorSource sets, or an UnimplementedSource recording a probed gap
-(medarena). Consumers may still override individual sources via
-``candidates(..., sources={...})`` plugin maps.
+(medarena, the retired hindsight boards). Consumers may still override
+individual sources via ``candidates(..., sources={...})`` plugin maps.
 
 Ported from web_core.model_selection.tasks v2.10.6. The ``embedding`` and
 ``rerank`` profiles intentionally have empty ``aggregate_sources``: the
-specialized boards (MTEB + boards-v2 closed-inclusive AgentSet/hindsight) are
+specialized boards (MTEB + boards-v2 closed-inclusive AgentSet) are
 the quality axis, while the OpenRouter backbone (now including its
 embeddings/rerank catalog segments) is the candidate + price axis — embed/
 rerank picks must be OR-servable (2026-10-08 directive). OR usage
@@ -79,16 +79,15 @@ TASKS: dict[str, TaskProfile] = {
         name="embedding",
         # boards-v2 (2026-10-09): the MTEB boards (open-biased) are paired
         # with AgentSet Elo (closed-inclusive, stale ~2026-03) so a pick needs
-        # >=2 independent boards; hindsight embeddings rides along as an
-        # optional third signal (7 models only). Embedding picks MUST be
-        # OpenRouter-servable (2026-10-08 directive): OR's embeddings segment
-        # lists + prices, the boards qualify.
+        # >=2 independent boards. Embedding picks MUST be OpenRouter-servable
+        # (2026-10-08 directive): OR's embeddings segment lists + prices, the
+        # boards qualify.
         specialized_sources=(
             "mteb_classification",
             "mteb_retrieval",
             "mteb_sts",
             "agentset_elo",
-            "hindsight_embeddings",
+            "hindsight_embeddings",  # UnimplementedSource — upstream retired the per-model board (2026-11-03)
         ),
         aggregate_sources=(),
         constraints=Constraints(),
@@ -97,14 +96,19 @@ TASKS: dict[str, TaskProfile] = {
     "rerank": TaskProfile(
         name="rerank",
         # boards-v2 (2026-10-09): AgentSet rerankers (closed-inclusive, stale
-        # ~2026-02) + hindsight MRR (directional, n=165) join MTEB reranking,
-        # so a strong rerank pick (e.g. cohere-rerank-4-pro) is now reachable;
-        # models measured only by weak boards still trail as weak_evidence.
+        # ~2026-02) join MTEB reranking. Since upstream retired the hindsight
+        # per-model reranker board (2026-11-03), a strong rerank pick needs a
+        # model measured by both MTEB reranking and AgentSet; models measured
+        # by a single board trail as weak_evidence.
         # Same 2026-10-08 directive: rerank picks must be OR-servable. OR
         # lists a rerank segment but its catalog pricing fields are $0
         # placeholders (OR bills per request, not per token) — those rows
         # count as unpriced, never as free.
-        specialized_sources=("mteb_reranking", "agentset_rerank", "hindsight_reranker"),
+        specialized_sources=(
+            "mteb_reranking",
+            "agentset_rerank",
+            "hindsight_reranker",  # UnimplementedSource — upstream retired the per-model board (2026-11-03)
+        ),
         aggregate_sources=(),
         constraints=Constraints(),
         token_mix=(1.0, 0.0, 0.0),

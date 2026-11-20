@@ -48,7 +48,7 @@ def test_every_profile_defaults_to_or_usage_tiebreak():
 def test_embedding_wires_closed_inclusive_boards():
     p = get_task("embedding")
     assert "agentset_elo" in p.specialized_sources  # closed-inclusive (MTEB is open-biased)
-    assert "hindsight_embeddings" in p.specialized_sources  # optional third signal
+    assert "hindsight_embeddings" in p.specialized_sources  # retired upstream; snapshot records the gap
     assert set(p.specialized_sources) >= {"mteb_classification", "mteb_retrieval", "mteb_sts"}
 
 

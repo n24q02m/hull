@@ -574,15 +574,6 @@ AGENTSET_EMBED_COMMIT_URL = (
 )
 AGENTSET_RERANK_URL = "https://agentset.ai/rerankers"
 AGENTSET_RERANK_REPO_URL = "https://api.github.com/repos/agentset-ai/reranker-eval"
-HINDSIGHT_CONTENTS_URL = (
-    "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/contents/results/leaderboard/{sub}"
-)
-HINDSIGHT_RAW_URL = (
-    "https://raw.githubusercontent.com/vectorize-io/hindsight-benchmarks/main/results/leaderboard/{sub}/{name}"
-)
-HINDSIGHT_COMMIT_URL = (
-    "https://api.github.com/repos/vectorize-io/hindsight-benchmarks/commits?path=results/leaderboard&per_page=1"
-)
 # LMArena agent arena: same parquet release infra as ``arena``, branch `agent`
 # (verified 2026-10-09: rows carry tier suffixes (Max)/(High)/(xHigh) and a
 # ``leaderboard_publish_date`` column).
@@ -726,65 +717,6 @@ class AgentSetRerankSource(_BaseSource):
             self.board_updated_at = pushed
         except Exception as exc:
             logger.info("model_selection agentset_rerank repo date unavailable: %s", exc)
-            self.board_updated_at = None
-        for rec in records.values():
-            rec.board_version = self.board_updated_at
-        return records
-
-
-class HindsightSource(_BaseSource):
-    """Hindsight benchmarks (vectorize-io): one small JSON per model under
-    ``results/leaderboard/{reranker,embeddings}/`` (MRR + recall@k on the
-    LoComo ``recall()`` harness, n=165 — directional, self-admitted bias).
-    Files are listed via the GitHub contents API and fetched raw; a file that
-    fails to parse is skipped (fail-open), an empty listing -> ``{}``.
-    ``board_updated_at`` = GitHub commits API for the leaderboard directory."""
-
-    ttl_seconds = WEEK
-
-    def __init__(self, name: str, sub: str, id_field: str) -> None:
-        super().__init__()
-        self.name = name
-        self.sub = sub  # "reranker" | "embeddings"
-        self.id_field = id_field  # "reranker_id" | "embedding_id"
-
-    def _fetch(self) -> dict[str, SourceRecord]:
-        listing = _get_json(HINDSIGHT_CONTENTS_URL.format(sub=self.sub))
-        files = [
-            str(e.get("name"))
-            for e in (listing if isinstance(listing, list) else [])
-            if isinstance(e, dict) and str(e.get("name", "")).endswith(".json")
-        ]
-        if not files:
-            self.missing_reason = "hindsight_listing_empty"
-            return {}
-        records: dict[str, SourceRecord] = {}
-        for fname in files:
-            try:
-                blob = _get_json(HINDSIGHT_RAW_URL.format(sub=self.sub, name=fname))
-            except Exception as exc:  # one bad file must not kill the board
-                logger.info("model_selection hindsight file skipped: sub=%s file=%s error=%s", self.sub, fname, exc)
-                continue
-            if not isinstance(blob, dict):
-                continue
-            key = str(blob.get(self.id_field) or Path(fname).stem).strip()
-            score = _float(blob.get("mrr"))
-            if not key or score is None:
-                continue
-            records[key] = SourceRecord(
-                key=key,
-                name=key,
-                score=score,
-                raw={
-                    "recall_at_1": blob.get("recall_at_1"),
-                    "recall_at_3": blob.get("recall_at_3"),
-                    "recall_at_5": blob.get("recall_at_5"),
-                },
-            )
-        try:
-            self.board_updated_at = _github_commit_date(HINDSIGHT_COMMIT_URL)
-        except Exception as exc:
-            logger.info("model_selection hindsight commit date unavailable: %s", exc)
             self.board_updated_at = None
         for rec in records.values():
             rec.board_version = self.board_updated_at
@@ -2165,8 +2097,21 @@ SOURCE_REGISTRY: dict[str, Source] = {
     # never guessed.
     "agentset_elo": AgentSetEmbedSource(),
     "agentset_rerank": AgentSetRerankSource(),
-    "hindsight_reranker": HindsightSource("hindsight_reranker", "reranker", "reranker_id"),
-    "hindsight_embeddings": HindsightSource("hindsight_embeddings", "embeddings", "embedding_id"),
+    # Hindsight (vectorize-io) retired its per-model embedding/reranker boards
+    # upstream; the names stay registered so the embedding/rerank profiles
+    # still resolve them and every snapshot records the gap.
+    "hindsight_reranker": UnimplementedSource(
+        "hindsight_reranker",
+        "upstream retired the per-model reranker board: vectorize-io/hindsight-benchmarks@523bd283f "
+        "(2026-11-03) deleted results/leaderboard/reranker/; the Hindsight 1.2.0 boards rank LLMs only "
+        "and hold the reranker fixed (ms-marco-MiniLM-L-6-v2) (probed 2026-11-20)",
+    ),
+    "hindsight_embeddings": UnimplementedSource(
+        "hindsight_embeddings",
+        "upstream retired the per-model embeddings board: vectorize-io/hindsight-benchmarks@523bd283f "
+        "(2026-11-03) deleted results/leaderboard/embeddings/; the Hindsight 1.2.0 boards rank LLMs only "
+        "and hold the embedding model fixed (bge-small-en-v1.5) (probed 2026-11-20)",
+    ),
     "arena_agent": ArenaAgentSource(),
     # OR real-world usage (not a quality board): candidates() folds it into
     # ModelCandidate.or_task_spend_share — quadrant tie-break ONLY. Primary

@@ -87,7 +87,7 @@ identity = [
 # Optional and heavy: downloads its own sealed Firefox build on first launch
 # unless STEALTHFOX_BINARY points at one.
 invisible = [
-    "invisible-playwright>=0.49,<0.50",
+    "invisible-playwright>=0.51,<0.52",
 ]
 # model_selection MTEB leaderboard fetchers aggregate the public mteb/results
 # HF dataset, which ships as parquet — pyarrow is the reader (fail-open

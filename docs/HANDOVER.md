@@ -183,9 +183,9 @@ into any config.
   boards. The `decision` profile counts `jevals`, `jevbench` (decision boards)
   plus `judgemark_v4` (corroborator) and the `tau2_bench_or` / `bfcl` /
   `arena_agent` agentic proxies; `jev_decision_index` (no declared license)
-  and `aa_agentic_index` (not provably independent of tau2) stay registered
-  but out of the profile. Decisions-segment catalog rows are visible to the
-  `decision` profile only.
+  and `aa_agentic_index` (no longer published by Artificial Analysis,
+  recorded `unimplemented_access`) stay registered but out of the profile.
+  Decisions-segment catalog rows are visible to the `decision` profile only.
 - Verify after a change: dispatch the workflow, then read
   `tasks.<profile>.candidates` and `source_status.<board>.status` from the
   branch file.

@@ -19,7 +19,6 @@ from hull_core.model_selection import candidates
 from hull_core.model_selection.normalize import ModelCandidate, blend_quality
 from hull_core.model_selection.sources import (
     SOURCE_REGISTRY,
-    AaAgenticIndexSource,
     AaCapabilitySource,
     BFCLSource,
     BenchLMSource,
@@ -30,7 +29,6 @@ from hull_core.model_selection.sources import (
     InHouseAnchorSource,
     LLMStatsSource,
     MangaBenchSource,
-    OpenMedicalLLMSource,
     SourceRecord,
     Tau2BenchORSource,
     UnimplementedSource,
@@ -309,33 +307,7 @@ def test_gaia_best_score_per_model():
     assert recs["autogpt4"].score == 0.049
 
 
-# --- Open Medical LLM -------------------------------------------------------------
-
-
-def test_open_medical_tree_and_results():
-    tree = json.loads(_fixture("open_medical_tree.json"))
-    result = json.loads(_fixture("open_medical_result.json"))
-    mock_client = MagicMock()
-    mock_client.__enter__ = MagicMock(return_value=mock_client)
-    mock_client.__exit__ = MagicMock(return_value=False)
-    mock_client.get.return_value = _resp(result)
-    with (
-        patch("hull_core.model_selection.sources._get_json", return_value=tree),
-        patch("hull_core.model_selection.sources.get_ssrf_safe_sync_client", return_value=mock_client),
-    ):
-        recs = OpenMedicalLLMSource().fetch()
-    assert recs["01-ai-yi-1-5-9b-32k"].score == pytest.approx((0.716 + 0.7095588235294118 + 0.78) / 3)
-    assert mock_client.get.call_count == 3
-
-
-def test_open_medical_empty_tree_records_missing():
-    src = OpenMedicalLLMSource()
-    with patch("hull_core.model_selection.sources._get_json", return_value=[]):
-        assert src.fetch() == {}
-    assert src.missing_reason == "open_medical_results_empty"
-
-
-# --- AA capability + agentic -------------------------------------------------------
+# --- AA capability -------------------------------------------------------------------
 
 
 def test_aa_capability_no_key_records_missing(monkeypatch):
@@ -366,15 +338,6 @@ def test_aa_capability_parses_docs_field_names(monkeypatch):
     assert recs["GPT-6"].score == 51.2
     assert recs["GPT-6"].board_version == "v2.1"
     assert "Null-Cap" not in recs  # null capability = missing, never 0
-
-
-def test_aa_agentic_without_key_never_reads_or_embedded(monkeypatch):
-    """No AA_API_KEY -> honest missing gap; the OR-embedded copy is NOT fetched as evidence."""
-    monkeypatch.delenv("AA_API_KEY", raising=False)
-    with patch("httpx.Client.get") as get:
-        recs = AaAgenticIndexSource().fetch()
-    assert recs == {}
-    get.assert_not_called()
 
 
 # --- In-house anchors ----------------------------------------------------------------
@@ -550,6 +513,54 @@ def test_candidates_status_out_ok_rows():
     assert status["openrouter_models"]["status"] == "ok"
     assert status["mteb_reranking"]["status"] == "ok"
     assert len(cands) == 1
+
+
+@pytest.mark.parametrize(
+    ("profile", "board", "evidence"),
+    [
+        (
+            "permissive",
+            "aa_agentic_index",
+            ("no longer publishes an Agentic Index", "artificial_analysis_agentic_index", "2026-11-20"),
+        ),
+        (
+            "healthcare-advice",
+            "open_medical_llm",
+            ("openlifescienceai/results", "2025-01-29", "openai/gpt-4-0314", "openai/gpt-3.5-turbo-1106", "2026-11-20"),
+        ),
+    ],
+)
+def test_board_without_servable_rows_is_recorded_gap_without_fetch(profile, board, evidence):
+    """aa_agentic_index: the AA Data API reference marks
+    artificial_analysis_agentic_index deprecated and always null, so every
+    fetch came back empty (empty_fetch). open_medical_llm: the frozen board
+    holds no model OpenRouter serves today, so every fetch joined nothing
+    (zero_join). The snapshot must record each gap as unimplemented_access with
+    the probed upstream evidence, never call the board, and never invent rows."""
+    or_row = {
+        "id": "a/one",
+        "name": "a/one",
+        "context_length": 64_000,
+        "architecture": {"modality": "text->text"},
+        "pricing": {"prompt": "0.000001", "completion": "0.000002"},
+        "supported_parameters": [],
+    }
+    sources = {
+        "openrouter_models": _StubSource("openrouter_models", {"a/one": SourceRecord(key="a/one", raw=or_row)}),
+        board: SOURCE_REGISTRY[board],  # the shipped registry entry, unmodified
+    }
+    status: dict = {}
+    with patch(
+        "httpx.Client.get", side_effect=AssertionError("board without servable rows must not be fetched")
+    ) as get:
+        cands = candidates(profile, sources=sources, status_out=status)
+    entry = status[board]
+    assert entry["status"] == "unimplemented_access"
+    assert entry["row_count"] == 0
+    for fragment in evidence:
+        assert fragment in entry["reason"]
+    get.assert_not_called()
+    assert cands == []  # no board rows -> no scored candidate, nothing faked
 
 
 # --- Weak evidence semantics ----------------------------------------------------------

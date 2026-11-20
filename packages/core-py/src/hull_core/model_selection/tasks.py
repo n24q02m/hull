@@ -129,7 +129,7 @@ TASKS: dict[str, TaskProfile] = {
             "medhelm",
             "medarena",  # UnimplementedSource — recorded unimplemented_access in snapshots
             "vals_medscribe",
-            "open_medical_llm",
+            "open_medical_llm",  # UnimplementedSource — no row servable on OpenRouter
             "bridge",
         ),
         constraints=Constraints(min_context=32_768, min_uptime_1d=99.0),
@@ -172,10 +172,11 @@ TASKS: dict[str, TaskProfile] = {
         constraints=Constraints(required_input_modality="image"),
     ),
     # Spec 2026-09-28 (D-KP6, phase H): permissive/NSFW selection rides the UGI
-    # leaderboard as its specialized board; ``aa_agentic_index`` (embedded in
-    # OR backbone rows) is the aggregate proxy. Refusal chains and the
-    # rating->permissive downgrade are consumer policy (KlPrism), not this
-    # module's concern.
+    # leaderboard as its specialized board. The aggregate proxy
+    # ``aa_agentic_index`` is an UnimplementedSource since Artificial Analysis
+    # stopped publishing the Agentic Index; snapshots record the gap, so UGI is
+    # the only live board here. Refusal chains and the rating->permissive
+    # downgrade are consumer policy (KlPrism), not this module's concern.
     "permissive": TaskProfile(
         name="permissive",
         specialized_sources=("ugi",),
@@ -209,9 +210,11 @@ TASKS: dict[str, TaskProfile] = {
         # Deliberately NOT in the profile (fetchers stay registered):
         #   - ``jev_decision_index``: no license declared on the board, so
         #     its rows cannot be redistributed in data/model-candidates.json.
-        #   - ``aa_agentic_index``: not provably independent from
-        #     ``tau2_bench_or`` (AA's agent index composition is not publicly
-        #     documented), so counting both would fake a second board.
+        #   - ``aa_agentic_index``: Artificial Analysis no longer publishes it
+        #     (UnimplementedSource); while it was published it was not provably
+        #     independent from ``tau2_bench_or`` (AA's agent index composition
+        #     was not publicly documented), so counting both would have faked a
+        #     second board.
         #
         # Honest state: models measured by NO board stay weak_evidence until
         # measured (watchlist: JudgeArena, CodeJudgeBench). Weight law

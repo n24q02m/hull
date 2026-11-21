@@ -2859,7 +2859,7 @@ wheels = [
 
 [[package]]
 name = "n24q02m-hull"
-version = "0.8.0"
+version = "0.9.0b1"
 source = { editable = "." }
 dependencies = [
     { name = "cryptography" },

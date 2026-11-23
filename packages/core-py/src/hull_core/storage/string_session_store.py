@@ -39,8 +39,15 @@ TELETHON_INSTALL_HINT = (
 class StringSessionStore:
     """Encrypted store for a single Telethon session string."""
 
-    def __init__(self, plugin: str, sub: str | None = None, *, backend: CredentialBackend | None = None) -> None:
-        self._store = PerPluginStore(plugin, sub, backend=backend, sub_key="session")
+    def __init__(
+        self,
+        plugin: str,
+        sub: str | None = None,
+        *,
+        backend: CredentialBackend | None = None,
+        profile: str | None = None,
+    ) -> None:
+        self._store = PerPluginStore(plugin, sub, backend=backend, sub_key="session", profile=profile)
 
     @property
     def store(self) -> PerPluginStore:

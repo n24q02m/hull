@@ -6,22 +6,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { InMemoryBackend, LocalFsBackend } from '../../src/storage/backends.js'
 import {
   assertValidPluginName,
+  assertValidProfile,
   assertValidSub,
   blobPathIn,
   dataDir,
   dataDirCandidates,
-  legacyDataDirs
+  dataDirName,
+  legacyDataDirs,
+  migrateLegacyDataDir,
+  n24q02mBaseDir,
+  resolveProfile
 } from '../../src/storage/data-dir.js'
 import { setHomeDirForTesting } from '../../src/storage/home-dir.js'
 import { credPath, PerPluginStore } from '../../src/storage/per-plugin-store.js'
-
-/**
- * Data-dir layout migration: the store writes `~/.<plugin>/` and reads, in
- * order, `~/.<plugin>/` -> `~/.<plugin>-mcp/` -> `~/.better-<plugin>-mcp/`.
- * Legacy blobs are planted here byte-for-byte the way the pre-migration code
- * wrote them (AES-256-GCM, [IV][ciphertext][tag]) so the fallback is proven
- * against the real legacy format, not against the new writer.
- */
 
 const PLUGIN = 'demo'
 
@@ -59,39 +56,74 @@ function plantSub(dirName: string, keyPlugin: string, sub: string, payload: Reco
 beforeEach(() => {
   home = mkdtempSync(join(tmpdir(), 'data-dir-'))
   setHomeDirForTesting(home)
+  delete process.env.N24Q02M_HOME
+  delete process.env.N24Q02M_USE_XDG
+  delete process.env.HULL_PROFILE
+  delete process.env.DEMO_PROFILE
 })
 
 afterEach(() => {
   vi.restoreAllMocks()
   setHomeDirForTesting(null)
   delete process.env.CREDENTIAL_SECRET
+  delete process.env.N24Q02M_HOME
+  delete process.env.N24Q02M_USE_XDG
+  delete process.env.HULL_PROFILE
+  delete process.env.DEMO_PROFILE
   rmSync(home, { recursive: true, force: true })
 })
 
 describe('data-dir layout helpers', () => {
   it('lists candidates in read-precedence order with the legacy key plugin', () => {
     expect(dataDirCandidates(PLUGIN)).toEqual([
-      { dir: join(home, '.demo'), keyPlugin: 'demo', legacy: false },
+      { dir: join(home, '.n24q02m', 'demo'), keyPlugin: 'demo', legacy: false },
+      { dir: join(home, '.demo'), keyPlugin: 'demo', legacy: true },
       { dir: join(home, '.demo-mcp'), keyPlugin: 'demo', legacy: true },
       { dir: join(home, '.better-demo-mcp'), keyPlugin: 'better-demo', legacy: true }
     ])
-    expect(legacyDataDirs(PLUGIN).map((l) => l.dir)).toEqual([join(home, '.demo-mcp'), join(home, '.better-demo-mcp')])
-    expect(dataDir(PLUGIN)).toBe(join(home, '.demo'))
+    expect(legacyDataDirs(PLUGIN).map((l) => l.dir)).toEqual([
+      join(home, '.demo'),
+      join(home, '.demo-mcp'),
+      join(home, '.better-demo-mcp')
+    ])
+    expect(dataDirName(PLUGIN)).toBe(join('.n24q02m', 'demo'))
+    expect(dataDir(PLUGIN)).toBe(join(home, '.n24q02m', 'demo'))
   })
 
-  it('resolves the home dir at call time', () => {
+  it('resolves the home dir and overrides at call time', () => {
     const other = mkdtempSync(join(tmpdir(), 'data-dir-other-'))
     try {
       setHomeDirForTesting(other)
-      expect(dataDir(PLUGIN)).toBe(join(other, '.demo'))
+      expect(dataDir(PLUGIN)).toBe(join(other, '.n24q02m', 'demo'))
+      expect(n24q02mBaseDir({ N24Q02M_HOME: join(other, 'custom') })).toBe(join(other, 'custom'))
+      expect(n24q02mBaseDir({ N24Q02M_USE_XDG: '1', XDG_CONFIG_HOME: join(other, 'xdg') })).toBe(
+        join(other, 'xdg', 'n24q02m')
+      )
+      expect(n24q02mBaseDir({ N24Q02M_USE_XDG: 'true', APPDATA: join(other, 'appdata') })).toBe(
+        join(other, 'appdata', 'n24q02m')
+      )
+      expect(n24q02mBaseDir({ N24Q02M_USE_XDG: '1' })).toBe(join(other, '.n24q02m'))
     } finally {
       rmSync(other, { recursive: true, force: true })
     }
   })
 
-  it('builds the blob path for single-user and per-sub', () => {
+  it('resolves Tier-2 profiles with explicit > <PLUGIN>_PROFILE > HULL_PROFILE > default', () => {
+    const env = { DEMO_PROFILE: 'from-plugin', HULL_PROFILE: 'from-hull' }
+    expect(resolveProfile(PLUGIN, 'explicit', env)).toBe('explicit')
+    expect(resolveProfile(PLUGIN, null, env)).toBe('from-plugin')
+    expect(resolveProfile(PLUGIN, '', { HULL_PROFILE: 'from-hull' })).toBe('from-hull')
+    expect(resolveProfile(PLUGIN, undefined, {})).toBe('default')
+    expect(() => assertValidProfile('../bad')).toThrow(/Invalid profile/)
+    expect(() => assertValidProfile('.')).toThrow(/Invalid profile/)
+  })
+
+  it('builds the blob path for single-user, per-sub, and profiles', () => {
     expect(blobPathIn('/x', null)).toBe(join('/x', 'config.json'))
+    expect(blobPathIn('/x', null, 'default')).toBe(join('/x', 'config.json'))
+    expect(blobPathIn('/x', null, 'work')).toBe(join('/x', 'profiles', 'work', 'config.json'))
     expect(blobPathIn('/x', 'u1')).toBe(join('/x', 'subs', 'u1', 'config.json'))
+    expect(blobPathIn('/x', 'u1', 'work')).toBe(join('/x', 'subs', 'u1', 'profiles', 'work', 'config.json'))
   })
 
   it('rejects unsafe plugin names and subs', () => {
@@ -105,19 +137,36 @@ describe('data-dir layout helpers', () => {
   })
 
   it('credPath points at the current layout', () => {
-    expect(credPath(PLUGIN, null)).toBe(join(home, '.demo', 'config.json'))
-    expect(credPath(PLUGIN, 'u1')).toBe(join(home, '.demo', 'subs', 'u1', 'config.json'))
+    expect(credPath(PLUGIN, null)).toBe(join(home, '.n24q02m', 'demo', 'config.json'))
+    expect(credPath(PLUGIN, 'u1')).toBe(join(home, '.n24q02m', 'demo', 'subs', 'u1', 'config.json'))
+    expect(credPath(PLUGIN, null, 'work')).toBe(join(home, '.n24q02m', 'demo', 'profiles', 'work', 'config.json'))
+  })
+
+  it('migrateLegacyDataDir copies ~/.<plugin> to ~/.n24q02m/<plugin> once without deleting legacy', () => {
+    expect(migrateLegacyDataDir(PLUGIN)).toBe(false)
+    plantSingle('.demo', { from: 'dot-demo' })
+    expect(migrateLegacyDataDir(PLUGIN)).toBe(true)
+    expect(existsSync(join(home, '.n24q02m', 'demo', 'config.json'))).toBe(true)
+    expect(existsSync(join(home, '.demo', 'config.json'))).toBe(true)
+    expect(migrateLegacyDataDir(PLUGIN)).toBe(false)
   })
 })
 
 describe('PerPluginStore single-user read fallback', () => {
-  it('writes the new ~/.<plugin>/ layout, machine key included', async () => {
+  it('writes the new ~/.n24q02m/<plugin>/ layout, machine key included', async () => {
     const store = new PerPluginStore(PLUGIN)
     await store.save({ k: 'v' })
-    expect(existsSync(join(home, '.demo', 'config.json'))).toBe(true)
-    expect(existsSync(join(home, '.demo', '.secret'))).toBe(true)
+    expect(existsSync(join(home, '.n24q02m', 'demo', 'config.json'))).toBe(true)
+    expect(existsSync(join(home, '.n24q02m', 'demo', '.secret'))).toBe(true)
     expect(existsSync(join(home, '.demo-mcp'))).toBe(false)
     expect(await store.load()).toEqual({ k: 'v' })
+  })
+
+  it('falls back to ~/.<plugin>/ decrypted with that directory .secret', async () => {
+    plantSingle('.demo', { from: 'dot' })
+    const store = new PerPluginStore(PLUGIN)
+    expect(await store.load()).toEqual({ from: 'dot' })
+    expect(await store.hasStoredBlob()).toBe(true)
   })
 
   it('falls back to ~/.<plugin>-mcp/ decrypted with that directory .secret', async () => {
@@ -134,7 +183,8 @@ describe('PerPluginStore single-user read fallback', () => {
     expect(await store.hasStoredBlob()).toBe(true)
   })
 
-  it('prefers the new dir over both legacy dirs', async () => {
+  it('prefers the new dir over all legacy dirs', async () => {
+    plantSingle('.demo', { from: 'dot' })
     plantSingle('.demo-mcp', { from: 'mcp' })
     plantSingle('.better-demo-mcp', { from: 'better' })
     const store = new PerPluginStore(PLUGIN)
@@ -152,7 +202,7 @@ describe('PerPluginStore single-user read fallback', () => {
     const legacyDir = plantSingle('.demo-mcp', { from: 'mcp' })
     const before = readdirSync(legacyDir).sort()
     expect(await new PerPluginStore(PLUGIN).load()).toEqual({ from: 'mcp' })
-    expect(existsSync(join(home, '.demo'))).toBe(false)
+    expect(existsSync(join(home, '.n24q02m', 'demo'))).toBe(false)
     expect(readdirSync(legacyDir).sort()).toEqual(before)
   })
 
@@ -167,8 +217,8 @@ describe('PerPluginStore single-user read fallback', () => {
     await store.save({ ...current, extra: '1' })
 
     // Written to the new layout with a freshly generated machine key.
-    expect(existsSync(join(home, '.demo', 'config.json'))).toBe(true)
-    expect(readFileSync(join(home, '.demo', '.secret'))).not.toEqual(legacySecret)
+    expect(existsSync(join(home, '.n24q02m', 'demo', 'config.json'))).toBe(true)
+    expect(readFileSync(join(home, '.n24q02m', 'demo', '.secret'))).not.toEqual(legacySecret)
     // Legacy copy is left untouched (a downgrade still finds its credentials).
     expect(readFileSync(join(legacyDir, 'config.json'))).toEqual(legacyBlob)
     // A fresh store reads the migrated value from the new dir.
@@ -176,6 +226,7 @@ describe('PerPluginStore single-user read fallback', () => {
   })
 
   it('clear removes the blob from the new dir and every legacy dir', async () => {
+    plantSingle('.demo', { from: 'dot' })
     plantSingle('.demo-mcp', { from: 'mcp' })
     plantSingle('.better-demo-mcp', { from: 'better' })
     const store = new PerPluginStore(PLUGIN)
@@ -183,6 +234,7 @@ describe('PerPluginStore single-user read fallback', () => {
 
     await store.clear()
 
+    expect(existsSync(join(home, '.n24q02m', 'demo', 'config.json'))).toBe(false)
     for (const dir of ['.demo', '.demo-mcp', '.better-demo-mcp']) {
       expect(existsSync(join(home, dir, 'config.json')), dir).toBe(false)
     }
@@ -220,8 +272,8 @@ describe('PerPluginStore single-user read fallback', () => {
 
   it('does not fall back past a corrupt blob in the new dir', async () => {
     plantSingle('.demo-mcp', { from: 'mcp' })
-    mkdirSync(join(home, '.demo'), { recursive: true })
-    writeFileSync(join(home, '.demo', 'config.json'), Buffer.from('too-short'))
+    mkdirSync(join(home, '.n24q02m', 'demo'), { recursive: true })
+    writeFileSync(join(home, '.n24q02m', 'demo', 'config.json'), Buffer.from('too-short'))
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const store = new PerPluginStore(PLUGIN)
     expect(await store.load()).toBeNull()
@@ -262,10 +314,10 @@ describe('PerPluginStore multi-user (subs/<sub>) read fallback', () => {
     process.env.CREDENTIAL_SECRET = 'test-master'
   })
 
-  it('writes the new ~/.<plugin>/subs/<sub>/ layout', async () => {
+  it('writes the new ~/.n24q02m/<plugin>/subs/<sub>/ layout', async () => {
     const store = new PerPluginStore(PLUGIN, SUB)
     await store.save({ k: 'v' })
-    expect(existsSync(join(home, '.demo', 'subs', SUB, 'config.json'))).toBe(true)
+    expect(existsSync(join(home, '.n24q02m', 'demo', 'subs', SUB, 'config.json'))).toBe(true)
     expect(await store.load()).toEqual({ k: 'v' })
   })
 
@@ -292,7 +344,7 @@ describe('PerPluginStore multi-user (subs/<sub>) read fallback', () => {
     expect(await store.load()).toEqual({ token: 'old' })
 
     await store.save({ token: 'new' })
-    expect(existsSync(join(home, '.demo', 'subs', SUB, 'config.json'))).toBe(true)
+    expect(existsSync(join(home, '.n24q02m', 'demo', 'subs', SUB, 'config.json'))).toBe(true)
     expect(existsSync(legacyPath)).toBe(true)
     expect(await new PerPluginStore(PLUGIN, SUB).load()).toEqual({ token: 'new' })
 
@@ -300,7 +352,7 @@ describe('PerPluginStore multi-user (subs/<sub>) read fallback', () => {
     await store.clear()
     expect(existsSync(legacyPath)).toBe(false)
     expect(existsSync(join(home, '.demo-mcp', 'subs', SUB, 'config.json'))).toBe(false)
-    expect(existsSync(join(home, '.demo', 'subs', SUB, 'config.json'))).toBe(false)
+    expect(existsSync(join(home, '.n24q02m', 'demo', 'subs', SUB, 'config.json'))).toBe(false)
     expect(await store.load()).toBeNull()
   })
 

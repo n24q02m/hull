@@ -54,13 +54,29 @@ describe('LocalFsBackend', () => {
     rmSync(testHome, { recursive: true, force: true })
   })
 
-  it('writes config blob under <home>/.<plugin>/config.json', async () => {
+  it('writes config blob under <home>/.n24q02m/<plugin>/config.json', async () => {
     const backend = new LocalFsBackend()
     expect(backend.isDefaultLayout).toBe(true)
     await backend.put('wet/config', Buffer.from('blob'))
-    const onDisk = readFileSync(join(testHome, '.wet', 'config.json'))
+    const onDisk = readFileSync(join(testHome, '.n24q02m', 'wet', 'config.json'))
     expect(onDisk).toEqual(Buffer.from('blob'))
     expect(existsSync(join(testHome, '.wet-mcp'))).toBe(false)
+  })
+
+  it('supports profiles, accounts, session, and tokens leaves', async () => {
+    const backend = new LocalFsBackend()
+    await backend.put('wet/profiles/work/config', Buffer.from('p-cfg'))
+    await backend.put('wet/accounts', Buffer.from('acc'))
+    await backend.put('wet/session', Buffer.from('sess'))
+    await backend.put('wet/tokens/google', Buffer.from('tok'))
+    await backend.put('wet/subs/u1/profiles/work/accounts', Buffer.from('sub-acc'))
+    expect(readFileSync(join(testHome, '.n24q02m', 'wet', 'profiles', 'work', 'config.json'))).toEqual(
+      Buffer.from('p-cfg')
+    )
+    expect(await backend.get('wet/accounts')).toEqual(Buffer.from('acc'))
+    expect(await backend.get('wet/session')).toEqual(Buffer.from('sess'))
+    expect(await backend.get('wet/tokens/google')).toEqual(Buffer.from('tok'))
+    expect(await backend.get('wet/subs/u1/profiles/work/accounts')).toEqual(Buffer.from('sub-acc'))
   })
 
   it('honours a custom baseDir and reports a non-default layout', async () => {
@@ -79,7 +95,7 @@ describe('LocalFsBackend', () => {
   it('sub path get/delete roundtrip', async () => {
     const backend = new LocalFsBackend()
     await backend.put('wet/subs/u1/config', Buffer.from('blob'))
-    const onDisk = readFileSync(join(testHome, '.wet', 'subs', 'u1', 'config.json'))
+    const onDisk = readFileSync(join(testHome, '.n24q02m', 'wet', 'subs', 'u1', 'config.json'))
     expect(onDisk).toEqual(Buffer.from('blob'))
     expect(await backend.get('wet/subs/u1/config')).toEqual(Buffer.from('blob'))
     await backend.delete('wet/subs/u1/config')
@@ -103,7 +119,7 @@ describe('LocalFsBackend', () => {
     await expect(backend.put('../config', Buffer.from('x'))).rejects.toThrow()
   })
 
-  it('rejects keys that are not <plugin>/config or <plugin>/subs/<sub>/config', async () => {
+  it('rejects keys that are not valid leaf paths', async () => {
     const backend = new LocalFsBackend()
     await expect(backend.get('wet')).rejects.toThrow(/Invalid backend key: wet/)
     await expect(backend.get('wet/other')).rejects.toThrow(/Invalid backend key/)
@@ -114,7 +130,7 @@ describe('LocalFsBackend', () => {
     const backend = new LocalFsBackend()
     // A directory where the blob file should be: read/unlink fail with
     // EISDIR/EPERM, which must surface instead of reading as "absent".
-    mkdirSync(join(testHome, '.wet', 'config.json'), { recursive: true })
+    mkdirSync(join(testHome, '.n24q02m', 'wet', 'config.json'), { recursive: true })
     await expect(backend.get('wet/config')).rejects.toThrow()
     await expect(backend.delete('wet/config')).rejects.toThrow()
   })
@@ -129,7 +145,7 @@ describe('LocalFsBackend', () => {
     const backend = new LocalFsBackend()
     // Seed the "old" blob directly (bypassing put/rename) so the mocked
     // rename failure below is the only thing exercising the atomic-write path.
-    const configDir = join(testHome, '.rename-error-trigger')
+    const configDir = join(testHome, '.n24q02m', 'rename-error-trigger')
     mkdirSync(configDir, { recursive: true })
     writeFileSync(join(configDir, 'config.json'), 'old-blob')
 
@@ -144,7 +160,7 @@ describe('LocalFsBackend', () => {
 
     // A successful put still writes the new content.
     await backend.put('demo/config', Buffer.from('new-content'))
-    expect(readFileSync(join(testHome, '.demo', 'config.json'), 'utf-8')).toBe('new-content')
+    expect(readFileSync(join(testHome, '.n24q02m', 'demo', 'config.json'), 'utf-8')).toBe('new-content')
   })
 })
 

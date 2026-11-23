@@ -79,10 +79,17 @@ def test_round_trip_in_memory() -> None:
 
 def test_round_trip_on_disk_uses_session_leaf(home: Path) -> None:
     StringSessionStore("telegram").save("abc")
-    assert (home / ".telegram" / "session.json").exists()
-    assert not (home / ".telegram" / "config.json").exists()
-    assert b"abc" not in (home / ".telegram" / "session.json").read_bytes()
+    assert (home / ".n24q02m" / "telegram" / "session.json").exists()
+    assert not (home / ".n24q02m" / "telegram" / "config.json").exists()
+    assert b"abc" not in (home / ".n24q02m" / "telegram" / "session.json").read_bytes()
     assert StringSessionStore("telegram").load() == "abc"
+
+
+def test_round_trip_with_profile(home: Path) -> None:
+    StringSessionStore("telegram", profile="work").save("work-sess")
+    assert (home / ".n24q02m" / "telegram" / "profiles" / "work" / "session.json").exists()
+    assert StringSessionStore("telegram", profile="work").load() == "work-sess"
+    assert StringSessionStore("telegram", profile="default").load() is None
 
 
 def test_multi_user_sub(monkeypatch: pytest.MonkeyPatch) -> None:

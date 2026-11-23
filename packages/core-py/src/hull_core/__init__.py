@@ -18,6 +18,13 @@ from hull_core.credentials.registry import AccountRegistry
 from hull_core.credentials.store import CredentialStore
 from hull_core.config.settings import HullSettings, ServerSettings, load_settings
 from hull_core.limits.limiter import SlidingWindowLimiter
+from hull_core.storage.account_registry import NamedAccountRegistry, validate_account_alias
+from hull_core.storage.data_dir import (
+    migrate_legacy_data_dir,
+    n24q02m_base_dir,
+    resolve_profile,
+    validate_profile,
+)
 from hull_core.storage.sqlite import HullDatabase
 
 __all__ = [
@@ -29,6 +36,7 @@ __all__ = [
     "KeyPool",
     "HullSettings",
     "ModelCell",
+    "NamedAccountRegistry",
     "PoolExhaustedError",
     "ServerSettings",
     "SlidingWindowLimiter",
@@ -39,6 +47,11 @@ __all__ = [
     "hash_token",
     "load_settings",
     "load_users",
+    "migrate_legacy_data_dir",
+    "n24q02m_base_dir",
     "resolve_model_cells",
+    "resolve_profile",
+    "validate_account_alias",
+    "validate_profile",
     "verify_token",
 ]

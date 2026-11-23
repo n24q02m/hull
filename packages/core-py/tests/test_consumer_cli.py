@@ -169,7 +169,7 @@ def test_plugin_name_default_strips_affixes(
 ) -> None:
     run = build_cli(server_name, serve=_Serve())
     assert run(["status"]) == 0
-    assert f"path: {home / f'.{plugin}' / 'config.json'} (not created yet)" in capsys.readouterr().out
+    assert f"path: {home / '.n24q02m' / plugin / 'config.json'} (not created yet)" in capsys.readouterr().out
 
 
 # --- status / config status -------------------------------------------------------------
@@ -180,8 +180,8 @@ def test_status_not_configured(home: Path, capsys: pytest.CaptureFixture[str]) -
     assert run(["status"]) == 0
     out = capsys.readouterr().out
     assert f"{SERVER}: not configured" in out
-    assert f"path: {home / '.telegram' / 'config.json'} (not created yet)" in out
-    assert not (home / ".telegram").exists(), "status never creates the data dir"
+    assert f"path: {home / '.n24q02m' / 'telegram' / 'config.json'} (not created yet)" in out
+    assert not (home / ".n24q02m" / "telegram").exists(), "status never creates the data dir"
 
 
 def test_config_status_configured(home: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -190,8 +190,25 @@ def test_config_status_configured(home: Path, capsys: pytest.CaptureFixture[str]
     assert run(["config", "status"]) == 0
     out = capsys.readouterr().out
     assert f"{SERVER}: configured" in out
-    assert f"path: {home / '.telegram' / 'config.json'}\n" in out
+    assert f"path: {home / '.n24q02m' / 'telegram' / 'config.json'}\n" in out
     assert "SECRET-VALUE" not in out
+
+
+def test_profile_flags_on_builtins(home: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    PerPluginStore("telegram", profile="work").save({"api_hash": "WORK-SECRET"})
+    run, _ = _cli()
+    assert run(["status"]) == 0
+    assert "not configured" in capsys.readouterr().out
+    assert run(["status", "--profile", "work"]) == 0
+    out = capsys.readouterr().out
+    assert f"{SERVER}: configured" in out
+    assert f"path: {home / '.n24q02m' / 'telegram' / 'profiles' / 'work' / 'config.json'}\n" in out
+    assert run(["--profile", "work", "config", "status"]) == 0
+    assert f"{SERVER}: configured" in capsys.readouterr().out
+    assert run(["--profile=work", "doctor"]) == 0
+    assert "[ok] config: configured" in capsys.readouterr().out
+    assert run(["logout", "--profile", "work", "--yes"]) == 0
+    assert PerPluginStore("telegram", profile="work").load() is None
 
 
 def _encrypt(key: bytes, payload: dict) -> bytes:
@@ -214,7 +231,7 @@ def test_status_marks_legacy_location(home: Path, capsys: pytest.CaptureFixture[
 
 def test_status_corrupt(home: Path, capsys: pytest.CaptureFixture[str]) -> None:
     PerPluginStore("telegram").save({"a": 1})
-    (home / ".telegram" / "config.json").write_bytes(b"\x00" * 40)
+    (home / ".n24q02m" / "telegram" / "config.json").write_bytes(b"\x00" * 40)
     run, _ = _cli()
     assert run(["status"]) == 1
     assert "config is corrupt" in capsys.readouterr().err
@@ -245,7 +262,7 @@ def test_status_bad_backend_is_one_line(
 
 def test_status_foreign_secret_is_one_line(home: Path, capsys: pytest.CaptureFixture[str]) -> None:
     PerPluginStore("telegram").save({"a": 1})
-    secret = home / ".telegram" / ".secret"
+    secret = home / ".n24q02m" / "telegram" / ".secret"
     secret.write_bytes(b"ab" * 32)
     run, _ = _cli()
     assert run(["status"]) == 1
@@ -331,7 +348,7 @@ def test_doctor_healthy(home: Path, capsys: pytest.CaptureFixture[str]) -> None:
     out = capsys.readouterr().out
     assert "[ok] python" in out
     assert "[ok] credential backend: LocalFsBackend" in out
-    assert f"[ok] data dir writable: {home / '.telegram'}" in out
+    assert f"[ok] data dir writable: {home / '.n24q02m' / 'telegram'}" in out
     assert f"[ok] legacy data dir (read-only fallback): {home / '.telegram-mcp'}" in out
     assert "[ok] config: configured" in out
 
@@ -340,15 +357,15 @@ def test_doctor_fresh_machine_warns_without_creating(home: Path, capsys: pytest.
     run, _ = _cli()
     assert run(["doctor"]) == 0
     out = capsys.readouterr().out
-    assert f"[warn] data dir does not exist yet: {home / '.telegram'}" in out
+    assert f"[warn] data dir does not exist yet: {home / '.n24q02m' / 'telegram'}" in out
     assert "[warn] config: not configured" in out
-    assert not (home / ".telegram").exists()
+    assert not (home / ".n24q02m" / "telegram").exists()
 
 
 def test_doctor_unwritable_dir_fails(
     home: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    (home / ".telegram").mkdir()
+    (home / ".n24q02m" / "telegram").mkdir(parents=True)
     monkeypatch.setattr(consumer_cli.os, "access", lambda path, mode: False)
     run, _ = _cli()
     assert run(["doctor"]) == 1
@@ -357,7 +374,7 @@ def test_doctor_unwritable_dir_fails(
 
 def test_doctor_corrupt_config_fails(home: Path, capsys: pytest.CaptureFixture[str]) -> None:
     PerPluginStore("telegram").save({"a": 1})
-    (home / ".telegram" / "config.json").write_bytes(b"\x00" * 40)
+    (home / ".n24q02m" / "telegram" / "config.json").write_bytes(b"\x00" * 40)
     run, _ = _cli()
     assert run(["doctor"]) == 1
     assert "[fail] config: corrupt" in capsys.readouterr().out
@@ -396,7 +413,7 @@ def test_doctor_memory_backend_skips_disk(
 
 def test_doctor_foreign_secret_fails(home: Path, capsys: pytest.CaptureFixture[str]) -> None:
     PerPluginStore("telegram").save({"a": 1})
-    secret = home / ".telegram" / ".secret"
+    secret = home / ".n24q02m" / "telegram" / ".secret"
     secret.write_bytes(b"")
     run, _ = _cli()
     assert run(["doctor"]) == 1
@@ -498,4 +515,4 @@ def test_explicit_plugin_name(home: Path, capsys: pytest.CaptureFixture[str]) ->
     PerPluginStore("tg").save({"a": 1})
     run = build_cli(SERVER, plugin_name="tg", serve=_Serve())
     assert run(["status"]) == 0
-    assert f"{home / '.tg' / 'config.json'}" in capsys.readouterr().out
+    assert f"{home / '.n24q02m' / 'tg' / 'config.json'}" in capsys.readouterr().out

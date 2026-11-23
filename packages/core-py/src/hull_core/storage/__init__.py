@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from hull_core.storage.account_registry import NamedAccountRegistry, validate_account_alias
 from hull_core.storage.backends import (
     CredentialBackend,
     InMemoryBackend,
@@ -14,7 +15,11 @@ from hull_core.storage.data_dir import (
     data_dir,
     data_dir_candidates,
     legacy_data_dirs,
+    migrate_legacy_data_dir,
+    n24q02m_base_dir,
+    resolve_profile,
     validate_plugin,
+    validate_profile,
     validate_sub,
 )
 from hull_core.storage.legacy_config_file import delete_legacy_config, read_legacy_config
@@ -29,6 +34,7 @@ __all__ = [
     "InMemoryBackend",
     "LocalFsBackend",
     "MachineKeyError",
+    "NamedAccountRegistry",
     "PerPluginStore",
     "SaveOnChangeStringSession",
     "StringSessionStore",
@@ -38,8 +44,13 @@ __all__ = [
     "data_dir_candidates",
     "delete_legacy_config",
     "legacy_data_dirs",
+    "migrate_legacy_data_dir",
+    "n24q02m_base_dir",
     "read_legacy_config",
+    "resolve_profile",
+    "validate_account_alias",
     "validate_plugin",
+    "validate_profile",
     "validate_sub",
 ]
 

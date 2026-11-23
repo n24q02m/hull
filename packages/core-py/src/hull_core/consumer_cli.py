@@ -104,7 +104,7 @@ def _confirmed(server_name: str, prompt: str, *, yes: bool) -> bool:
 
 def _config_handler(server_name: str, plugin_name: str) -> ExtraHandler:
     def handler(ns: argparse.Namespace) -> int:
-        store = PerPluginStore(plugin_name)
+        store = PerPluginStore(plugin_name, profile=getattr(ns, "profile", None))
         if ns.config_action == "status":
             return _print_status(server_name, store)
         if not _confirmed(server_name, f"Delete stored config for {server_name}?", yes=ns.yes):
@@ -117,8 +117,8 @@ def _config_handler(server_name: str, plugin_name: str) -> ExtraHandler:
 
 
 def _status_handler(server_name: str, plugin_name: str) -> ExtraHandler:
-    def handler(_ns: argparse.Namespace) -> int:
-        return _print_status(server_name, PerPluginStore(plugin_name))
+    def handler(ns: argparse.Namespace) -> int:
+        return _print_status(server_name, PerPluginStore(plugin_name, profile=getattr(ns, "profile", None)))
 
     return handler
 
@@ -127,9 +127,10 @@ def _logout_handler(server_name: str, plugin_name: str) -> ExtraHandler:
     def handler(ns: argparse.Namespace) -> int:
         if not _confirmed(server_name, f"Remove stored credentials for {server_name}?", yes=ns.yes):
             return 1
+        profile = getattr(ns, "profile", None)
         backend = backend_from_env()
-        PerPluginStore(plugin_name, backend=backend).clear()
-        PerPluginStore(plugin_name, backend=backend, sub_key=_SESSION_LEAF).clear()
+        PerPluginStore(plugin_name, backend=backend, profile=profile).clear()
+        PerPluginStore(plugin_name, backend=backend, sub_key=_SESSION_LEAF, profile=profile).clear()
         print(f"{server_name}: stored credentials removed")
         return 0
 
@@ -137,7 +138,7 @@ def _logout_handler(server_name: str, plugin_name: str) -> ExtraHandler:
 
 
 def _doctor_handler(server_name: str, plugin_name: str) -> ExtraHandler:
-    def handler(_ns: argparse.Namespace) -> int:
+    def handler(ns: argparse.Namespace) -> int:
         ok, line = python_check()
         print(line)
 
@@ -164,7 +165,9 @@ def _doctor_handler(server_name: str, plugin_name: str) -> ExtraHandler:
                     print(f"[ok] legacy data dir (read-only fallback): {candidate.dir}")
 
         try:
-            state = _credential_state(PerPluginStore(plugin_name, backend=backend))
+            state = _credential_state(
+                PerPluginStore(plugin_name, backend=backend, profile=getattr(ns, "profile", None))
+            )
         except MachineKeyError as err:
             print(f"[fail] machine key: {err}")
             return 1
@@ -203,6 +206,8 @@ def _token_handler(server_name: str) -> ExtraHandler:
 
 
 def _configure_builtin(name: str, parser: argparse.ArgumentParser) -> None:
+    if name in ("config", "status", "logout", "doctor"):
+        parser.add_argument("--profile", default=None, help=argparse.SUPPRESS)
     if name == "config":
         parser.add_argument("config_action", choices=["status", "delete"])
         parser.add_argument("--yes", action="store_true", default=False)
@@ -225,8 +230,8 @@ _BUILTIN_HELP = {
 
 def _argument_label(action: argparse.Action) -> str | None:
     """The action as it would appear in a usage line, or None when not shown."""
-    if action.dest in ("help", "subcommand"):
-        # argparse's own -h and the subcommand dispatcher: never user surface.
+    if action.dest in ("help", "subcommand") or action.help == argparse.SUPPRESS:
+        # argparse's own -h, suppressed internal args, and the subcommand dispatcher: never user surface.
         return None
     if action.option_strings:
         label = ", ".join(action.option_strings)
@@ -358,6 +363,14 @@ def build_cli(
             print(f"{server_name} {version}")
             return 0
 
+        leading_profile: str | None = None
+        if len(argv) >= 3 and argv[0] == "--profile" and argv[2] in handlers:
+            leading_profile = argv[1]
+            argv = argv[2:]
+        elif len(argv) >= 2 and argv[0].startswith("--profile=") and argv[1] in handlers:
+            leading_profile = argv[0].split("=", 1)[1]
+            argv = argv[1:]
+
         if argv[0].startswith("-"):
             rc = serve(argv)
             return 0 if rc is None else rc
@@ -375,6 +388,8 @@ def build_cli(
             # argparse exits 2 on bad args and 0 on `<sub> -h`; surface that as
             # the return code so the entry point always returns an int.
             return exc.code if isinstance(exc.code, int) else 2
+        if leading_profile is not None and getattr(ns, "profile", None) is None:
+            ns.profile = leading_profile
         try:
             return handler(ns)
         except MachineKeyError as err:

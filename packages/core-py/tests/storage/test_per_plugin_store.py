@@ -34,6 +34,10 @@ def home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
     monkeypatch.delenv("CREDENTIAL_SECRET", raising=False)
     monkeypatch.delenv("MCP_STORAGE_BACKEND", raising=False)
+    monkeypatch.delenv("N24Q02M_HOME", raising=False)
+    monkeypatch.delenv("N24Q02M_USE_XDG", raising=False)
+    monkeypatch.delenv("HULL_PROFILE", raising=False)
+    monkeypatch.delenv("TELEGRAM_PROFILE", raising=False)
     monkeypatch.setattr(per_plugin_store, "_tightened_dirs", set())
     return tmp_path
 
@@ -103,8 +107,8 @@ def test_single_user_round_trip_writes_current_layout(home: Path) -> None:
     assert not store.has_stored_blob()
     store.save({"api_id": 1, "nested": {"k": "v"}})
 
-    secret = home / ".telegram" / ".secret"
-    blob_path = home / ".telegram" / "config.json"
+    secret = home / ".n24q02m" / "telegram" / ".secret"
+    blob_path = home / ".n24q02m" / "telegram" / "config.json"
     assert len(secret.read_bytes()) == 32
     assert store.cred_path == blob_path
     blob = blob_path.read_bytes()
@@ -119,11 +123,31 @@ def test_single_user_round_trip_writes_current_layout(home: Path) -> None:
     assert store.blob_locations() == [blob_path]
 
 
+def test_profile_isolation_single_and_multi_user(home: Path, master: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    default_store = PerPluginStore(PLUGIN)
+    work_store = PerPluginStore(PLUGIN, profile="work")
+    default_store.save({"env": "default"})
+    work_store.save({"env": "work"})
+    assert default_store.cred_path == home / ".n24q02m" / "telegram" / "config.json"
+    assert work_store.cred_path == home / ".n24q02m" / "telegram" / "profiles" / "work" / "config.json"
+    assert default_store.load() == {"env": "default"}
+    assert work_store.load() == {"env": "work"}
+
+    monkeypatch.setenv("TELEGRAM_PROFILE", "work")
+    assert PerPluginStore(PLUGIN).load() == {"env": "work"}
+
+    sub_work = PerPluginStore(PLUGIN, "u1", profile="work")
+    sub_work.save({"sub_env": "work"})
+    assert sub_work.cred_path == home / ".n24q02m" / "telegram" / "subs" / "u1" / "profiles" / "work" / "config.json"
+    assert sub_work.load() == {"sub_env": "work"}
+    assert PerPluginStore(PLUGIN, "u1", profile="default").load() is None
+
+
 def test_machine_key_is_reused_across_saves(home: Path) -> None:
     PerPluginStore(PLUGIN).save({"a": 1})
-    key = (home / ".telegram" / ".secret").read_bytes()
+    key = (home / ".n24q02m" / "telegram" / ".secret").read_bytes()
     PerPluginStore(PLUGIN).save({"a": 2})
-    assert (home / ".telegram" / ".secret").read_bytes() == key
+    assert (home / ".n24q02m" / "telegram" / ".secret").read_bytes() == key
     assert PerPluginStore(PLUGIN).load() == {"a": 2}
 
 
@@ -136,22 +160,22 @@ def test_multi_user_round_trip_is_ts_compatible(home: Path, master: str) -> None
     store = PerPluginStore(PLUGIN, "u1")
     assert store.cred_key == "telegram/subs/u1/config"
     store.save({"token": "t"})
-    path = home / ".telegram" / "subs" / "u1" / "config.json"
+    path = home / ".n24q02m" / "telegram" / "subs" / "u1" / "config.json"
     blob = path.read_bytes()
     # hull TS reads it with its own scrypt key.
     plaintext = AESGCM(_ts_multi_user_key(PLUGIN, "u1")).decrypt(blob[:12], blob[12:], None)
     assert json.loads(plaintext) == {"token": "t"}
     assert PerPluginStore(PLUGIN, "u1").load() == {"token": "t"}
     assert PerPluginStore(PLUGIN, "u2").load() is None
-    assert not (home / ".telegram" / ".secret").exists(), "multi-user never touches the machine key"
+    assert not (home / ".n24q02m" / "telegram" / ".secret").exists(), "multi-user never touches the machine key"
 
 
 def test_sub_key_selects_leaf(home: Path) -> None:
     store = PerPluginStore(PLUGIN, sub_key="session")
     assert store.cred_key == "telegram/session"
     store.save({"session": "s"})
-    assert (home / ".telegram" / "session.json").exists()
-    assert not (home / ".telegram" / "config.json").exists()
+    assert (home / ".n24q02m" / "telegram" / "session.json").exists()
+    assert not (home / ".n24q02m" / "telegram" / "config.json").exists()
     assert PerPluginStore(PLUGIN).load() is None
 
 
@@ -184,7 +208,7 @@ def test_reads_old_py_single_user_blob_and_migrates_on_save(home: Path) -> None:
     assert store.blob_locations() == [legacy / "config.json"]
 
     store.save({"from": "old-py", "migrated": True})
-    current = home / ".telegram"
+    current = home / ".n24q02m" / "telegram"
     assert (current / "config.json").exists()
     new_key = (current / ".secret").read_bytes()
     assert new_key != legacy_key, "the current dir gets its own machine key"
@@ -200,7 +224,7 @@ def test_reads_old_py_multi_user_blob_pbkdf2(home: Path, master: str) -> None:
     assert store.load() == {"from": "old-py-multi"}
     store.save({"v": 2})
     # The migrated copy uses the current (scrypt) derivation.
-    blob = (home / ".telegram" / "subs" / "u1" / "config.json").read_bytes()
+    blob = (home / ".n24q02m" / "telegram" / "subs" / "u1" / "config.json").read_bytes()
     assert json.loads(AESGCM(_ts_multi_user_key(PLUGIN, "u1")).decrypt(blob[:12], blob[12:], None)) == {"v": 2}
 
 
@@ -216,14 +240,16 @@ def test_legacy_precedence_newest_name_first(home: Path) -> None:
     _write_single_user(home / ".telegram-mcp", {"from": "mcp"})
     _write_single_user(home / ".better-telegram-mcp", {"from": "better"})
     assert PerPluginStore(PLUGIN).load() == {"from": "mcp"}
-    _write_single_user(home / ".telegram", {"from": "current"})
+    _write_single_user(home / ".telegram", {"from": "dot-plugin"})
+    assert PerPluginStore(PLUGIN).load() == {"from": "dot-plugin"}
+    _write_single_user(home / ".n24q02m" / "telegram", {"from": "current"})
     assert PerPluginStore(PLUGIN).load() == {"from": "current"}
 
 
 def test_corrupt_current_blob_does_not_resurrect_legacy(home: Path, capsys: pytest.CaptureFixture[str]) -> None:
     _write_single_user(home / ".telegram-mcp", {"from": "legacy"})
     PerPluginStore(PLUGIN).save({"from": "current"})
-    (home / ".telegram" / "config.json").write_bytes(b"\x00" * 40)
+    (home / ".n24q02m" / "telegram" / "config.json").write_bytes(b"\x00" * 40)
 
     assert PerPluginStore(PLUGIN).load() is None
     err = capsys.readouterr().err
@@ -244,19 +270,19 @@ def test_short_blob_is_corrupt(home: Path, capsys: pytest.CaptureFixture[str]) -
 
 def test_changed_machine_key_is_corrupt(home: Path) -> None:
     PerPluginStore(PLUGIN).save({"a": 1})
-    (home / ".telegram" / ".secret").write_bytes(secrets.token_bytes(32))
+    (home / ".n24q02m" / "telegram" / ".secret").write_bytes(secrets.token_bytes(32))
     assert PerPluginStore(PLUGIN).load() is None
 
 
 def test_non_dict_payload_is_corrupt(home: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    _write_single_user(home / ".telegram", ["not", "a", "dict"])
+    _write_single_user(home / ".n24q02m" / "telegram", ["not", "a", "dict"])
     assert PerPluginStore(PLUGIN).load() is None
     assert "corrupt" in capsys.readouterr().err
 
 
 def test_non_json_plaintext_is_corrupt(home: Path) -> None:
-    directory = home / ".telegram"
-    directory.mkdir()
+    directory = home / ".n24q02m" / "telegram"
+    directory.mkdir(parents=True)
     key = secrets.token_bytes(32)
     (directory / ".secret").write_bytes(key)
     nonce = secrets.token_bytes(12)
@@ -291,16 +317,17 @@ def test_legacy_multi_user_with_wrong_master_is_corrupt(home: Path, monkeypatch:
 
 
 def test_clear_removes_every_location(home: Path) -> None:
+    _write_single_user(home / ".telegram", {"a": 0})
     _write_single_user(home / ".telegram-mcp", {"a": 1})
     _write_single_user(home / ".better-telegram-mcp", {"a": 2})
     store = PerPluginStore(PLUGIN)
     store.save({"a": 3})
-    assert len(store.blob_locations()) == 3
+    assert len(store.blob_locations()) == 4
     store.clear()
     assert not store.has_stored_blob()
     assert store.blob_locations() == []
     assert store.load() is None
-    assert (home / ".telegram" / ".secret").exists(), "clear removes blobs, not the machine key"
+    assert (home / ".n24q02m" / "telegram" / ".secret").exists(), "clear removes blobs, not the machine key"
 
 
 # --- non-default backends -----------------------------------------------------
@@ -341,14 +368,14 @@ def test_backend_defaults_from_env(home: Path, monkeypatch: pytest.MonkeyPatch) 
 
 
 def test_existing_data_dir_tightened_once_per_process(home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    (home / ".telegram").mkdir()
+    (home / ".n24q02m" / "telegram").mkdir(parents=True)
     monkeypatch.setattr(backends, "_POSIX", True)
     with patch("hull_core.storage.backends.os.chmod") as chmod:
         store = PerPluginStore(PLUGIN, backend=InMemoryBackend())
         store.save({"a": 1})
         store.load()
         store.load()
-    tightened = [call for call in chmod.call_args_list if call.args[0] == home / ".telegram"]
+    tightened = [call for call in chmod.call_args_list if call.args[0] == home / ".n24q02m" / "telegram"]
     # Once by the read-path tighten, once by atomic_write_bytes creating .secret.
     assert len(tightened) == 2
     assert all(call.args[1] == 0o700 for call in tightened)
@@ -365,13 +392,13 @@ def test_missing_data_dir_not_created_by_read(home: Path) -> None:
 # --- foreign .secret in the current dir ------------------------------------------
 #
 # telegram's data-dir migration can move ~/.better-telegram-mcp/.secret (64 hex
-# chars, mcp-core credential_store's master secret) into ~/.telegram/. Hull must
+# chars, mcp-core credential_store's master secret) into ~/.n24q02m/telegram/. Hull must
 # never decrypt with it, regenerate over it, or delete it.
 
 
 def _foreign_secret(home: Path, content: bytes) -> Path:
-    directory = home / ".telegram"
-    directory.mkdir(exist_ok=True)
+    directory = home / ".n24q02m" / "telegram"
+    directory.mkdir(parents=True, exist_ok=True)
     secret = directory / ".secret"
     secret.write_bytes(content)
     return secret
@@ -402,20 +429,20 @@ def test_foreign_secret_before_first_save_fails_loudly(home: Path, content: byte
     if content.strip():
         assert content.strip().decode("latin-1") not in message, "key material never echoed"
     assert secret.read_bytes() == content, "foreign file left byte-identical"
-    assert not (home / ".telegram" / "config.json").exists(), "nothing written under an unusable key"
-    assert [p.name for p in (home / ".telegram").iterdir()] == [".secret"], "no tmp files left behind"
+    assert not (home / ".n24q02m" / "telegram" / "config.json").exists(), "nothing written under an unusable key"
+    assert [p.name for p in (home / ".n24q02m" / "telegram").iterdir()] == [".secret"], "no tmp files left behind"
 
 
 @pytest.mark.parametrize("content", list(FOREIGN_SECRETS.values()), ids=list(FOREIGN_SECRETS))
 def test_foreign_secret_with_existing_blob_fails_loudly_on_load(home: Path, content: bytes) -> None:
     PerPluginStore(PLUGIN).save({"a": 1})
-    blob = (home / ".telegram" / "config.json").read_bytes()
+    blob = (home / ".n24q02m" / "telegram" / "config.json").read_bytes()
     secret = _foreign_secret(home, content)
 
     with pytest.raises(MachineKeyError, match="not a hull machine key"):
         PerPluginStore(PLUGIN).load()
     assert secret.read_bytes() == content
-    assert (home / ".telegram" / "config.json").read_bytes() == blob, "blob untouched"
+    assert (home / ".n24q02m" / "telegram" / "config.json").read_bytes() == blob, "blob untouched"
 
 
 def test_foreign_secret_error_is_runtime_error_subclass() -> None:
@@ -428,7 +455,7 @@ def test_foreign_32_byte_secret_is_used_as_key(home: Path) -> None:
     secret = _foreign_secret(home, key)
     PerPluginStore(PLUGIN).save({"a": 1})
     assert secret.read_bytes() == key
-    blob = (home / ".telegram" / "config.json").read_bytes()
+    blob = (home / ".n24q02m" / "telegram" / "config.json").read_bytes()
     assert json.loads(AESGCM(key).decrypt(blob[:12], blob[12:], None)) == {"a": 1}
 
 
@@ -444,8 +471,8 @@ def test_multi_user_ignores_foreign_secret(home: Path, master: str) -> None:
 
 
 def test_create_machine_key_race_keeps_winner(home: Path) -> None:
-    directory = home / ".telegram"
-    directory.mkdir()
+    directory = home / ".n24q02m" / "telegram"
+    directory.mkdir(parents=True)
     secret = directory / ".secret"
     winner = secrets.token_bytes(32)
     real_link = per_plugin_store.os.link
@@ -461,8 +488,8 @@ def test_create_machine_key_race_keeps_winner(home: Path) -> None:
 
 
 def test_create_machine_key_race_with_foreign_winner_fails_loudly(home: Path) -> None:
-    directory = home / ".telegram"
-    directory.mkdir()
+    directory = home / ".n24q02m" / "telegram"
+    directory.mkdir(parents=True)
     secret = directory / ".secret"
 
     def racing_link(src, dst):  # noqa: ANN001
@@ -476,8 +503,8 @@ def test_create_machine_key_race_with_foreign_winner_fails_loudly(home: Path) ->
 
 
 def test_create_machine_key_falls_back_to_exclusive_create(home: Path) -> None:
-    directory = home / ".telegram"
-    directory.mkdir()
+    directory = home / ".n24q02m" / "telegram"
+    directory.mkdir(parents=True)
     secret = directory / ".secret"
 
     def no_links(src, dst):  # noqa: ANN001
@@ -491,8 +518,8 @@ def test_create_machine_key_falls_back_to_exclusive_create(home: Path) -> None:
 
 
 def test_create_machine_key_exclusive_create_race_keeps_winner(home: Path) -> None:
-    directory = home / ".telegram"
-    directory.mkdir()
+    directory = home / ".n24q02m" / "telegram"
+    directory.mkdir(parents=True)
     secret = directory / ".secret"
     winner = secrets.token_bytes(32)
 
@@ -507,8 +534,8 @@ def test_create_machine_key_exclusive_create_race_keeps_winner(home: Path) -> No
 
 
 def test_create_machine_key_cleans_tmp_on_unexpected_error(home: Path) -> None:
-    directory = home / ".telegram"
-    directory.mkdir()
+    directory = home / ".n24q02m" / "telegram"
+    directory.mkdir(parents=True)
 
     def boom(src, dst):  # noqa: ANN001
         raise FileExistsError(dst)

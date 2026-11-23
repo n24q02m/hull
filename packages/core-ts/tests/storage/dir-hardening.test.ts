@@ -30,7 +30,7 @@ describe('storage directory hardening (TOCTOU)', () => {
   const dirMode = (p: string): number => statSync(p).mode & 0o777
 
   itPosix('LocalFsBackend.put tightens a pre-existing 0o777 store directory to 0o700', async () => {
-    const dir = join(testHome, '.wet')
+    const dir = join(testHome, '.n24q02m', 'wet')
     mkdirSync(dir, { recursive: true })
     chmodSync(dir, 0o777)
     expect(dirMode(dir)).toBe(0o777)
@@ -45,15 +45,15 @@ describe('storage directory hardening (TOCTOU)', () => {
   it('LocalFsBackend.put re-creates the directory if it disappears between writes', async () => {
     const backend = new LocalFsBackend()
     await backend.put('wet/config', Buffer.from('one'))
-    rmSync(join(testHome, '.wet'), { recursive: true, force: true })
+    rmSync(join(testHome, '.n24q02m', 'wet'), { recursive: true, force: true })
     await backend.put('wet/config', Buffer.from('two'))
-    expect(readFileSync(join(testHome, '.wet', 'config.json'))).toEqual(Buffer.from('two'))
+    expect(readFileSync(join(testHome, '.n24q02m', 'wet', 'config.json'))).toEqual(Buffer.from('two'))
   })
 
   itPosix(
     'PerPluginStore tightens a permissive machine-key directory even when the secret already exists (read path)',
     async () => {
-      const dir = join(testHome, '.wet')
+      const dir = join(testHome, '.n24q02m', 'wet')
       mkdirSync(dir, { recursive: true })
       chmodSync(dir, 0o777)
       writeFileSync(join(dir, '.secret'), Buffer.alloc(32, 7))

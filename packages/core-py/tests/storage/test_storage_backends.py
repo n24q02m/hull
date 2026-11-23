@@ -52,14 +52,19 @@ def test_backends_satisfy_protocol() -> None:
     [
         ("tg/config", Path("config.json")),
         ("tg/session", Path("session.json")),
+        ("tg/accounts", Path("accounts.json")),
         ("tg/tokens/google", Path("tokens", "google.json")),
+        ("tg/profiles/work/config", Path("profiles", "work", "config.json")),
+        ("tg/profiles/work/accounts", Path("profiles", "work", "accounts.json")),
         ("tg/subs/u1/config", Path("subs", "u1", "config.json")),
         ("tg/subs/u1/session", Path("subs", "u1", "session.json")),
+        ("tg/subs/u1/accounts", Path("subs", "u1", "accounts.json")),
         ("tg/subs/u1/tokens/ms", Path("subs", "u1", "tokens", "ms.json")),
+        ("tg/subs/u1/profiles/work/config", Path("subs", "u1", "profiles", "work", "config.json")),
     ],
 )
 def test_key_mapping_default_layout(home: Path, key: str, relative: Path) -> None:
-    assert LocalFsBackend().path_for(key) == home / ".tg" / relative
+    assert LocalFsBackend().path_for(key) == home / ".n24q02m" / "tg" / relative
 
 
 @pytest.mark.parametrize(

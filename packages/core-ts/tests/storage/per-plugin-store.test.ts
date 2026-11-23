@@ -55,8 +55,27 @@ describe('PerPluginStore', () => {
   })
 
   it('path layout', () => {
-    expect(credPath('foo', null)).toBe(join(testHome, '.foo', 'config.json'))
-    expect(credPath('foo', 'abc-123')).toBe(join(testHome, '.foo', 'subs', 'abc-123', 'config.json'))
+    expect(credPath('foo', null)).toBe(join(testHome, '.n24q02m', 'foo', 'config.json'))
+    expect(credPath('foo', 'abc-123')).toBe(join(testHome, '.n24q02m', 'foo', 'subs', 'abc-123', 'config.json'))
+    expect(credPath('foo', null, 'work')).toBe(join(testHome, '.n24q02m', 'foo', 'profiles', 'work', 'config.json'))
+    expect(credPath('foo', 'abc-123', 'work')).toBe(
+      join(testHome, '.n24q02m', 'foo', 'subs', 'abc-123', 'profiles', 'work', 'config.json')
+    )
+  })
+
+  it('profile isolation for single-user and multi-user', async () => {
+    process.env.CREDENTIAL_SECRET = 'test-master'
+    const defStore = new PerPluginStore('test-plugin')
+    const workStore = new PerPluginStore('test-plugin', null, undefined, { profile: 'work' })
+    await defStore.save({ env: 'default' })
+    await workStore.save({ env: 'work' })
+    expect(await defStore.load()).toEqual({ env: 'default' })
+    expect(await workStore.load()).toEqual({ env: 'work' })
+
+    const subWork = new PerPluginStore('test-plugin', 'u1', undefined, { profile: 'work' })
+    await subWork.save({ subEnv: 'work' })
+    expect(await subWork.load()).toEqual({ subEnv: 'work' })
+    expect(await new PerPluginStore('test-plugin', 'u1').load()).toBeNull()
   })
 
   it('path traversal protection', () => {
@@ -164,7 +183,7 @@ describe('PerPluginStore', () => {
 
     await expect(store.save({ k: 'v' })).rejects.toThrow('simulated rename failure')
 
-    const secretDir = join(testHome, `.${pluginName}`)
+    const secretDir = join(testHome, '.n24q02m', pluginName)
     expect(existsSync(join(secretDir, '.secret'))).toBe(false)
     expect(readdirSync(secretDir).some((entry) => entry.endsWith('.tmp'))).toBe(false)
   })

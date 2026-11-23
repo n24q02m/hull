@@ -406,7 +406,7 @@ describe('buildCli — doctor subcommand', () => {
   it('warns that the store dir does not exist yet when nothing is on disk', async () => {
     const run = buildCli(SERVER, { serve: () => 0 })
     await run(['doctor'])
-    expect(logs.join('\n')).toContain(`[warn] store dir does not exist yet: ${join(tmp, `.${SERVER}`)}`)
+    expect(logs.join('\n')).toContain(`[warn] store dir does not exist yet: ${join(tmp, '.n24q02m', SERVER)}`)
   })
 
   it('reports the new store dir as writable once it exists', async () => {
@@ -414,7 +414,7 @@ describe('buildCli — doctor subcommand', () => {
     const run = buildCli(SERVER, { serve: () => 0 })
     await run(['doctor'])
     const all = logs.join('\n')
-    expect(all).toContain(`[ok] store dir writable: ${join(tmp, `.${SERVER}`)}`)
+    expect(all).toContain(`[ok] store dir writable: ${join(tmp, '.n24q02m', SERVER)}`)
     expect(all).not.toContain('legacy store dir')
   })
 
@@ -424,7 +424,7 @@ describe('buildCli — doctor subcommand', () => {
     await run(['doctor'])
     const all = logs.join('\n')
     expect(all).toContain(`[warn] only legacy store dir found: ${legacyDir}`)
-    expect(all).toContain(join(tmp, `.${SERVER}`))
+    expect(all).toContain(join(tmp, '.n24q02m', SERVER))
     expect(all).not.toContain('store dir does not exist yet')
     // The legacy credential still decrypts, so config itself is healthy.
     expect(all).toContain('[ok] config: configured')
@@ -438,7 +438,7 @@ describe('buildCli — doctor subcommand', () => {
   })
 
   it('fails when the store dir exists but is not writable', async () => {
-    const dir = join(tmp, '.unwritable-trigger')
+    const dir = join(tmp, '.n24q02m', 'unwritable-trigger')
     mkdirSync(dir, { recursive: true })
     const run = buildCli(SERVER, { serve: () => 0, pluginName: 'unwritable-trigger' })
     expect(await run(['doctor'])).toBe(1)
@@ -529,15 +529,34 @@ describe('buildCli — pluginName / serverName separation (store key vs display)
   })
 
   it('doctor probes the store dir under the plugin slug, not the console name', async () => {
-    // Saving creates <home>/.w51/. doctor's store-dir probe must point at that
+    // Saving creates <home>/.n24q02m/w51/. doctor's store-dir probe must point at that
     // path (plugin slug), not <home>/.w51-mcp/ (console name). Assert on that
     // line only, not the aggregate rc (see comment above).
     await new PerPluginStore('w51').save({ token: 'secret' })
     const run = buildCli('w51-mcp', { serve: () => 0 })
     await run(['doctor'])
     const all = logs.join('\n')
-    expect(all).toContain(`store dir writable: ${join(tmp, '.w51')}`)
+    expect(all).toContain(`store dir writable: ${join(tmp, '.n24q02m', 'w51')}`)
     expect(all).not.toContain('.w51-mcp')
+  })
+
+  it('supports --profile on built-in commands (both leading and trailing)', async () => {
+    await new PerPluginStore('w51', null, undefined, { profile: 'work' }).save({ token: 'work-secret' })
+    const run = buildCli('w51-mcp', { serve: () => 0 })
+    expect(await run(['status'])).toBe(0)
+    expect(logs[0]).toBe('w51-mcp: not configured')
+    capture()
+    expect(await run(['status', '--profile', 'work'])).toBe(0)
+    expect(logs[0]).toBe('w51-mcp: configured (source: file)')
+    capture()
+    expect(await run(['--profile', 'work', 'config', 'status'])).toBe(0)
+    expect(logs[0]).toBe('w51-mcp: configured (source: file)')
+    capture()
+    expect(await run(['--profile=work', 'doctor'])).toBeDefined()
+    expect(logs.join('\n')).toContain('[ok] config: configured')
+    capture()
+    expect(await run(['logout', '--profile=work', '--yes'])).toBe(0)
+    expect(await new PerPluginStore('w51', null, undefined, { profile: 'work' }).load()).toBeNull()
   })
 })
 

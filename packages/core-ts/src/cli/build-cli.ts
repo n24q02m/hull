@@ -96,10 +96,27 @@ function printCliHelp(serverName: string, handlers: Record<string, CliHandler>):
   console.log(`subcommands: ${names}`)
 }
 
-async function configStatus(serverName: string, pluginName: string): Promise<number> {
+function extractProfileFlag(argv: string[]): { profile: string | undefined; rest: string[] } {
+  let profile: string | undefined
+  const rest: string[] = []
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i]
+    if (arg === '--profile' && i + 1 < argv.length) {
+      profile = argv[i + 1]
+      i++
+    } else if (arg.startsWith('--profile=')) {
+      profile = arg.slice('--profile='.length)
+    } else {
+      rest.push(arg)
+    }
+  }
+  return { profile, rest }
+}
+
+async function configStatus(serverName: string, pluginName: string, profile?: string): Promise<number> {
   // Credentials are keyed by the plugin slug (what the server saves under),
   // while `serverName` stays the display label in the printed status.
-  const store = new PerPluginStore(pluginName)
+  const store = new PerPluginStore(pluginName, null, undefined, { profile })
   if ((await store.load()) !== null) {
     console.log(`${serverName}: configured (source: file)`)
     console.log('  (env overrides, if any, take precedence at server start)')
@@ -129,7 +146,7 @@ async function confirmDelete(serverName: string): Promise<boolean> {
   }
 }
 
-async function configDelete(serverName: string, pluginName: string, yes: boolean): Promise<number> {
+async function configDelete(serverName: string, pluginName: string, yes: boolean, profile?: string): Promise<number> {
   if (!yes) {
     if (!process.stdin.isTTY) {
       console.error(`${serverName}: refusing to delete without --yes in non-interactive mode`)
@@ -140,22 +157,23 @@ async function configDelete(serverName: string, pluginName: string, yes: boolean
       return 1
     }
   }
-  await new PerPluginStore(pluginName).clear()
+  await new PerPluginStore(pluginName, null, undefined, { profile }).clear()
   console.log(`${serverName}: config deleted`)
   return 0
 }
 
 function configHandler(serverName: string, pluginName: string): CliHandler {
   return async (argv) => {
-    const action = argv[0]
-    if (action === 'status') return configStatus(serverName, pluginName)
-    if (action === 'delete') return configDelete(serverName, pluginName, argv.includes('--yes'))
+    const { profile, rest } = extractProfileFlag(argv)
+    const action = rest[0]
+    if (action === 'status') return configStatus(serverName, pluginName, profile)
+    if (action === 'delete') return configDelete(serverName, pluginName, rest.includes('--yes'), profile)
     console.error(`${serverName}: config expects 'status' or 'delete'`)
     return 2
   }
 }
 
-async function runDoctor(serverName: string, pluginName: string): Promise<number> {
+async function runDoctor(_serverName: string, pluginName: string, profile?: string): Promise<number> {
   let ok = true
 
   const nodeVersion = process.versions.node
@@ -179,7 +197,7 @@ async function runDoctor(serverName: string, pluginName: string): Promise<number
   // Only check writability if the dir already exists -- doctor must not create
   // it as a side effect (mkdir-probing would leave stray dirs for servers that
   // were never configured). The dir is keyed by the plugin slug (matching
-  // PerPluginStore's on-disk layout `~/.<plugin>/`), not the console name.
+  // PerPluginStore's on-disk layout `~/.n24q02m/<plugin>/`), not the console name.
   const storeDir = dataDir(pluginName)
   if (existsSync(storeDir)) {
     try {
@@ -205,7 +223,7 @@ async function runDoctor(serverName: string, pluginName: string): Promise<number
   if (!backendOk) {
     console.log('[warn] config: not checked (credential backend unavailable)')
   } else {
-    const store = new PerPluginStore(pluginName)
+    const store = new PerPluginStore(pluginName, null, undefined, { profile })
     if ((await store.load()) !== null) {
       console.log('[ok] config: configured')
     } else if (await store.hasStoredBlob()) {
@@ -220,7 +238,10 @@ async function runDoctor(serverName: string, pluginName: string): Promise<number
 }
 
 function doctorHandler(serverName: string, pluginName: string): CliHandler {
-  return () => runDoctor(serverName, pluginName)
+  return (argv) => {
+    const { profile } = extractProfileFlag(argv)
+    return runDoctor(serverName, pluginName, profile)
+  }
 }
 
 /**
@@ -256,15 +277,21 @@ export function buildCli(serverName: string, options: BuildCliOptions): (argv?: 
   const { serve, extra, version, pluginName = pluginNameForServer(serverName) } = options
   const handlers: Record<string, CliHandler> = {
     config: configHandler(serverName, pluginName),
-    status: () => configStatus(serverName, pluginName),
-    logout: (argv) => configDelete(serverName, pluginName, argv.includes('--yes')),
+    status: (argv) => {
+      const { profile } = extractProfileFlag(argv)
+      return configStatus(serverName, pluginName, profile)
+    },
+    logout: (argv) => {
+      const { profile, rest } = extractProfileFlag(argv)
+      return configDelete(serverName, pluginName, rest.includes('--yes'), profile)
+    },
     doctor: doctorHandler(serverName, pluginName),
     token: tokenCliHandler(),
     ...extra
   }
 
   return async (argv?: string[] | null): Promise<number> => {
-    const args = argv ?? process.argv.slice(2)
+    let args = argv ?? process.argv.slice(2)
 
     if (args.length === 0) {
       const rc = await serve([])
@@ -284,6 +311,12 @@ export function buildCli(serverName: string, options: BuildCliOptions): (argv?: 
     if (version != null && (args[0] === '--version' || args[0] === '-V')) {
       console.log(`${serverName} ${version}`)
       return 0
+    }
+
+    if (args.length >= 3 && args[0] === '--profile' && handlers[args[2]] !== undefined) {
+      args = [args[2], '--profile', args[1], ...args.slice(3)]
+    } else if (args.length >= 2 && args[0].startsWith('--profile=') && handlers[args[1]] !== undefined) {
+      args = [args[1], args[0], ...args.slice(2)]
     }
 
     if (args[0].startsWith('-')) {

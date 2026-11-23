@@ -11,8 +11,7 @@ import { existsSync } from 'node:fs'
 import { chmod, mkdir, readFile, unlink } from 'node:fs/promises'
 import { dirname, join, resolve, sep } from 'node:path'
 import { atomicWriteFile } from './atomic-write.js'
-import { dataDirName } from './data-dir.js'
-import { getHomeDir } from './home-dir.js'
+import { dataDir } from './data-dir.js'
 
 /** Stores opaque ciphertext blobs keyed by a string. */
 export interface CredentialBackend {
@@ -45,9 +44,9 @@ function validateComponent(name: string): string {
   return name
 }
 
-/** Default base directory for a plugin: the current `~/.<plugin>` layout. */
+/** Default base directory for a plugin: the current `~/.n24q02m/<plugin>` layout. */
 function defaultBaseDir(plugin: string): string {
-  return join(getHomeDir(), dataDirName(plugin))
+  return dataDir(plugin)
 }
 
 /**
@@ -55,8 +54,10 @@ function defaultBaseDir(plugin: string): string {
  *
  * With the default layout:
  *
- *   "<plugin>/config"            -> ~/.<plugin>/config.json
- *   "<plugin>/subs/<sub>/config" -> ~/.<plugin>/subs/<sub>/config.json
+ *   "<plugin>/config"                                -> ~/.n24q02m/<plugin>/config.json
+ *   "<plugin>/profiles/<prof>/config"                -> ~/.n24q02m/<plugin>/profiles/<prof>/config.json
+ *   "<plugin>/subs/<sub>/config"                     -> ~/.n24q02m/<plugin>/subs/<sub>/config.json
+ *   "<plugin>/subs/<sub>/profiles/<prof>/config"     -> ~/.n24q02m/<plugin>/subs/<sub>/profiles/<prof>/config.json
  */
 function keyToPath(key: string, baseDir: (plugin: string) => string): string {
   const slash = key.indexOf('/')
@@ -64,17 +65,28 @@ function keyToPath(key: string, baseDir: (plugin: string) => string): string {
   const rest = slash === -1 ? '' : key.slice(slash + 1)
   validateComponent(plugin)
 
-  const base = baseDir(plugin)
-  let path: string
-  if (rest === 'config') {
-    path = join(base, 'config.json')
-  } else if (rest.startsWith('subs/') && rest.endsWith('/config')) {
-    const sub = rest.slice('subs/'.length, -'/config'.length)
-    validateComponent(sub)
-    path = join(base, 'subs', sub, 'config.json')
+  let parts = rest ? rest.split('/') : []
+  const prefixSegments: string[] = []
+  if (parts.length >= 3 && parts[0] === 'subs') {
+    prefixSegments.push('subs', validateComponent(parts[1]))
+    parts = parts.slice(2)
+  }
+  if (parts.length >= 3 && parts[0] === 'profiles') {
+    prefixSegments.push('profiles', validateComponent(parts[1]))
+    parts = parts.slice(2)
+  }
+
+  let leafSegments: string[]
+  if (parts.length === 1 && (parts[0] === 'config' || parts[0] === 'session' || parts[0] === 'accounts')) {
+    leafSegments = [`${parts[0]}.json`]
+  } else if (parts.length === 2 && parts[0] === 'tokens') {
+    leafSegments = ['tokens', `${validateComponent(parts[1])}.json`]
   } else {
     throw new Error(`Invalid backend key: ${key}`)
   }
+
+  const base = baseDir(plugin)
+  const path = join(base, ...prefixSegments, ...leafSegments)
 
   // Defense-in-depth: validateComponent already rejects separators/./../empty/NUL.
   const baseResolved = resolve(base)

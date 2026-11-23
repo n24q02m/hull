@@ -10,7 +10,8 @@ export interface ResolvedConfig {
 export async function resolveConfig(
   serverName: string,
   requiredFields: string[],
-  defaults?: Record<string, string>
+  defaults?: Record<string, string>,
+  options?: { profile?: string | null }
 ): Promise<ResolvedConfig> {
   // 1. Check env vars -- if ALL required fields present as env vars, use them
   const envConfig: Record<string, string> = {}
@@ -30,7 +31,7 @@ export async function resolveConfig(
   }
 
   // 2. Check stored config (per-plugin store, with legacy config.enc fallback)
-  const fileConfig = await readStoredConfig(serverName)
+  const fileConfig = await readStoredConfig(serverName, undefined, options?.profile)
   if (fileConfig) {
     const hasAllRequired = requiredFields.every((f) => f in fileConfig && fileConfig[f] !== '')
     if (hasAllRequired) {

@@ -16,7 +16,20 @@ export {
   readStoredConfig as readConfig,
   writeStoredConfig as writeConfig
 } from './credential-store.js'
-export { type DataDirLocation, dataDir, dataDirCandidates, legacyDataDirs } from './data-dir.js'
+export {
+  assertValidPluginName,
+  assertValidProfile,
+  assertValidSub,
+  blobPathIn,
+  type DataDirLocation,
+  dataDir,
+  dataDirCandidates,
+  dataDirName,
+  legacyDataDirs,
+  migrateLegacyDataDir,
+  n24q02mBaseDir,
+  resolveProfile
+} from './data-dir.js'
 export { decryptData, deriveFileKey, derivePassphraseKey, encryptData } from './encryption.js'
 export {
   AccountError,
@@ -63,5 +76,10 @@ export {
   type PoolDiagnostics
 } from './key-pool-store.js'
 export { getMachineId, getUsername } from './machine-id.js'
-export { credPath, PerPluginStore, setHomeDirForTesting } from './per-plugin-store.js'
+export { credPath, PerPluginStore, type PerPluginStoreOptions, setHomeDirForTesting } from './per-plugin-store.js'
+export {
+  assertValidAccountAlias,
+  NamedAccountRegistry,
+  type NamedAccountRegistryOptions
+} from './plugin-account-registry.js'
 export { type ConfigSource, type ResolvedConfig, resolveConfig } from './resolver.js'

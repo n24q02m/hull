@@ -65,7 +65,14 @@ from hull_core.storage.backends import (
     backend_from_env,
     tighten_dir,
 )
-from hull_core.storage.data_dir import DataDirCandidate, data_dir, legacy_data_dirs, validate_plugin, validate_sub
+from hull_core.storage.data_dir import (
+    DataDirCandidate,
+    data_dir,
+    legacy_data_dirs,
+    resolve_profile,
+    validate_plugin,
+    validate_sub,
+)
 
 _NONCE_LEN = 12
 _TAG_LEN = 16
@@ -191,11 +198,17 @@ class PerPluginStore:
         *,
         backend: CredentialBackend | None = None,
         sub_key: str | None = None,
+        profile: str | None = None,
     ) -> None:
         self.plugin = validate_plugin(plugin)
         self.sub = validate_sub(sub) if sub is not None else None
+        self.profile = resolve_profile(self.plugin, profile)
         leaf = sub_key or "config"
-        self.cred_key = f"{plugin}/subs/{sub}/{leaf}" if self.sub else f"{plugin}/{leaf}"
+        base_key = f"{plugin}/subs/{sub}" if self.sub else plugin
+        if self.profile != "default":
+            self.cred_key = f"{base_key}/profiles/{self.profile}/{leaf}"
+        else:
+            self.cred_key = f"{base_key}/{leaf}"
         self._backend = backend if backend is not None else backend_from_env()
         # Legacy layouts exist only on local disk under the default layout; an
         # injected in-memory/KV/custom-dir backend is the single source of truth.
@@ -226,10 +239,14 @@ class PerPluginStore:
             return derive_multi_user_key(self.plugin, self.sub)
         return _load_or_generate_machine_key(data_dir(self.plugin))
 
-    def _legacy_key(self, candidate: DataDirCandidate) -> bytes | None:
+    def _legacy_keys(self, candidate: DataDirCandidate) -> list[bytes]:
         if self.sub:
-            return derive_legacy_multi_user_key(candidate.key_plugin, self.sub)
-        return _read_legacy_machine_key(candidate.dir)
+            return [
+                derive_multi_user_key(candidate.key_plugin, self.sub),
+                derive_legacy_multi_user_key(candidate.key_plugin, self.sub),
+            ]
+        key = _read_legacy_machine_key(candidate.dir)
+        return [key] if key is not None else []
 
     def _report_corrupt(self, legacy: DataDirCandidate | None) -> None:
         where = f" (legacy dir {legacy.dir})" if legacy else ""
@@ -243,19 +260,23 @@ class PerPluginStore:
         if len(blob) < _MIN_BLOB_LEN:
             self._report_corrupt(legacy)
             return None
-        key = self._legacy_key(legacy) if legacy else self._key()
-        if key is None:
+        keys = self._legacy_keys(legacy) if legacy else [self._key()]
+        if not keys:
             self._report_corrupt(legacy)
             return None
-        try:
-            # AESGCM() sits inside the try: a legacy .secret of the wrong length
-            # is unusable key material, i.e. the same "corrupt" outcome.
-            plaintext = AESGCM(key).decrypt(blob[:_NONCE_LEN], blob[_NONCE_LEN:], None)
-            payload = json.loads(plaintext.decode("utf-8"))
-        except Exception:
-            self._report_corrupt(legacy)
-            return None
-        if not isinstance(payload, dict):
+        payload: Any = None
+        decrypted = False
+        for key in keys:
+            try:
+                # AESGCM() sits inside the try: a legacy .secret of the wrong length
+                # is unusable key material, i.e. the same "corrupt" outcome.
+                plaintext = AESGCM(key).decrypt(blob[:_NONCE_LEN], blob[_NONCE_LEN:], None)
+                payload = json.loads(plaintext.decode("utf-8"))
+                decrypted = True
+                break
+            except Exception:
+                continue
+        if not decrypted or not isinstance(payload, dict):
             self._report_corrupt(legacy)
             return None
         return payload

@@ -51,12 +51,15 @@ export function pluginNameForServer(serverName: string): string {
  */
 export async function readStoredConfig(
   serverName: string,
-  pluginName: string = pluginNameForServer(serverName)
+  pluginName: string = pluginNameForServer(serverName),
+  profile?: string | null
 ): Promise<Record<string, string> | null> {
-  const fromStore = await new PerPluginStore(pluginName).load()
+  const store = new PerPluginStore(pluginName, null, undefined, { profile })
+  const fromStore = await store.load()
   // Single-user blobs are always string maps (written by writeStoredConfig); the cast
   // restates that invariant.
   if (fromStore !== null) return fromStore as Record<string, string>
+  if (store.profile !== 'default') return null
   return readLegacyConfig(serverName)
 }
 
@@ -72,9 +75,10 @@ export async function readStoredConfig(
 export async function writeStoredConfig(
   serverName: string,
   config: Record<string, string>,
-  pluginName: string = pluginNameForServer(serverName)
+  pluginName: string = pluginNameForServer(serverName),
+  profile?: string | null
 ): Promise<void> {
-  await new PerPluginStore(pluginName).save(config)
+  await new PerPluginStore(pluginName, null, undefined, { profile }).save(config)
 }
 
 /**
@@ -85,8 +89,12 @@ export async function writeStoredConfig(
  */
 export async function deleteStoredConfig(
   serverName: string,
-  pluginName: string = pluginNameForServer(serverName)
+  pluginName: string = pluginNameForServer(serverName),
+  profile?: string | null
 ): Promise<void> {
-  await new PerPluginStore(pluginName).clear()
-  await deleteLegacyConfig(serverName)
+  const store = new PerPluginStore(pluginName, null, undefined, { profile })
+  await store.clear()
+  if (store.profile === 'default') {
+    await deleteLegacyConfig(serverName)
+  }
 }

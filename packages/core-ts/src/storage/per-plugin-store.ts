@@ -24,7 +24,7 @@
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { chmod, mkdir, readFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { atomicWriteFile } from './atomic-write.js'
 import { backendFromEnv, type CredentialBackend, LocalFsBackend } from './backends.js'
 import {
@@ -33,7 +33,8 @@ import {
   blobPathIn,
   type DataDirLocation,
   dataDir,
-  legacyDataDirs
+  legacyDataDirs,
+  resolveProfile
 } from './data-dir.js'
 
 export { setHomeDirForTesting } from './home-dir.js'
@@ -43,11 +44,12 @@ export { setHomeDirForTesting } from './home-dir.js'
 // overly-permissive directory is tightened exactly once (TOCTOU hardening).
 const initDirs = new Set<string>()
 
-/** Path of the credential blob in the current `~/.<plugin>/` layout. */
-export function credPath(pluginName: string, sub: string | null): string {
+/** Path of the credential blob in the current `~/.n24q02m/<plugin>/` layout. */
+export function credPath(pluginName: string, sub: string | null, profile?: string | null): string {
   assertValidPluginName(pluginName)
   if (sub !== null) assertValidSub(sub)
-  return blobPathIn(dataDir(pluginName), sub)
+  const resolvedProfile = resolveProfile(pluginName, profile)
+  return blobPathIn(dataDir(pluginName), sub, resolvedProfile)
 }
 
 async function loadOrGenMachineKey(pluginName: string): Promise<Buffer> {
@@ -106,8 +108,14 @@ interface BlobSource {
   legacy: DataDirLocation | null
 }
 
+export interface PerPluginStoreOptions {
+  readonly profile?: string | null
+  readonly subKey?: string
+}
+
 export class PerPluginStore {
   readonly credPath: string
+  readonly profile: string
   private readonly credKey: string
   private readonly backend: CredentialBackend
   private readonly readsLegacy: boolean
@@ -115,10 +123,15 @@ export class PerPluginStore {
   constructor(
     public pluginName: string,
     public sub: string | null = null,
-    backend?: CredentialBackend
+    backend?: CredentialBackend,
+    options?: PerPluginStoreOptions
   ) {
-    this.credPath = credPath(pluginName, sub)
-    this.credKey = sub ? `${pluginName}/subs/${sub}/config` : `${pluginName}/config`
+    this.profile = resolveProfile(pluginName, options?.profile)
+    const leaf = options?.subKey ?? 'config'
+    const basePath = credPath(pluginName, sub, this.profile)
+    this.credPath = leaf === 'config' ? basePath : join(dirname(basePath), `${leaf}.json`)
+    const baseKey = sub ? `${pluginName}/subs/${sub}` : pluginName
+    this.credKey = this.profile !== 'default' ? `${baseKey}/profiles/${this.profile}/${leaf}` : `${baseKey}/${leaf}`
     this.backend = backend ?? backendFromEnv()
     // The legacy layouts only exist on local disk, so only a default-layout
     // LocalFsBackend reads them. An injected in-memory/KV/custom-dir backend is

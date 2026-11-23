@@ -9,6 +9,17 @@ export {
   readStoredConfig as readConfig,
   writeStoredConfig as writeConfig
 } from './storage/credential-store.js'
+export {
+  assertValidProfile,
+  migrateLegacyDataDir,
+  n24q02mBaseDir,
+  resolveProfile
+} from './storage/data-dir.js'
+export {
+  assertValidAccountAlias,
+  NamedAccountRegistry,
+  type NamedAccountRegistryOptions
+} from './storage/plugin-account-registry.js'
 export * from './storage/resolver.js'
 // HTTP token-table auth (no-auth / token / multi users.toml), the TS port of
 // core-py hull_core.auth; wired into runHttpServer via its `auth` option.

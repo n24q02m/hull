@@ -75,15 +75,21 @@ def _relative_path(key: str) -> tuple[str, Path]:
     if len(parts) >= 3 and parts[0] == "subs":
         sub_prefix = ("subs", _validate_component(parts[1]))
         parts = parts[2:]
+    profile_prefix: tuple[str, ...] = ()
+    if len(parts) >= 3 and parts[0] == "profiles":
+        profile_prefix = ("profiles", _validate_component(parts[1]))
+        parts = parts[2:]
     if parts == ["config"]:
         leaf: tuple[str, ...] = ("config.json",)
     elif parts == ["session"]:
         leaf = ("session.json",)
+    elif parts == ["accounts"]:
+        leaf = ("accounts.json",)
     elif len(parts) == 2 and parts[0] == "tokens":
         leaf = ("tokens", f"{_validate_component(parts[1])}.json")
     else:
         raise ValueError(f"Invalid backend key: {key!r}")
-    return plugin, Path(*sub_prefix, *leaf)
+    return plugin, Path(*sub_prefix, *profile_prefix, *leaf)
 
 
 def tighten_dir(directory: Path) -> None:

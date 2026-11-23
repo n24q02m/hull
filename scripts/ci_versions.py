@@ -67,8 +67,8 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 
-# Last verified against the release calendars: 2026-11-14.
-LAST_VERIFIED = "2026-11-14"
+# Last verified against the release calendars: 2026-11-23.
+LAST_VERIFIED = "2026-11-23"
 
 # CPython minors as (version, first release, end of life), oldest first, from
 # the devguide status page. 3.10 stays after its EOL so that a floor at 3.10 is

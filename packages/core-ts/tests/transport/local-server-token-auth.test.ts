@@ -6,9 +6,8 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { Client } from '@modelcontextprotocol/sdk/client/index.js'
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
+import { McpServer } from '@modelcontextprotocol/server'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 import { AuthConfigError } from '../../src/token-auth/authenticator.js'

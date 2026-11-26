@@ -1,7 +1,7 @@
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import { McpServer } from '@modelcontextprotocol/server'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { StreamableHTTPServer } from '../../src/transport/streamable-http.js'
@@ -121,6 +121,28 @@ describe('StreamableHTTPServer.handleRequest', () => {
 
       expect(status).toBe(401)
       expect(body).toBe('{"error":"unauthorized"}')
+    } finally {
+      await mcp.close()
+    }
+  })
+
+  it('handles CORS preflight when corsAllowOrigins is configured', async () => {
+    const mcp = new StreamableHTTPServer({
+      server: new McpServer({ name: 'cors', version: '1.0.0' }),
+      port: 0,
+      corsAllowOrigins: ['*']
+    })
+    await mcp.connect()
+    listener = createServer((req, res) => {
+      void mcp.handleRequest(req, res)
+    })
+    const server = listener
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', () => resolve()))
+    const { port } = server.address() as AddressInfo
+    try {
+      const resp = await fetch(`http://127.0.0.1:${port}/mcp`, { method: 'OPTIONS' })
+      expect(resp.status).toBe(204)
+      expect(resp.headers.get('access-control-allow-origin')).toBe('*')
     } finally {
       await mcp.close()
     }

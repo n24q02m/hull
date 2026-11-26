@@ -1,7 +1,7 @@
 {
   "name": "@n24q02m/hull",
   "version": "0.11.0",
-  "description": "hull TypeScript core: MCP Streamable HTTP 2025-11-25 transport, token-table HTTP auth, credential storage, CLI builder",
+  "description": "hull TypeScript core: MCP 2026-07-28 transport, skills & extensions, token-table HTTP auth, credential storage, CLI builder",
   "keywords": [
     "mcp",
     "model-context-protocol",
@@ -59,6 +59,14 @@
     "./token-auth": {
       "import": "./build/token-auth/index.js",
       "types": "./build/token-auth/index.d.ts"
+    },
+    "./skills": {
+      "import": "./build/skills/index.js",
+      "types": "./build/skills/index.d.ts"
+    },
+    "./extensions": {
+      "import": "./build/extensions/index.js",
+      "types": "./build/extensions/index.d.ts"
     }
   },
   "scripts": {
@@ -69,16 +77,19 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.30.1",
+    "@modelcontextprotocol/node": "^2.1.2",
+    "@modelcontextprotocol/server": "^2.4.0",
     "better-sqlite3": "^13.0.3",
     "env-paths": "^4.0.0",
-    "smol-toml": "^1.9.0"
+    "smol-toml": "^1.9.0",
+    "zod": "^4.2.0"
   },
   "trustedDependencies": [
     "better-sqlite3"
   ],
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",
+    "@modelcontextprotocol/client": "^2.4.0",
     "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^26.6.4",
     "@vitest/coverage-v8": "^5.0.3",

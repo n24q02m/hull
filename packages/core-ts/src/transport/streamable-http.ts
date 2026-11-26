@@ -1,9 +1,9 @@
 /**
- * Streamable HTTP 2025-11-25 transport wrapper for mcp-core TypeScript.
+ * Streamable HTTP 2026-07-28 transport wrapper for @n24q02m/hull.
  *
- * Thin convenience wrapper around `@modelcontextprotocol/sdk`'s
- * `StreamableHTTPServerTransport` that pairs it with an `McpServer`
- * instance and an optional Bearer validation middleware.
+ * Thin convenience wrapper around `@modelcontextprotocol/node`'s
+ * `NodeStreamableHTTPServerTransport` that pairs it with an `McpServer`
+ * instance, optional Bearer validation middleware, and optional MCP CORS headers.
  *
  * The SDK already implements the full 2025-11-25 transport spec
  * (session management, SSE streaming, stateful / stateless modes),
@@ -18,11 +18,13 @@
 
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import {
-  StreamableHTTPServerTransport,
+  NodeStreamableHTTPServerTransport,
   type StreamableHTTPServerTransportOptions
-} from '@modelcontextprotocol/sdk/server/streamableHttp.js'
+} from '@modelcontextprotocol/node'
+import type { McpServer } from '@modelcontextprotocol/server'
+
+import { applyMcpCorsHeaders } from '../extensions/index.js'
 
 export interface StreamableHTTPServerOptions {
   /** MCP server instance that handles requests */
@@ -33,7 +35,9 @@ export interface StreamableHTTPServerOptions {
   port: number
   /** Optional middleware for request authorization */
   authMiddleware?: (req: IncomingMessage, res: ServerResponse) => Promise<boolean> | boolean
-  /** Transport options forwarded to StreamableHTTPServerTransport */
+  /** Optional CORS allowed origins (enables MCP 2026-07-28 headers + OPTIONS preflight) */
+  corsAllowOrigins?: readonly string[]
+  /** Transport options forwarded to NodeStreamableHTTPServerTransport */
   transportOptions?: StreamableHTTPServerTransportOptions
 }
 
@@ -42,7 +46,8 @@ export class StreamableHTTPServer {
   readonly port: number
   private readonly _server: McpServer
   private readonly _auth?: (req: IncomingMessage, res: ServerResponse) => Promise<boolean> | boolean
-  private readonly _transport: StreamableHTTPServerTransport
+  private readonly _corsAllowOrigins?: readonly string[]
+  private readonly _transport: NodeStreamableHTTPServerTransport
   private _connected = false
 
   constructor(options: StreamableHTTPServerOptions) {
@@ -50,7 +55,10 @@ export class StreamableHTTPServer {
     this.host = options.host ?? '127.0.0.1'
     this.port = options.port
     this._auth = options.authMiddleware
-    this._transport = new StreamableHTTPServerTransport(options.transportOptions ?? { sessionIdGenerator: undefined })
+    this._corsAllowOrigins = options.corsAllowOrigins
+    this._transport = new NodeStreamableHTTPServerTransport(
+      options.transportOptions ?? { sessionIdGenerator: undefined }
+    )
   }
 
   /** Connect the MCP server to the transport. Call once before handleRequest. */
@@ -61,10 +69,13 @@ export class StreamableHTTPServer {
   }
 
   /**
-   * Handle an incoming HTTP request. Applies auth validation first if
-   * configured, then delegates to the SDK transport.
+   * Handle an incoming HTTP request. Applies CORS headers (and preflight)
+   * and auth validation first if configured, then delegates to the SDK transport.
    */
   async handleRequest(req: IncomingMessage, res: ServerResponse, parsedBody?: unknown): Promise<void> {
+    if (this._corsAllowOrigins?.length && applyMcpCorsHeaders(req, res, this._corsAllowOrigins)) {
+      return
+    }
     if (this._auth) {
       const allowed = await this._auth(req, res)
       if (!allowed) return
@@ -73,7 +84,7 @@ export class StreamableHTTPServer {
   }
 
   /** Expose the underlying transport for advanced use cases. */
-  get transport(): StreamableHTTPServerTransport {
+  get transport(): NodeStreamableHTTPServerTransport {
     return this._transport
   }
 

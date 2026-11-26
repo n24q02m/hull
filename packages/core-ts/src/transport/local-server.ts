@@ -16,9 +16,9 @@ import type { AddressInfo } from 'node:net'
 import * as os from 'node:os'
 import * as path from 'node:path'
 
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
-import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js'
+import { NodeStreamableHTTPServerTransport } from '@modelcontextprotocol/node'
+import { isInitializeRequest, type McpServer } from '@modelcontextprotocol/server'
+import { applyMcpCorsHeaders } from '../extensions/index.js'
 import { refreshLockTimestamp, sweepStaleLocks, writeLockFile } from '../lifecycle/lock.js'
 import { Authenticator, type HttpAuthConfig } from '../token-auth/authenticator.js'
 import { guardRequest } from '../token-auth/http-guard.js'
@@ -63,6 +63,8 @@ export interface RunHttpServerOptions {
    *  - `{ mode: 'multi', usersFile?, users? }` -- users.toml table.
    */
   auth?: HttpAuthConfig
+  /** Optional CORS allowed origins (enables MCP 2026-07-28 headers + OPTIONS preflight). */
+  corsAllowOrigins?: readonly string[]
 }
 
 export interface HttpServerHandle {
@@ -90,7 +92,7 @@ export async function runHttpServer(
     assertNoAuthLoopback(host)
   }
 
-  const transports = new Map<string, StreamableHTTPServerTransport>()
+  const transports = new Map<string, NodeStreamableHTTPServerTransport>()
   const servers = new Map<string, McpServer>()
 
   /** JSON-RPC error envelope, shaped like core-py's session manager replies. */
@@ -153,8 +155,8 @@ export async function runHttpServer(
     }
 
     const server = serverFactory()
-    let transport: StreamableHTTPServerTransport
-    transport = new StreamableHTTPServerTransport({
+    let transport: NodeStreamableHTTPServerTransport
+    transport = new NodeStreamableHTTPServerTransport({
       sessionIdGenerator: () => randomUUID(),
       onsessioninitialized: (sessionId) => {
         transports.set(sessionId, transport)
@@ -191,6 +193,10 @@ export async function runHttpServer(
   }
 
   const handler = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+    if (options.corsAllowOrigins?.length && applyMcpCorsHeaders(req, res, options.corsAllowOrigins)) {
+      return
+    }
+
     const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`)
     const pathname = url.pathname
 

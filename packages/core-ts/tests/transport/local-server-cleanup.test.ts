@@ -1,5 +1,5 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
+import { NodeStreamableHTTPServerTransport } from '@modelcontextprotocol/node'
+import { McpServer } from '@modelcontextprotocol/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { runHttpServer } from '../../src/transport/local-server.js'
 
@@ -15,7 +15,7 @@ describe('runHttpServer best-effort cleanup', () => {
   })
 
   it('continues cleaning up transports and servers even if some close() calls throw', async () => {
-    const transportCloseSpy = vi.spyOn(StreamableHTTPServerTransport.prototype, 'close')
+    const transportCloseSpy = vi.spyOn(NodeStreamableHTTPServerTransport.prototype, 'close')
     transportCloseSpy.mockRejectedValueOnce(new Error('Transport close failed'))
     transportCloseSpy.mockResolvedValue(undefined)
 

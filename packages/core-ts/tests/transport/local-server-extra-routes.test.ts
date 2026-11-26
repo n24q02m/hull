@@ -2,7 +2,7 @@
  * Integration tests for ``extraRoutes``. Starts a real HTTP server per test
  * and drives it with ``fetch``, same shape as local-server.test.ts.
  */
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import { McpServer } from '@modelcontextprotocol/server'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { type HttpServerHandle, runHttpServer } from '../../src/transport/local-server.js'

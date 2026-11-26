@@ -18,7 +18,13 @@ from starlette.testclient import TestClient
 from hull_core.auth.context import current_user
 from hull_core.auth.tokens import hash_token
 from hull_core.config.settings import HullSettings, ServerSettings
-from hull_core.server import ServerConfigError, build_http_app, run_http_server
+from hull_core.server import (
+    MCP_2026_07_28_HEADERS,
+    ServerConfigError,
+    build_http_app,
+    build_mcp_cors_middleware,
+    run_http_server,
+)
 from hull_core.server import http as http_mod
 
 HEADERS = {"Accept": "application/json, text/event-stream", "Content-Type": "application/json"}
@@ -198,3 +204,50 @@ async def test_run_multi_with_injected_users_skips_file(tmp_path: Path, fake_uvi
     settings = HullSettings(config_dir=tmp_path, server=ServerSettings(auth="multi"))
     await run_http_server(_mcp(), settings, host="0.0.0.0", users={})
     assert fake_uvicorn.instances[0].served
+
+
+def test_cors_middleware_rejects_empty_origins() -> None:
+    with pytest.raises(ValueError, match="allow_origins must not be empty"):
+        build_mcp_cors_middleware([])
+
+
+def test_http_app_cors_preflight_and_mcp_2026_headers(tmp_path: Path) -> None:
+    app = build_http_app(_mcp(), _token_settings(tmp_path), cors_allow_origins=["https://app.example"])
+    with TestClient(app) as client:
+        preflight = client.options(
+            "/mcp",
+            headers={
+                "Origin": "https://app.example",
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": ", ".join(MCP_2026_07_28_HEADERS),
+            },
+        )
+        assert preflight.status_code == 200
+        assert preflight.headers["access-control-allow-origin"] == "https://app.example"
+        allowed = {h.strip().lower() for h in preflight.headers["access-control-allow-headers"].split(",")}
+        for header in MCP_2026_07_28_HEADERS:
+            assert header.lower() in allowed
+
+        init = client.post(
+            "/mcp",
+            content=json.dumps(INIT),
+            headers={**HEADERS, "Authorization": "Bearer tok", "Origin": "https://app.example"},
+        )
+        assert init.status_code == 200
+        assert init.headers["access-control-allow-origin"] == "https://app.example"
+        exposed = {h.strip().lower() for h in init.headers["access-control-expose-headers"].split(",")}
+        for header in MCP_2026_07_28_HEADERS:
+            assert header.lower() in exposed
+
+
+async def test_run_http_server_forwards_cors_origins(tmp_path: Path, fake_uvicorn: type[_FakeServer]) -> None:
+    await run_http_server(
+        _mcp(),
+        _token_settings(tmp_path),
+        cors_allow_origins=["https://ui.example"],
+    )
+    (server,) = fake_uvicorn.instances
+    with TestClient(server.config.app) as client:
+        resp = client.get("/health", headers={"Origin": "https://ui.example"})
+        assert resp.status_code == 200
+        assert resp.headers["access-control-allow-origin"] == "https://ui.example"

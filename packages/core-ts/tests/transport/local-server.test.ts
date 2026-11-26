@@ -5,7 +5,7 @@ import { existsSync } from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import { McpServer } from '@modelcontextprotocol/server'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { type HttpServerHandle, runHttpServer } from '../../src/transport/local-server.js'
@@ -61,5 +61,28 @@ describe('runHttpServer', () => {
     await handle.close()
     expect(existsSync(lockPath)).toBe(false)
     handle = undefined
+  })
+
+  it('serves MCP 2026-07-28 CORS headers and handles OPTIONS preflight when configured', async () => {
+    handle = await runHttpServer(makeMcpServer, {
+      serverName: `test-cors-${Date.now()}`,
+      port: 0,
+      corsAllowOrigins: ['https://app.example']
+    })
+
+    const preflight = await fetch(`http://${handle.host}:${handle.port}/mcp`, {
+      method: 'OPTIONS',
+      headers: { origin: 'https://app.example' }
+    })
+    expect(preflight.status).toBe(204)
+    expect(preflight.headers.get('access-control-allow-origin')).toBe('https://app.example')
+    expect(preflight.headers.get('access-control-allow-headers')).toContain('Mcp-Method')
+    expect(preflight.headers.get('access-control-allow-headers')).toContain('Mcp-Name')
+
+    const disallowed = await fetch(`http://${handle.host}:${handle.port}/health`, {
+      headers: { origin: 'https://evil.example' }
+    })
+    expect(disallowed.status).toBe(200)
+    expect(disallowed.headers.get('access-control-allow-origin')).toBeNull()
   })
 })

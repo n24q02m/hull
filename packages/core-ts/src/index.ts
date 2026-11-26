@@ -1,6 +1,8 @@
 // Console-script CLI builder shared by every TS MCP server (config/doctor/logout/status/token built-ins).
 export { type BuildCliOptions, buildCli, type CliHandler, type ServeFn } from './cli/build-cli.js'
 export * from './crypto/index.js'
+export * from './extensions/index.js'
+export * from './skills/index.js'
 export { exportConfig, importConfig, listConfigs, scheduleReloadExit } from './storage/config-file.js'
 // Single-user credential read/write/delete route through the unified
 // per-plugin store (with legacy config.enc read fallback).

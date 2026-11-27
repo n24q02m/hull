@@ -34,6 +34,14 @@ from hull_core.llm import (
     systemone,
 )
 from hull_core.llm._extra import require_litellm_extra
+from hull_core.llm.transport import (
+    SyncCompletionStream,
+    _check_zdr_error_response,
+    _endpoint_url,
+    _normalize_openrouter_model,
+    _provider_of,
+    _validate_and_apply_zdr,
+)
 
 
 def _json_response(payload: dict, *, status_code: int = 200) -> httpx.Response:
@@ -379,3 +387,433 @@ async def test_acompletion_text_and_usage_extraction():
         )
         assert isinstance(res, CompletionResponse)
         assert res.choices[0].message.content == "hello"
+
+
+def test_breaker_lifecycle_usage_headers_provider_and_url_helpers(monkeypatch):
+    with pytest.raises(ValueError, match="failure_threshold"):
+        GatewayCircuitBreaker(failure_threshold=0)
+
+    now = [100.0]
+    breaker = GatewayCircuitBreaker(failure_threshold=1, recovery_timeout=5.0, clock=lambda: now[0])
+    assert breaker.is_open() is False
+    breaker.record_failure()
+    assert breaker.is_open() is True
+    now[0] = 106.0
+    assert breaker.is_open() is False
+    breaker.record_success()
+    assert breaker.is_open() is False
+    breaker.record_failure()
+    breaker.reset()
+    assert breaker.is_open() is False
+
+    empty_metrics = extract_usage_metrics(None, zdr_enforced=False)
+    assert empty_metrics == UsageMetrics(zdr_enforced=False)
+    flat_metrics = extract_usage_metrics({"cached_tokens": 3, "total_cost": 0.01}, zdr_enforced=True)
+    assert flat_metrics.cached_tokens == 3
+    assert flat_metrics.usd_cost == pytest.approx(0.01)
+    top_cost = extract_usage_metrics({"usage": {"prompt_tokens": 2}, "cost": 0.005})
+    assert top_cost.usd_cost == pytest.approx(0.005)
+
+    hdrs = cf_aig_headers(extra_headers={"x-custom": "1"})
+    assert hdrs["x-custom"] == "1"
+
+    assert provider_params("") == {}
+    assert provider_params("unknown") == {}
+    monkeypatch.setenv("HULL_TYPESAFE_API_KEY", "ts-key")
+    monkeypatch.setenv("HULL_TYPESAFE_API_BASE", "https://ts.example.com/v1/")
+    assert provider_params("typesafe") == {"api_key": "ts-key", "api_base": "https://ts.example.com/v1"}
+
+    assert _provider_of("openrouter:z-ai/glm-5") == "openrouter"
+    assert _provider_of("typesafe/jev-1.13") == "typesafe"
+    assert _provider_of("typesafe:jev-1.13") == "typesafe"
+    assert _normalize_openrouter_model("openrouter/z-ai/glm-5") == "z-ai/glm-5"
+    assert _normalize_openrouter_model("openrouter:z-ai/glm-5") == "z-ai/glm-5"
+
+    assert _endpoint_url("https://api.example.com/v1", "/v1/systemone") == "https://api.example.com/v1/systemone"
+    assert _endpoint_url("https://api.example.com/v1", "/v1/embeddings") == "https://api.example.com/v1/embeddings"
+
+
+def test_zdr_validation_and_error_responses():
+    payload: dict[str, object] = {"model": "z-ai/glm-5"}
+    assert _validate_and_apply_zdr(payload, zdr=False, zdr_available=False, zdr_endpoints=[]) is False
+    assert _validate_and_apply_zdr(payload, zdr=True, zdr_available=True, zdr_endpoints=["ep-1"]) is True
+    payload2: dict[str, object] = {"model": "z-ai/glm-5"}
+    assert _validate_and_apply_zdr(payload2, zdr=True, zdr_available=True, zdr_endpoints=[{"tag": "ZDR"}]) is True
+
+    with pytest.raises(ZDRUnavailableError, match="no ZDR endpoint listed"):
+        _validate_and_apply_zdr({"model": "m"}, zdr=True, zdr_available=True, zdr_endpoints=[])
+
+    with pytest.raises(ZDRUnavailableError, match="data_collection='deny'"):
+        _validate_and_apply_zdr(
+            {"model": "m", "provider": {"data_collection": "allow"}},
+            zdr=True,
+            zdr_available=True,
+            zdr_endpoints=None,
+        )
+
+    with pytest.raises(ZDRUnavailableError, match="rejected ZDR"):
+        _check_zdr_error_response(404, "No endpoints found for zero data retention", "m")
+
+
+def test_sync_completion_streaming_post_errors_and_text_helpers():
+    sse = (
+        ": ping\n\n"
+        'data: {"choices": [{"delta": {"content": "Hi"}}]}\n\n'
+        'data: {"choices": [{"delta": {"content": "!"}}], "usage": {"prompt_tokens": 2, "completion_tokens": 1, "cost": 0.0001}}\n\n'
+        "data: [DONE]\n\n"
+    ).encode("utf-8")
+
+    def stream_handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "gateway.ai.cloudflare.com":
+            return httpx.Response(502, text="bad gateway")
+        return httpx.Response(200, content=sse, headers={"content-type": "text/event-stream"})
+
+    breaker = GatewayCircuitBreaker(failure_threshold=1, recovery_timeout=60.0)
+    breaker.record_failure()
+    stream = completion(
+        model="z-ai/glm-5",
+        messages=[{"role": "user", "content": "hi"}],
+        api_key="sk-test",
+        api_base="https://gateway.ai.cloudflare.com/v1/acc/gw/openrouter",
+        circuit_breaker=breaker,
+        stream=True,
+        transport=httpx.MockTransport(stream_handler),
+    )
+    assert isinstance(stream, SyncCompletionStream)
+    chunks = list(stream)
+    assert len(chunks) == 2
+    assert stream.collected_text == "Hi!"
+    assert stream.usage_metrics.usd_cost == pytest.approx(0.0001)
+
+    with pytest.raises(TransportHTTPError, match="returned 500"):
+        completion(
+            model="z-ai/glm-5",
+            messages=[{"role": "user", "content": "hi"}],
+            api_key="sk-test",
+            stream=True,
+            transport=httpx.MockTransport(lambda _r: httpx.Response(500, text="server error")),
+        )
+
+    with pytest.raises(ValueError, match="streaming is not supported"):
+        completion_text(
+            model="z-ai/glm-5",
+            messages=[{"role": "user", "content": "hi"}],
+            api_key="sk-test",
+            stream=True,
+        )
+
+    assert (
+        completion_text(
+            model="z-ai/glm-5",
+            messages=[{"role": "user", "content": "hi"}],
+            api_key="sk-test",
+            transport=httpx.MockTransport(lambda _r: _json_response({"choices": []})),
+        )
+        == ""
+    )
+
+    # Sync _post_json gateway HTTPError + 502 fallback paths + open breaker skip
+    sync_breaker = GatewayCircuitBreaker(failure_threshold=2, recovery_timeout=60.0)
+    calls: list[str] = []
+
+    def sync_gw_handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.url.host)
+        if request.url.host == "gateway.ai.cloudflare.com":
+            if len(calls) == 1:
+                raise httpx.ConnectError("gw connect err", request=request)
+            return httpx.Response(502, text="gw down")
+        return _json_response({"choices": [{"message": {"content": "sync-ok"}}]})
+
+    gw_url = "https://gateway.ai.cloudflare.com/v1/acc/gw/openrouter"
+    tx = httpx.MockTransport(sync_gw_handler)
+    assert (
+        completion_text(
+            model="z-ai/glm-5",
+            messages=[{"role": "user", "content": "1"}],
+            api_key="k",
+            api_base=gw_url,
+            circuit_breaker=sync_breaker,
+            transport=tx,
+        )
+        == "sync-ok"
+    )
+    assert (
+        completion_text(
+            model="z-ai/glm-5",
+            messages=[{"role": "user", "content": "2"}],
+            api_key="k",
+            api_base=gw_url,
+            circuit_breaker=sync_breaker,
+            transport=tx,
+        )
+        == "sync-ok"
+    )
+    assert (
+        completion_text(
+            model="z-ai/glm-5",
+            messages=[{"role": "user", "content": "3"}],
+            api_key="k",
+            api_base=gw_url,
+            circuit_breaker=sync_breaker,
+            transport=tx,
+        )
+        == "sync-ok"
+    )
+
+    # Gateway success resets failure counter
+    sync_ok_gw = completion_text(
+        model="z-ai/glm-5",
+        messages=[{"role": "user", "content": "4"}],
+        api_key="k",
+        api_base=gw_url,
+        circuit_breaker=GatewayCircuitBreaker(failure_threshold=2),
+        transport=httpx.MockTransport(lambda _r: _json_response({"choices": [{"message": {"content": "gw-ok"}}]})),
+    )
+    assert sync_ok_gw == "gw-ok"
+
+    def always_connect_fail(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("down", request=request)
+
+    with pytest.raises(TransportHTTPError, match="transport error"):
+        completion_text(
+            model="z-ai/glm-5",
+            messages=[{"role": "user", "content": "5"}],
+            api_key="k",
+            transport=httpx.MockTransport(always_connect_fail),
+        )
+
+    with pytest.raises(TransportHTTPError, match="transport error: down"):
+        completion_text(
+            model="z-ai/glm-5",
+            messages=[{"role": "user", "content": "6"}],
+            api_key="k",
+            api_base=gw_url,
+            circuit_breaker=GatewayCircuitBreaker(failure_threshold=2),
+            transport=httpx.MockTransport(always_connect_fail),
+        )
+
+
+@pytest.mark.asyncio
+async def test_async_error_fallback_stream_and_endpoint_edge_cases():
+    gw_url = "https://gateway.ai.cloudflare.com/v1/acc/gw/openrouter"
+    breaker = GatewayCircuitBreaker(failure_threshold=2, recovery_timeout=60.0)
+
+    def stream_gw_handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "gateway.ai.cloudflare.com":
+            return httpx.Response(502, text="gw 502")
+        return _sse_response([{"choices": [{"delta": {"content": "fallback-stream"}}]}])
+
+    stream = await acompletion(
+        model="z-ai/glm-5",
+        messages=[{"role": "user", "content": "s"}],
+        api_key="k",
+        api_base=gw_url,
+        circuit_breaker=breaker,
+        stream=True,
+        transport=httpx.MockTransport(stream_gw_handler),
+    )
+    assert isinstance(stream, AsyncCompletionStream)
+    _ = [chunk async for chunk in stream]
+    assert stream.collected_text == "fallback-stream"
+
+    # Async stream gateway HTTPError -> fallback -> direct succeeds, then open breaker skips gateway
+    def stream_err_handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "gateway.ai.cloudflare.com":
+            raise httpx.ConnectError("gw reset", request=request)
+        return _sse_response([{"choices": [{"delta": {"content": "ok2"}}]}])
+
+    stream2 = await acompletion(
+        model="z-ai/glm-5",
+        messages=[{"role": "user", "content": "s2"}],
+        api_key="k",
+        api_base=gw_url,
+        circuit_breaker=breaker,
+        stream=True,
+        transport=httpx.MockTransport(stream_err_handler),
+    )
+    assert isinstance(stream2, AsyncCompletionStream)
+    _ = [chunk async for chunk in stream2]
+    assert breaker.is_open() is True
+    stream3 = await acompletion(
+        model="z-ai/glm-5",
+        messages=[{"role": "user", "content": "s3"}],
+        api_key="k",
+        api_base=gw_url,
+        circuit_breaker=breaker,
+        stream=True,
+        transport=httpx.MockTransport(stream_err_handler),
+    )
+    assert isinstance(stream3, AsyncCompletionStream)
+    _ = [chunk async for chunk in stream3]
+    assert stream3.collected_text == "ok2"
+
+    # Async stream error status & transport error
+    err_stream = await acompletion(
+        model="z-ai/glm-5",
+        messages=[{"role": "user", "content": "e"}],
+        api_key="k",
+        stream=True,
+        transport=httpx.MockTransport(lambda _r: httpx.Response(500, text="fail")),
+    )
+    assert isinstance(err_stream, AsyncCompletionStream)
+    with pytest.raises(TransportHTTPError, match="returned 500"):
+        _ = [chunk async for chunk in err_stream]
+
+    def direct_conn_fail(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("boom", request=request)
+
+    conn_err_stream = await acompletion(
+        model="z-ai/glm-5",
+        messages=[{"role": "user", "content": "e2"}],
+        api_key="k",
+        stream=True,
+        transport=httpx.MockTransport(direct_conn_fail),
+    )
+    assert isinstance(conn_err_stream, AsyncCompletionStream)
+    with pytest.raises(TransportHTTPError, match="stream error"):
+        _ = [chunk async for chunk in conn_err_stream]
+
+    all_gw_fail_stream = await acompletion(
+        model="z-ai/glm-5",
+        messages=[{"role": "user", "content": "e3"}],
+        api_key="k",
+        api_base=gw_url,
+        circuit_breaker=GatewayCircuitBreaker(failure_threshold=2),
+        stream=True,
+        transport=httpx.MockTransport(direct_conn_fail),
+    )
+    assert isinstance(all_gw_fail_stream, AsyncCompletionStream)
+    with pytest.raises(TransportHTTPError, match="stream error: boom"):
+        _ = [chunk async for chunk in all_gw_fail_stream]
+
+    with pytest.raises(TransportHTTPError, match="transport error"):
+        await acompletion(
+            model="z-ai/glm-5",
+            messages=[{"role": "user", "content": "e4"}],
+            api_key="k",
+            transport=httpx.MockTransport(direct_conn_fail),
+        )
+
+    with pytest.raises(TransportHTTPError, match="transport error: boom"):
+        await acompletion(
+            model="z-ai/glm-5",
+            messages=[{"role": "user", "content": "e5"}],
+            api_key="k",
+            api_base=gw_url,
+            circuit_breaker=GatewayCircuitBreaker(failure_threshold=2),
+            transport=httpx.MockTransport(direct_conn_fail),
+        )
+
+    # _apost_json gateway ConnectError -> fallback + gateway success reset
+    gw_then_direct_ok = await acompletion_text(
+        model="z-ai/glm-5",
+        messages=[{"role": "user", "content": "ok"}],
+        api_key="k",
+        api_base=gw_url,
+        circuit_breaker=GatewayCircuitBreaker(failure_threshold=2),
+        transport=httpx.MockTransport(
+            lambda r: (
+                (_ for _ in ()).throw(httpx.ConnectError("x", request=r))
+                if r.url.host == "gateway.ai.cloudflare.com"
+                else _json_response({"choices": [{"message": {"content": "recovered"}}]})
+            )
+        ),
+    )
+    assert gw_then_direct_ok == "recovered"
+
+    gw_direct_ok = await acompletion_text(
+        model="z-ai/glm-5",
+        messages=[{"role": "user", "content": "ok"}],
+        api_key="k",
+        api_base=gw_url,
+        circuit_breaker=GatewayCircuitBreaker(failure_threshold=2),
+        transport=httpx.MockTransport(lambda _r: _json_response({"choices": [{"message": {"content": "gw-async"}}]})),
+    )
+    assert gw_direct_ok == "gw-async"
+
+    with pytest.raises(ValueError, match="streaming is not supported"):
+        await acompletion_text(
+            model="z-ai/glm-5", messages=[{"role": "user", "content": "hi"}], api_key="k", stream=True
+        )
+
+    # Embeddings dimensions + empty rerank + top_n + flat systemone responses
+    seen_payloads: list[dict[str, object]] = []
+
+    def misc_handler(request: httpx.Request) -> httpx.Response:
+        seen_payloads.append(json.loads(request.content))
+        if request.url.path.endswith("/embeddings"):
+            return _json_response({"data": [{"embedding": [0.5], "index": 0}], "usage": {}})
+        if request.url.path.endswith("/rerank"):
+            return _json_response({"results": [{"index": 0, "relevance_score": 0.8}]})
+        return _json_response({"id": "s1", "model": "typesafe/jev-1.13", "q1": {"answer": "no"}, "usage": {}})
+
+    misc_tx = httpx.MockTransport(misc_handler)
+    emb = await aembedding(model="qwen/qwen3-embedding-8b", input="hi", dimensions=64, api_key="k", transport=misc_tx)
+    assert emb.data[0].embedding == [0.5]
+    assert seen_payloads[-1]["dimensions"] == 64
+
+    assert await arerank(model="cohere/rerank-4-pro", query="q", documents=[], api_key="k", transport=misc_tx) == []
+    ranked = await arerank(
+        model="cohere/rerank-4-pro", query="q", documents=["d0"], top_n=1, api_key="k", transport=misc_tx
+    )
+    assert ranked == [(0, pytest.approx(0.8))]
+    assert seen_payloads[-1]["top_n"] == 1
+
+    s1_async = await asystemone(
+        model="typesafe/jev-1.13", state="s", questions=[{"id": "q1"}], api_key="k", transport=misc_tx
+    )
+    assert s1_async.answers == {"q1": {"answer": "no"}}
+    s1_sync = systemone(
+        model="typesafe/jev-1.13",
+        state="s",
+        questions=[{"id": "q1"}],
+        api_key="k",
+        transport=httpx.MockTransport(misc_handler),
+    )
+    assert s1_sync.answers == {"q1": {"answer": "no"}}
+
+
+@pytest.mark.asyncio
+async def test_remaining_transport_branches(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.delenv("CF_AIG_TOKEN", raising=False)
+
+    assert cf_aig_headers(edge_cache=True) == {
+        "cf-aig-collect-log": "false",
+        "cf-aig-skip-cache": "false",
+    }
+
+    out = completion_text(
+        model="z-ai/glm-5",
+        messages=[{"role": "user", "content": "empty-key"}],
+        api_key="",
+        zdr_endpoints=[{"zdr": False}, {"zdr": True}],
+        transport=httpx.MockTransport(lambda _r: _json_response({"choices": [{"message": {"content": "ok-zdr"}}]})),
+    )
+    assert out == "ok-zdr"
+
+    with pytest.raises(TransportHTTPError, match="returned 500"):
+        await acompletion_text(
+            model="z-ai/glm-5",
+            messages=[{"role": "user", "content": "err"}],
+            api_key="k",
+            zdr_only=False,
+            transport=httpx.MockTransport(lambda _r: httpx.Response(500, text="server-err")),
+        )
+
+    gw_url = "https://gateway.ai.cloudflare.com/v1/acc/gw/openrouter"
+    breaker = GatewayCircuitBreaker(failure_threshold=2)
+    gw_stream = await acompletion(
+        model="z-ai/glm-5",
+        messages=[{"role": "user", "content": "s"}],
+        api_key="k",
+        api_base=gw_url,
+        circuit_breaker=breaker,
+        stream=True,
+        transport=httpx.MockTransport(
+            lambda _r: _sse_response([{"choices": [{"delta": {"content": "gw-stream-ok"}}]}])
+        ),
+    )
+    assert isinstance(gw_stream, AsyncCompletionStream)
+    _ = [chunk async for chunk in gw_stream]
+    assert gw_stream.collected_text == "gw-stream-ok"

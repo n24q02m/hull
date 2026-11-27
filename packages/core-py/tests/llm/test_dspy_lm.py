@@ -18,6 +18,7 @@ def test_routed_model_preserves_native_and_defaults_to_openrouter():
     )
     assert _routed_model("openrouter:z-ai/glm-5") == ("openrouter", "openrouter:z-ai/glm-5")
     assert _routed_model("typesafe/jev-1.13") == ("typesafe", "typesafe/jev-1.13")
+    assert _routed_model("openai/gpt-4o") == ("openai", "openai/gpt-4o")
     assert _routed_model("gpt-4o-mini") == ("openrouter", "openrouter/gpt-4o-mini")
 
 
@@ -38,3 +39,7 @@ def test_build_lm_uses_native_lm15_without_litellm(monkeypatch):
     assert lm.kwargs["extra_body"] == {"provider": {"data_collection": "deny"}}
     assert lm.engine == "lm15"
     assert "litellm" not in sys.modules
+
+    lm_no_zdr = build_lm("typesafe/jev-1.13", temperature=0.0, top_p=1.0, zdr=False)
+    assert lm_no_zdr.model == "typesafe/jev-1.13"
+    assert "extra_body" not in lm_no_zdr.kwargs

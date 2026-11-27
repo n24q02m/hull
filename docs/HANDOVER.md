@@ -16,17 +16,18 @@ number, so a release never leaves it stale.
     - `hull_core` (base) — token auth, per-task model cells, **provider key
       pools + named accounts** (`hull_core.credentials`), rate limiter,
       `~/.hull/` SQLite WAL storage, `server start` + `/mcp` endpoint, CLI,
-      SSRF-safe HTTP, lifecycle lock, `model_selection` picker.
+      SSRF-safe HTTP, lifecycle lock, skills mount with a SHA-256 digest guard,
+      `model_selection` picker.
     - `hull_web` (`[web]`) — search (SearXNG), scraping strategies, stealth
       browsers, fingerprinting, HTTP/SSRF security (consumed by wet).
   - The embed/rerank HTTP service is **not** in this repo: it is
     `fastretrieval[server]` (`fastretrieval-server`, `python -m
     fastretrieval.server`), the dist that owns the model runtime. hull reaches
     it over HTTP like any other OpenAI-spec provider.
-  - TypeScript: `@n24q02m/hull` (`packages/core-ts` on npm) — token-table auth (`token`, `multi` with `users.toml`), Streamable HTTP `/mcp` transport, `buildCli` console builder, encrypted `PerPluginStore` storage (`~/.<plugin>/`), the `@n24q02m/hull/storage` key-pool/account mirror over `~/.hull/hull.db`, lockfiles and cache. All relay, OAuth AS/delegated, and CfKvBackend residue was removed in 0.5.0 (see "`@n24q02m/hull` removals in 0.5.0" below).
+  - TypeScript: `@n24q02m/hull` (`packages/core-ts` on npm) — token-table auth (`token`, `multi` with `users.toml`), Streamable HTTP `/mcp` transport, `buildCli` console builder, encrypted `PerPluginStore` storage (`~/.<plugin>/`), the `@n24q02m/hull/storage` key-pool/account mirror over `~/.hull/hull.db`, the `@n24q02m/hull/skills` catalog with the same digest guard, lockfiles and cache. All relay, OAuth AS/delegated, and CfKvBackend residue was removed in 0.5.0 (see "`@n24q02m/hull` removals in 0.5.0" below).
 - Runtime: Python 3.11 to 3.15 (CI tests each supported minor); dev with `uv`, always-on with docker.
 - Surfaces: `hull` CLI (control plane + consumer: `config`, `db`, `token`,
-  `status`, `doctor`, `--version`), `hull server start`
+  `skills`, `status`, `doctor`, `--version`), `hull server start`
   (the only way to run a server — MCP is an HTTP endpoint at
   `http://host:port/mcp`, never a spawned subprocess).
 - hull is a library/daemon product, not a packaged MCP server: no registry
@@ -207,6 +208,16 @@ into any config.
   hostname on every call, to cover DNS rebinding as far as a URL check can. A
   blocked navigation raises `UrlGuardBlockedError` naming the URL; `url_guard`
   absent keeps the pre-0.5.0 behaviour (no interception at all).
+- Skills mounts fail closed when a `skills.digest.json` manifest is present (or
+  `require_digests` / `requireDigests`, or explicit digests, is passed): a
+  changed byte, a file with no entry, a listed file that is missing, a missing
+  directory or an invalid manifest raises `SkillIntegrityError` and nothing is
+  mounted. Strict by default (every file in a skill folder needs an entry). The
+  manifest format is shared by both languages and pinned by the fixture in
+  `packages/core-ts/tests/fixtures/skills-digest`, which both test suites
+  verify; that fixture is `-text` in `.gitattributes` so its bytes never change
+  on checkout. Regenerate a manifest with `hull skills digest <dir>`; check one
+  with `hull skills verify <dir>`.
 
 ## `@n24q02m/hull` removals in 0.5.0
 

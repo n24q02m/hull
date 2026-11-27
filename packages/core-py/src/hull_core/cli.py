@@ -1,9 +1,9 @@
 """Host-side CLI: control plane + consumer.
 
 Subcommands: ``server start``, ``status``, ``doctor``, ``token hash``,
-``config init|path|show|get|set`` and ``db path``, plus ``--version``. With the server
-down, consumers are told to start it first — there is no hidden local-core mode
-(spec §3).
+``config init|path|show|get|set``, ``db path`` and ``skills digest|verify``, plus
+``--version``. With the server down, consumers are told to start it first — there
+is no hidden local-core mode (spec §3).
 """
 
 from __future__ import annotations
@@ -28,6 +28,12 @@ from hull_core.config.settings import (
     write_default_config,
 )
 from hull_core.server.run import ServerConfigError, run_server
+from hull_core.server.skills import (
+    SKILLS_DIGEST_FILENAME,
+    SkillIntegrityError,
+    verify_skill_digests,
+    write_skill_digests,
+)
 
 # Mirrors the refusal in ``consumer_cli``: a token on argv lands in shell
 # history, so both CLIs read it from stdin or a hidden prompt instead.
@@ -117,6 +123,29 @@ def _cmd_config_set(args: argparse.Namespace) -> int:
 
 def _cmd_db_path(_args: argparse.Namespace) -> int:
     print(load_settings(default_config_dir()).config_dir / "hull.db")
+    return 0
+
+
+def _cmd_skills_digest(args: argparse.Namespace) -> int:
+    try:
+        path = write_skill_digests(args.dir, args.manifest)
+        # Read the file back: proves it parses and that it does not list itself.
+        count = len(verify_skill_digests(args.dir, path))
+    except SkillIntegrityError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    print(f"wrote {path} ({count} files)")
+    return 0
+
+
+def _cmd_skills_verify(args: argparse.Namespace) -> int:
+    manifest = Path(args.manifest) if args.manifest else Path(args.dir).expanduser().resolve() / SKILLS_DIGEST_FILENAME
+    try:
+        digests = verify_skill_digests(args.dir, manifest, strict=not args.no_strict)
+    except SkillIntegrityError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    print(f"ok: {len(digests)} files match {manifest}")
     return 0
 
 
@@ -237,12 +266,27 @@ def build_parser() -> argparse.ArgumentParser:
     db_path_p = db_sub.add_parser("path", help="print the SQLite database path")
     db_path_p.set_defaults(func=_cmd_db_path)
 
+    skills = sub.add_parser("skills", help="skills digest manifest utilities (digest, verify)")
+    skills_sub = skills.add_subparsers(dest="skills_command", required=True)
+    manifest_help = f"manifest path (default: DIR/{SKILLS_DIGEST_FILENAME})"
+    digest_p = skills_sub.add_parser("digest", help=f"write {SKILLS_DIGEST_FILENAME} (SHA-256 of every skill file)")
+    digest_p.add_argument("dir", metavar="DIR", help="skills directory (one folder with a SKILL.md per skill)")
+    digest_p.add_argument("--manifest", default=None, help=manifest_help)
+    digest_p.set_defaults(func=_cmd_skills_digest)
+    verify_p = skills_sub.add_parser("verify", help="check a skills directory against its digest manifest")
+    verify_p.add_argument("dir", metavar="DIR", help="skills directory")
+    verify_p.add_argument("--manifest", default=None, help=manifest_help)
+    verify_p.add_argument(
+        "--no-strict", action="store_true", help="only require entries for SKILL.md files, not supporting files"
+    )
+    verify_p.set_defaults(func=_cmd_skills_verify)
+
     # argparse names a required subcommand group by its ``dest`` when no
     # metavar is set, so ``hull server`` reported "the following arguments are
     # required: server_command" -- an identifier the user never typed. The
     # metavar is also what the usage line shows, so deriving both from
     # ``choices`` keeps them in step as commands are added.
-    for group in (sub, server_sub, token_sub, config_sub, db_sub):
+    for group in (sub, server_sub, token_sub, config_sub, db_sub, skills_sub):
         group.metavar = "{" + ",".join(group.choices) + "}"
     return parser
 

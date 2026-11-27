@@ -21,6 +21,9 @@ Shared core for the wet / crg / mnemo self-hosted stack. Base install of the
   HTTP); lifecycle lock prevents double binds; `no-auth` refuses non-loopback
   binds.
 - **HTTP** — SSRF-safe transports (DNS pinning, mode-aware policy).
+- **Skills** — `attach_skills_provider` mounts a skills directory on a FastMCP
+  server; a `skills.digest.json` manifest pins the SHA-256 of every skill file,
+  and any mismatch mounts nothing. See [Skills integrity](#skills-integrity).
 
 ## Provider key pools and named accounts
 
@@ -69,3 +72,70 @@ hull config init && printf '%s' "$TOKEN" | hull token hash && hull server start
 `hull token hash` reads the token from stdin or a hidden prompt and refuses a
 token on argv (shell history). `hull status` and `hull doctor` report the
 instance state; `hull --version` prints the installed version.
+
+## Skills integrity
+
+`hull_core.server.attach_skills_provider(mcp, skills_dir)` mounts a directory
+of skills (one folder with a `SKILL.md` per skill) on a FastMCP server. A
+`skills.digest.json` manifest at the root of that directory pins the SHA-256 of
+every file inside each skill folder:
+
+```bash
+hull skills digest ./skills   # write ./skills/skills.digest.json; exit 2 if the tree cannot be hashed
+hull skills verify ./skills   # "ok: N files match ..." (exit 0), or one line per problem (exit 1)
+```
+
+```python
+from fastmcp import FastMCP
+from hull_core.server import attach_skills_provider
+
+mcp = FastMCP("my-server")
+# Raises SkillIntegrityError and mounts nothing unless every skill file matches.
+attach_skills_provider(mcp, "skills", require_digests=True)
+```
+
+- The guard is on when the manifest exists, when `digests=` is given (a
+  manifest path or a `{path: sha256}` mapping), or when `require_digests=True`.
+  With none of these the directory is mounted unchecked, as before. Pass
+  `require_digests=True` in production so that deleting the manifest cannot
+  switch the check off.
+- Strict by default: every file inside a skill folder needs an entry, hidden
+  files included. `strict_digests=False` (CLI `--no-strict`) only requires an
+  entry for each `SKILL.md`; listed supporting files are still checked.
+- Every problem is collected into one `SkillIntegrityError` (a `ValueError`)
+  raised before anything is mounted: a digest mismatch, a file with no entry,
+  an entry whose file is missing, a missing skills directory, or an invalid
+  manifest. `error.problems` lists one `<path>: <reason>` line per file (it is
+  empty when the directory or the manifest itself is the problem).
+- The bytes the provider loaded are checked as well, so a file swapped between
+  the check and the read is never served. With `reload=True` every re-scan is
+  verified again, and a re-scan that fails keeps the last verified skills
+  serving.
+- Symlinks anywhere in the walk are refused while the guard is on. Files
+  outside skill folders (the manifest itself included) and hidden folders
+  outside skill folders are not part of the check.
+- Digests cover exact bytes. Pin line endings for the skills directory in
+  `.gitattributes` (for example `skills/** -text`); otherwise a checkout that
+  converts line endings fails the check.
+
+The manifest format is shared with `@n24q02m/hull/skills`, so one manifest
+verifies in both languages:
+
+```json
+{
+  "version": 1,
+  "files": {
+    "hello-skill/SKILL.md": "<64 lowercase hex characters>",
+    "hello-skill/references/guide.md": "<64 lowercase hex characters>"
+  }
+}
+```
+
+Keys are relative POSIX paths from the skills directory (no `..` segment, no
+leading `/`, no backslash); values are the lowercase hex SHA-256 of each file's
+exact bytes. A top-level key other than `version` and `files`, or a `version`
+other than `1`, is rejected. `hull skills digest` writes the keys sorted,
+indented by two spaces, as UTF-8 with a trailing newline, so regenerating an
+unchanged directory produces the same bytes. The same helpers are importable
+from `hull_core.server`: `compute_skill_digests`, `write_skill_digests` and
+`verify_skill_digests`.

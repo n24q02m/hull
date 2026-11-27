@@ -2,3 +2,6 @@
 *.bat text eol=crlf
 *.cmd text eol=crlf
 *.ps1 text eol=crlf
+# SHA-256 digests in the committed skills manifest pin exact bytes: never
+# normalise line endings in that fixture.
+packages/core-ts/tests/fixtures/skills-digest/** -text

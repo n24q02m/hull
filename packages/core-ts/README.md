@@ -29,6 +29,7 @@ subpath:
 | `@n24q02m/hull/crypto` | AES `encrypt` / `decrypt`, ECDH `generateKeyPair` / `deriveSharedSecret` / `exportPublicKey` / `importPublicKey`, key derivation `deriveAesKey` |
 | `@n24q02m/hull/storage` | `atomicWriteFile`, credential backends (`LocalFsBackend`, `InMemoryBackend`, `backendFromEnv`), encrypted credential read/write/delete and config import/export, `PerPluginStore`, data dir helpers (`dataDir`, `dataDirCandidates`, `legacyDataDirs`), `resolveConfig` (environment variables, then stored config, then defaults), machine identity helpers, and the provider key pool (`CredentialStore`, `KeyPool`, `AccountRegistry`, `SecretCipher`) |
 | `@n24q02m/hull/token-auth` | Token-table HTTP auth: `Authenticator`, `hashToken` / `verifyToken`, `loadUsers`, `currentUser`, `ensurePathAllowed`, `guardRequest`, `SlidingWindowLimiter`, `tokenCliHandler` |
+| `@n24q02m/hull/skills` | `attachSkillsProvider` (load a skills directory into an SDK `SkillCatalog` and attach it), the digest guard (`computeSkillDigests`, `writeSkillDigests`, `verifySkillDigests`, `SkillIntegrityError`, `SKILLS_DIGEST_FILENAME`), and the SDK's `loadSkills`, `SkillCatalogError` and `SKILLS_EXTENSION_ID` |
 
 ## Credential storage layout
 
@@ -175,6 +176,46 @@ prompt (never from argv) and prints only the hash:
 my-mcp token hash                     # interactive hidden prompt
 printf '%s' "$TOKEN" | my-mcp token hash
 ```
+
+## Skills integrity
+
+`attachSkillsProvider(mcp, skillsDir, options)` loads a directory of skills (one
+folder with a `SKILL.md` per skill) into an SDK `SkillCatalog` and attaches it
+to an `McpServer`. A `skills.digest.json` manifest at the root of that directory
+pins the SHA-256 of every file inside each skill folder. The manifest format,
+the file walk and the rules match
+[core-py](https://github.com/n24q02m/hull/blob/main/packages/core-py/README.md#skills-integrity):
+`hull skills digest` and `writeSkillDigests` write byte-identical manifests,
+and one manifest verifies in both languages.
+
+```ts
+import { McpServer } from '@modelcontextprotocol/server'
+import { attachSkillsProvider, writeSkillDigests } from '@n24q02m/hull/skills'
+
+writeSkillDigests('skills') // at build time: skills/skills.digest.json
+
+const mcp = new McpServer({ name: 'my-mcp', version: '1.0.0' })
+// Throws SkillIntegrityError and attaches nothing unless every skill file matches.
+const catalog = await attachSkillsProvider(mcp, 'skills', { requireDigests: true })
+```
+
+| Option | Effect |
+|---|---|
+| `digests` | Manifest path, or a `{ path: sha256 }` object. Turns the guard on. |
+| `requireDigests` | Fail when the manifest is missing instead of attaching unchecked. Turns the guard on. |
+| `strictDigests` | `true` (default): every file inside a skill needs an entry. `false`: only each `SKILL.md` does; listed files are still checked. |
+| anything else | Passed to the SDK `SkillCatalog` (`strict`, `prefix`, `pageSize`, `limits`, `onWarning`). |
+
+The guard is also on whenever `<skillsDir>/skills.digest.json` exists; with no
+manifest and no option the directory is attached unchecked, as before. Each
+catalog build (the first load and every `catalog.reload()`) verifies the
+directory before it reads a skill, and every file the SDK reads, including when
+it serves a resource, must match its digest. A failing load throws
+`SkillIntegrityError` (with one `<path>: <reason>` line per file in
+`error.problems`); a failing `reload()` rejects and the catalog keeps serving
+the verified skills. Symlinks and junctions are refused while the guard is on,
+and the digests cover exact bytes, so pin line endings for the skills directory
+in `.gitattributes`.
 
 ## Example
 

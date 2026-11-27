@@ -73,6 +73,9 @@ web = [
     "capsolver>=1.0.7",
     "pydantic>=2.12.5",
     "pillow>=13.0.0",
+    # crawl4ai table_extraction imports tiktoken directly; since unclecode-litellm
+    # is excluded and litellm moved to an optional extra, declare it here explicitly.
+    "tiktoken>=0.9.0",
 ]
 # Identity layer: seeded coherent browser profiles (fingerprint.build_identity).
 # Optional: hull_web imports and all legacy strategy behavior work without it.
@@ -95,18 +98,15 @@ invisible = [
 mteb = [
     "pyarrow>=15.0.0",
 ]
-# hull_core.llm: unified LLM transport (chat/embed/rerank via litellm
-# library mode; OpenRouter is the default provider). httpx ships in base
-# deps already.
+# hull_core.llm: OpenRouter-first transport (httpx + SSRF vetting; openrouter SDK).
 llm = [
+    "openrouter>=1.3.0,<2.0.0",
+]
+# Legacy litellm compatibility extra for wet / crg / mnemo consumers that opt in.
+litellm = [
     "litellm>=1.102.0",
 ]
-# DSPy integration (hull_core.llm.dspy_lm: build_lm).
-# Ceiling <3.3.0: dspy 3.3.0 and 3.4.0 park a lazy numpy proxy in sys.modules,
-# so `import dspy; import numpy.typing` (pyarrow, pandas, ...) dies on a numpy
-# circular import. tests/llm/test_dspy_numpy_import.py turns that red on a bump
-# that still has it; raise the ceiling only once that test passes. Consumers
-# (knowledge-core) pin ==3.2.1 exactly.
+# DSPy integration (hull_core.llm.dspy_lm: build_lm, native lm15 engine >= 3.5).
 dspy = [
     "n24q02m-hull[llm]",
     "dspy>=3.5.0,<3.6.0",
@@ -129,10 +129,11 @@ dev = [
     # pyarrow: model_selection MTEB fetcher tests exercise the real parquet
     # reader (pytest.importorskip otherwise skips that whole file in CI).
     "pyarrow>=15.0.0",
-    # llm transport tests exercise litellm call paths (mocked HTTP); dspy
-    # pinned <3.3.0 — see the [dspy] extra note about the numpy lazy-proxy bug.
-    "litellm>=1.102.0",
+    # llm transport tests use httpx + SSRF vetting + openrouter; dspy >= 3.5
+    # uses native lm15 routing without litellm.
+    "openrouter>=1.3.0,<2.0.0",
     "dspy>=3.5.0,<3.6.0",
+    "tach>=0.35.0,<1.0.0",
 ]
 
 [tool.uv]

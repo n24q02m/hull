@@ -38,7 +38,7 @@ DEFAULT_OUT = Path(__file__).resolve().parents[1] / "data" / "model-candidates.j
 FIELDS = (
     "or_slug",
     "name",
-    "litellm_id",
+    "openrouter_slug",
     "canonical_slug",
     "quality",
     "quality_ci",

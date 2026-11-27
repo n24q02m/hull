@@ -48,6 +48,7 @@ def test_extra_modules_cover_every_web_dependency() -> None:
         "capsolver",
         "pydantic",
         "PIL",
+        "tiktoken",
     }
 
 

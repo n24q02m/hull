@@ -1,0 +1,109 @@
+# Architectural boundary enforcement for hull_core, hull_web, and downstream
+# consumers (e.g. kcore, apps.ai): downstream code must NEVER import internal
+# deployment modules hull_core.{auth, server, storage}.
+
+source_roots = [
+  "packages/core-py/src",
+  "packages/web/src",
+]
+
+exclude = [
+  "**/*_test.py",
+  "**/tests/**",
+]
+
+forbid_circular_dependencies = true
+
+[[modules]]
+path = "hull_core.config"
+depends_on = []
+
+[[modules]]
+path = "hull_core.crypto"
+depends_on = []
+
+[[modules]]
+path = "hull_core.http"
+depends_on = []
+
+[[modules]]
+path = "hull_core.lifecycle"
+depends_on = []
+
+[[modules]]
+path = "hull_core.limits"
+depends_on = []
+
+[[modules]]
+path = "hull_core.llm"
+depends_on = [
+  "hull_core.http",
+]
+
+[[modules]]
+path = "hull_core.model_selection"
+depends_on = [
+  "hull_core.http",
+]
+
+[[modules]]
+path = "hull_core.providers"
+depends_on = [
+  "hull_core.config",
+  "hull_core.http",
+]
+
+[[modules]]
+path = "hull_core.credentials"
+depends_on = [
+  "hull_core.config",
+]
+
+[[modules]]
+path = "hull_core.auth"
+visibility = [
+  "hull_core",
+  "hull_core.server",
+]
+depends_on = [
+  "hull_core.config",
+  "hull_core.limits",
+]
+
+[[modules]]
+path = "hull_core.storage"
+visibility = [
+  "hull_core",
+  "hull_core.server",
+]
+depends_on = [
+  "hull_core.config",
+]
+
+[[modules]]
+path = "hull_core.server"
+visibility = [
+  "hull_core",
+]
+depends_on = [
+  "hull_core.auth",
+  "hull_core.config",
+  "hull_core.lifecycle",
+  "hull_core.limits",
+  "hull_core.storage",
+]
+
+[[modules]]
+path = "hull_core"
+depends_on = [
+  "hull_core.auth",
+  "hull_core.config",
+  "hull_core.credentials",
+  "hull_core.limits",
+  "hull_core.server",
+  "hull_core.storage",
+]
+
+[[modules]]
+path = "hull_web"
+depends_on = []

@@ -15,7 +15,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import hull_core.model_selection as ms
-from hull_core.model_selection import candidates
+from hull_core.model_selection import TaskProfile, candidates
 from hull_core.model_selection.normalize import ModelCandidate, blend_quality
 from hull_core.model_selection.sources import (
     SOURCE_REGISTRY,
@@ -38,7 +38,6 @@ from hull_core.model_selection.sources import (
     _parse_benchlm_md,
     _parse_llmstats_table,
     _parse_manga_bench_table,
-    _parse_medhelm_group,
     _parse_or_bench_table,
     _parse_vals_table,
 )
@@ -161,39 +160,6 @@ def test_llmstats_fixture_parse(fixture, name, board):
         return_value=_resp(content=_fixture(fixture)),
     ):
         assert set(LLMStatsSource(name, board).fetch()) == set(recs)
-
-
-# --- MedHELM --------------------------------------------------------------------
-
-
-def test_medhelm_group_fixture_parse():
-    recs = _parse_medhelm_group(_fixture("medhelm_groups.json"))
-    assert len(recs) >= 2
-    first = next(iter(recs.values()))
-    assert isinstance(first.score, float)
-    # the fixture carries a 1-5 "jury score" column: it must be excluded from
-    # the composite (values > 1.0) but stay visible in raw task values
-    jury = [v for v in first.raw["tasks"].values() if v > 1.0]
-    assert jury, "fixture lost its mixed-scale column"
-    assert first.score <= 1.0
-    assert first.raw["scored_tasks"] < len(first.raw["tasks"])
-
-
-def test_medhelm_pick_latest_release():
-    from hull_core.model_selection.sources import _latest_medhelm_release
-
-    listing = {
-        "prefixes": [
-            {"name": "medhelm/benchmark_output/releases/v3.0.0/"},
-            {"name": "medhelm/benchmark_output/releases/v4.0.0/"},
-            {"name": "medhelm/benchmark_output/releases/v10.0.1/"},
-        ]
-    }
-    with patch("hull_core.model_selection.sources._get_json", return_value=listing):
-        assert _latest_medhelm_release() == "v10.0.1"
-    with patch("hull_core.model_selection.sources._get_json", return_value={}):
-        with pytest.raises(RuntimeError, match="no medhelm release"):
-            _latest_medhelm_release()
 
 
 # --- BFCL -----------------------------------------------------------------------
@@ -503,15 +469,16 @@ def test_candidates_status_out_ok_rows():
         "architecture": {"modality": "text->text"},
         "pricing": {"prompt": "0.000001", "completion": "0.000002"},
         "supported_parameters": [],
+        "_or_zdr_available": True,
     }
     sources = {
         "openrouter_models": _StubSource("openrouter_models", {"m/a": SourceRecord(key="m/a", raw=or_row)}),
-        "mteb_reranking": _StubSource("mteb_reranking", {"m/a": SourceRecord(key="m/a", score=0.5)}),
+        "mteb_v2_crossencoder": _StubSource("mteb_v2_crossencoder", {"m/a": SourceRecord(key="m/a", score=0.5)}),
     }
     status: dict = {}
     cands = candidates(task, sources=sources, status_out=status)
     assert status["openrouter_models"]["status"] == "ok"
-    assert status["mteb_reranking"]["status"] == "ok"
+    assert status["mteb_v2_crossencoder"]["status"] == "ok"
     assert len(cands) == 1
 
 
@@ -549,11 +516,16 @@ def test_board_without_servable_rows_is_recorded_gap_without_fetch(profile, boar
         "openrouter_models": _StubSource("openrouter_models", {"a/one": SourceRecord(key="a/one", raw=or_row)}),
         board: SOURCE_REGISTRY[board],  # the shipped registry entry, unmodified
     }
+    gap_profile = TaskProfile(
+        name=f"{profile}-{board}",
+        specialized_sources=(board,),
+        aggregate_sources=(),
+    )
     status: dict = {}
     with patch(
         "httpx.Client.get", side_effect=AssertionError("board without servable rows must not be fetched")
     ) as get:
-        cands = candidates(profile, sources=sources, status_out=status)
+        cands = candidates(gap_profile, sources=sources, status_out=status)
     entry = status[board]
     assert entry["status"] == "unimplemented_access"
     assert entry["row_count"] == 0
@@ -596,5 +568,5 @@ def test_fill_unscanned_profiles_records_empty_backbone_sources():
     tasks = {"rerank": {"or_backbone_empty": True, "candidates": []}}
     status: dict = {}
     publisher._fill_unscanned_profiles(tasks, status, "2026-10-07T00:00:00+00:00")
-    assert status["mteb_reranking"]["status"] == "missing"
-    assert status["mteb_reranking"]["reason"] == "or_backbone_empty_profile_not_scanned"
+    assert status["mteb_v2_crossencoder"]["status"] == "missing"
+    assert status["mteb_v2_crossencoder"]["reason"] == "or_backbone_empty_profile_not_scanned"

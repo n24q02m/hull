@@ -68,7 +68,7 @@ def _github_commit_payload(date: str) -> list[dict]:
 
 
 def test_board_aliases_versioned_and_wellformed():
-    assert BOARD_ALIASES_VERSION == "2026-10-09"
+    assert BOARD_ALIASES_VERSION == "2026-11-26"
     for source, mapping in BOARD_ALIASES.items():
         assert source in SOURCE_REGISTRY, f"alias table names unregistered source {source}"
         for key, slug in mapping.items():
@@ -110,7 +110,7 @@ def test_mapped_slug_missing_from_catalog_reports_unmatched(monkeypatch):
     different catalog row — it reports the row as unmatched."""
     monkeypatch.setitem(
         BOARD_ALIASES,
-        "hindsight_reranker",
+        "agentset_rerank",
         {"gone-model": "a/delisted", "kept": "a/kept"},
     )
     or_rows = {
@@ -122,12 +122,12 @@ def test_mapped_slug_missing_from_catalog_reports_unmatched(monkeypatch):
         "kept": SourceRecord(key="kept", score=50.0),
     }
     status: dict = {}
-    cands = join_sources(or_rows, {"hindsight_reranker": records}, status_out=status)
+    cands = join_sources(or_rows, {"agentset_rerank": records}, status_out=status)
     joined = {c.or_slug: c for c in cands}
-    assert joined["a/kept"].scores["hindsight_reranker"] == 50.0  # mapping honored
+    assert joined["a/kept"].scores["agentset_rerank"] == 50.0  # mapping honored
     assert "a/delisted" not in joined  # delisted mapped slug creates nothing
-    assert status["hindsight_reranker"]["matched_count"] == 1
-    assert status["hindsight_reranker"]["unmatched_names"] == ["gone-model"]
+    assert status["agentset_rerank"]["matched_count"] == 1
+    assert status["agentset_rerank"]["unmatched_names"] == ["gone-model"]
 
 
 class _CatalogStub:
@@ -230,30 +230,23 @@ def test_agentset_rerank_table_missing_records_reason():
 # --- Hindsight (per-model boards retired upstream) -------------------------------------
 
 
-@pytest.mark.parametrize(
-    ("profile", "board"),
-    [("rerank", "hindsight_reranker"), ("embedding", "hindsight_embeddings")],
-)
-def test_retired_hindsight_board_is_recorded_gap_without_fetch(profile, board):
-    """vectorize-io/hindsight-benchmarks@523bd283f (2026-11-03) deleted every
-    per-model file under results/leaderboard/; the Hindsight 1.2.0 boards rank
-    LLMs only. The snapshot must record the gap as unimplemented_access with
-    that reason, never call the retired URLs, and never invent rows."""
-    sources = {
-        "openrouter_models": _CatalogStub({"a/one": _or_row("a/one")}),
-        board: SOURCE_REGISTRY[board],  # the shipped registry entry, unmodified
-    }
+def test_discontinued_hindsight_and_medhelm_removed_and_agentset_rerank_flagged():
+    """Discontinued boards are removed from SOURCE_REGISTRY; agentset_rerank status
+    carries requires_golden_set_confirmation=True."""
+    for discontinued in ("hindsight_reranker", "hindsight_embeddings", "medhelm"):
+        assert discontinued not in SOURCE_REGISTRY
+
+    src = AgentSetRerankSource()
+    assert src.requires_golden_set_confirmation is True
+    html = _fixture("agentset_rerankers.html").decode("utf-8")
     status: dict = {}
-    with patch("httpx.Client.get", side_effect=AssertionError("retired board must not be fetched")) as get:
-        cands = candidates(profile, sources=sources, status_out=status)
-    entry = status[board]
-    assert entry["status"] == "unimplemented_access"
-    assert entry["row_count"] == 0
-    assert "per-model" in entry["reason"]
-    assert "523bd283f" in entry["reason"]
-    assert "2026-11-03" in entry["reason"]
-    get.assert_not_called()
-    assert cands == []  # no board rows -> no scored candidate, nothing faked
+    with patch(
+        "httpx.Client.get",
+        side_effect=[_resp(content=html.encode()), _resp({"pushed_at": "2026-02-06T15:07:52Z"})],
+    ):
+        recs = ms._fetch_source(src, None, False, status)
+    assert status["agentset_rerank"]["requires_golden_set_confirmation"] is True
+    assert all(r.raw.get("requires_golden_set_confirmation") is True for r in recs.values())
 
 
 # --- LMArena agent arena ------------------------------------------------------------------
@@ -537,19 +530,30 @@ def test_fetch_source_records_board_updated_at_and_attribution():
 
 
 def test_registry_has_no_dead_v2_sources():
-    """livebench (dead URL, zero profiles) and flores_speakleash (stale 9mo)
-    were removed; the boards-v2 sources exist."""
-    assert "livebench" not in SOURCE_REGISTRY
-    assert "flores_speakleash" not in SOURCE_REGISTRY
+    """Discontinued boards were removed; active 11/2026 boards exist in SOURCE_REGISTRY."""
+    for removed in ("livebench", "flores_speakleash", "medhelm", "hindsight_reranker", "hindsight_embeddings"):
+        assert removed not in SOURCE_REGISTRY
     for name in (
-        "agentset_elo",
         "agentset_rerank",
-        "hindsight_reranker",
-        "hindsight_embeddings",
         "arena_agent",
         "wmt25_gmtr",
         "vals_legal_bench",
-        "or_usage",
+        "aa_decision_index_v2_1",
+        "jev_decision_index",
+        "s1mb",
+        "system_one_bench",
+        "rteb_holdout",
+        "mteb_v2",
+        "vidore_v3",
+        "mteb_v2_crossencoder",
+        "air_bench",
+        "epoch_eci",
+        "livebench_v2",
+        "scale_seal",
+        "vectara_hhem",
+        "openvlm",
+        "livebench_v2_agentic",
+        "scale_agentic",
     ):
         assert name in SOURCE_REGISTRY, name
 

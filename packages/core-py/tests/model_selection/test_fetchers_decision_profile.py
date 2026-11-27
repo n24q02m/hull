@@ -440,77 +440,92 @@ def test_tilde_alias_target_resolves_to_canonical():
 
 def test_decision_profile_registered_and_sources_resolve():
     profile = TASKS["decision"]
-    # A-W3.2a option P3: decision/judging boards specialized, independent
-    # agentic boards as the aggregate proxy layer.
-    assert profile.specialized_sources == ("jevals", "jevbench", "judgemark_v4")
-    assert profile.aggregate_sources == ("tau2_bench_or", "bfcl", "arena_agent")
-    assert profile.usage_sources == ("or_usage",)
-    for name in (*profile.specialized_sources, *profile.aggregate_sources, *profile.usage_sources):
+    assert profile.specialized_sources == (
+        "aa_decision_index_v2_1",
+        "jev_decision_index",
+        "s1mb",
+        "system_one_bench",
+    )
+    assert profile.aggregate_sources == ()
+    assert profile.usage_sources == ()
+    assert profile.constraints.require_zdr is True
+    for name in profile.specialized_sources:
         assert name in SOURCE_REGISTRY, name
-    # corroborate-only law is encoded in the profile comment/shape: judgemark
-    # is one of >=2 boards required for a strong (rank-capable) candidate — a
-    # judgemark-only model stays weak_evidence (enforced by candidates()).
-    assert "judgemark_v4" in profile.specialized_sources
-    assert "jevals" in profile.specialized_sources
 
 
-def test_decision_profile_excludes_unlicensed_and_dependent_boards():
-    """jev_decision_index (no declared license) and aa_agentic_index (not
-    provably independent from tau2_bench_or) stay registered but out of the
-    profile, so they can never mint a fake second board."""
+def test_decision_profile_excludes_agentic_proxies_and_enforces_zdr():
+    """Decision profile removes agentic proxies (tau2_bench_or, bfcl, arena_agent)
+    and requires strict ZDR."""
     profile = TASKS["decision"]
     in_profile = {*profile.specialized_sources, *profile.aggregate_sources}
-    assert "jev_decision_index" not in in_profile
-    assert "aa_agentic_index" not in in_profile
-    assert "jev_decision_index" in SOURCE_REGISTRY
-    assert "aa_agentic_index" in SOURCE_REGISTRY
+    for proxy in ("tau2_bench_or", "bfcl", "arena_agent", "or_usage"):
+        assert proxy not in in_profile
 
 
-def test_decision_profile_strong_needs_two_independent_boards():
-    """Strong (rank-capable) evidence needs >=2 contributing boards. Excluded
-    boards present in the source map contribute nothing."""
-    slugs = ["a/dual", "b/judge-only", "c/jev-only", "d/excluded-only", "e/agentic-pair"]
-    or_rows = {s: _or_rec(s, segments=["text"]) for s in slugs}
+def test_decision_profile_strong_needs_two_independent_boards_and_zdr():
+    """Strong (rank-capable) evidence needs >=2 contributing decision boards AND ZDR."""
+    slugs = ["a/dual", "b/s1mb-only", "c/jev-only", "d/proxy-only", "e/no-zdr"]
+    or_rows = {
+        s: SourceRecord(
+            key=s,
+            name=s,
+            raw={**_or_rec(s, segments=["text"]).raw, "_or_zdr_available": s != "e/no-zdr"},
+        )
+        for s in slugs
+    }
 
     def board(name: str, *keys: str) -> _StaticSource:
         return _StaticSource(name, {k: SourceRecord(key=k, score=70.0 + i) for i, k in enumerate(keys)})
 
     sources = {
         "openrouter_models": _StaticSource("openrouter_models", or_rows),
-        "jevals": board("jevals", "a-dual", "c-jev-only"),
-        "jevbench": board("jevbench"),
-        "judgemark_v4": board("judgemark_v4", "a-dual", "b-judge-only"),
-        "tau2_bench_or": board("tau2_bench_or", "e-agentic-pair"),
-        "bfcl": board("bfcl", "e-agentic-pair"),
-        "arena_agent": board("arena_agent"),
-        # present in the map, absent from the profile -> must be ignored
-        "jev_decision_index": board("jev_decision_index", "d-excluded-only", "c-jev-only"),
-        "aa_agentic_index": board("aa_agentic_index", "d-excluded-only", "b-judge-only"),
+        "aa_decision_index_v2_1": board("aa_decision_index_v2_1", "a-dual", "e-no-zdr"),
+        "jev_decision_index": board("jev_decision_index", "a-dual", "c-jev-only", "e-no-zdr"),
+        "s1mb": board("s1mb", "b-s1mb-only"),
+        "system_one_bench": board("system_one_bench"),
+        # proxy boards absent from decision profile -> ignored
+        "tau2_bench_or": board("tau2_bench_or", "d-proxy-only"),
+        "bfcl": board("bfcl", "d-proxy-only"),
     }
     by_slug = {c.or_slug: c for c in candidates(TASKS["decision"], sources=sources)}
 
-    assert by_slug["a/dual"].evidence == ("jevals", "judgemark_v4")
+    assert by_slug["a/dual"].evidence == ("aa_decision_index_v2_1", "jev_decision_index")
     assert by_slug["a/dual"].weak_evidence is False
-    assert by_slug["e/agentic-pair"].evidence == ("bfcl", "tau2_bench_or")
-    assert by_slug["e/agentic-pair"].weak_evidence is False
-    # judgemark-only and jevals-only models remain honestly weak
-    assert by_slug["b/judge-only"].evidence == ("judgemark_v4",)
-    assert by_slug["b/judge-only"].weak_evidence is True
-    assert by_slug["c/jev-only"].evidence == ("jevals",)
+    assert by_slug["b/s1mb-only"].evidence == ("s1mb",)
+    assert by_slug["b/s1mb-only"].weak_evidence is True
+    assert by_slug["c/jev-only"].evidence == ("jev_decision_index",)
     assert by_slug["c/jev-only"].weak_evidence is True
-    # excluded boards alone give no score at all -> dropped from the pool
-    assert "d/excluded-only" not in by_slug
+    assert "d/proxy-only" not in by_slug
+    assert "e/no-zdr" not in by_slug
 
 
-def test_existing_profiles_unchanged_by_decision_wave():
-    """Regression: the decision wave must not reshape any existing profile."""
-    assert TASKS["translation"].specialized_sources == ("wmt24pp", "wmt25_gmtr")
-    assert TASKS["embedding"].specialized_sources == (
-        "mteb_classification",
-        "mteb_retrieval",
-        "mteb_sts",
-        "agentset_elo",
-        "hindsight_embeddings",
-    )
-    assert TASKS["rerank"].specialized_sources == ("mteb_reranking", "agentset_rerank", "hindsight_reranker")
-    assert "decision" not in TASKS["translation"].specialized_sources
+def test_jev_decision_index_captures_calibration_metadata(monkeypatch):
+    payload = {
+        "generated_utc": "2026-11-20T00:00:00Z",
+        "models": [
+            {
+                "engine": "clef",
+                "name": "Clef",
+                "scores": {"balanced_skill": 72.5, "balanced_raw": 78.0},
+                "calibration": {"ece": 0.04, "brier_score": 0.11},
+            }
+        ],
+    }
+    monkeypatch.setattr("hull_core.model_selection.sources._get_json", lambda *_a, **_kw: payload)
+    src = JevDecisionIndexSource()
+    recs = src.fetch()
+    cal = recs["clef"].raw["calibration"]
+    assert cal["balanced_raw"] == pytest.approx(78.0)
+    assert cal["balanced_skill"] == pytest.approx(72.5)
+    assert cal["calibration_gap"] == pytest.approx(5.5)
+    assert cal["ece"] == pytest.approx(0.04)
+    assert src.calibration["clef"]["brier_score"] == pytest.approx(0.11)
+
+
+def test_embedding_and_rerank_profiles_use_11_2026_boards():
+    """Embedding & rerank use 11/2026 specialized boards and require ZDR."""
+    assert set(TASKS["translation"].specialized_sources) == {"wmt25_gmtr", "wmt24pp"}
+    assert TASKS["embedding"].specialized_sources == ("rteb_holdout", "mteb_v2", "vidore_v3")
+    assert TASKS["rerank"].specialized_sources == ("mteb_v2_crossencoder", "air_bench", "agentset_rerank")
+    assert TASKS["embedding"].constraints.require_zdr is True
+    assert TASKS["rerank"].constraints.require_zdr is True

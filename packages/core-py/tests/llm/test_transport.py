@@ -1,295 +1,381 @@
-"""Tests for the unified LLM transport (dispatch + routing helpers)."""
+"""OpenRouter httpx/SSRF LLM transport tests — ZDR, CF AI Gateway, cache_control, circuit breaker."""
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+import json
+import sys
+from unittest.mock import patch
 
-import litellm
+import httpx
 import pytest
 
-from hull_core.llm import transport
+from hull_core.http import SSRFBlockedError
+from hull_core.llm import (
+    OPENROUTER_API_BASE,
+    AsyncCompletionStream,
+    CompletionResponse,
+    EmbeddingResponse,
+    GatewayCircuitBreaker,
+    SystemOneResponse,
+    TransportHTTPError,
+    UsageMetrics,
+    ZDRUnavailableError,
+    acompletion,
+    acompletion_text,
+    aembedding,
+    arerank,
+    asystemone,
+    cf_aig_headers,
+    completion,
+    completion_text,
+    extract_usage_metrics,
+    provider_params,
+    reset_gateway_circuit_breaker,
+    systemone,
+)
+from hull_core.llm._extra import require_litellm_extra
 
 
-def _completion_response(content: str) -> MagicMock:
-    """Build a litellm-shaped completion response object."""
-    resp = MagicMock()
-    resp.choices = [MagicMock(message=MagicMock(content=content))]
-    return resp
+def _json_response(payload: dict, *, status_code: int = 200) -> httpx.Response:
+    return httpx.Response(status_code, json=payload)
 
 
-# ---------------------------------------------------------------------------
-# provider_params
-# ---------------------------------------------------------------------------
+def _sse_response(events: list[dict]) -> httpx.Response:
+    lines = [f"data: {json.dumps(ev)}\n\n" for ev in events]
+    lines.append("data: [DONE]\n\n")
+    return httpx.Response(200, content="".join(lines).encode("utf-8"), headers={"content-type": "text/event-stream"})
 
 
-def test_provider_params_openrouter_reads_prefixed_env(monkeypatch):
-    monkeypatch.setenv("KLPRISM_OPENROUTER_API_KEY", "or-key")
-    params = transport.provider_params("openrouter", env_prefix="KLPRISM_")
-    assert params == {"api_key": "or-key"}
+def test_no_litellm_imported_at_transport_import(monkeypatch):
+    """hull_core.llm transport runs purely on httpx + OpenRouter API without importing litellm."""
+    assert "litellm" not in sys.modules
+    monkeypatch.setitem(sys.modules, "litellm", None)
+    with pytest.raises(ImportError, match="litellm"):
+        require_litellm_extra()
 
 
-def test_provider_params_openrouter_base_override(monkeypatch):
-    monkeypatch.setenv("HULL_OPENROUTER_API_KEY", "k")
-    monkeypatch.setenv("HULL_LLM_API_BASE_OPENROUTER", "https://gw.example/openrouter")
-    params = transport.provider_params("openrouter")
-    assert params["api_base"] == "https://gw.example/openrouter"
+def test_cf_aig_headers_safe_defaults_and_edge_cache():
+    default = cf_aig_headers()
+    assert default["cf-aig-collect-log"] == "false"
+    assert default["cf-aig-skip-cache"] == "true"
+    assert "cf-aig-cache-ttl" not in default
+
+    cached = cf_aig_headers(edge_cache=True, cache_ttl=120, custom_cache_key="k1")
+    assert cached["cf-aig-collect-log"] == "false"
+    assert cached["cf-aig-skip-cache"] == "false"
+    assert cached["cf-aig-cache-ttl"] == "120"
+    assert cached["cf-aig-custom-cache-key"] == "k1"
 
 
-def test_provider_params_empty_env_yields_nothing(monkeypatch):
-    for var in ("HULL_OPENROUTER_API_KEY", "HULL_LLM_API_BASE_OPENROUTER"):
-        monkeypatch.delenv(var, raising=False)
-    assert transport.provider_params("openrouter") == {}
+def test_provider_params_resolves_openrouter_key_and_base(monkeypatch):
+    monkeypatch.setenv("HULL_OPENROUTER_API_KEY", "or-key-123")
+    monkeypatch.delenv("HULL_OPENROUTER_API_BASE", raising=False)
+    monkeypatch.delenv("OPENROUTER_API_BASE", raising=False)
+    monkeypatch.delenv("HULL_AI_GATEWAY_URL", raising=False)
+    monkeypatch.delenv("AI_GATEWAY_URL", raising=False)
+    assert provider_params("openrouter", env_prefix="HULL_") == {"api_key": "or-key-123"}
+
+    monkeypatch.setenv("HULL_AI_GATEWAY_URL", "https://gateway.ai.cloudflare.com/v1/acc/gw/openrouter/")
+    params = provider_params("openrouter", env_prefix="HULL_")
+    assert params == {
+        "api_key": "or-key-123",
+        "api_base": "https://gateway.ai.cloudflare.com/v1/acc/gw/openrouter",
+    }
 
 
-def test_provider_params_unknown_provider_empty():
-    assert transport.provider_params("vertex_ai") == {}
-    assert transport.provider_params("xai") == {}
-    assert transport.provider_params("ollama") == {}
-
-
-def test_provider_params_empty_prefix_reads_canonical(monkeypatch):
-    monkeypatch.setenv("OPENROUTER_API_KEY", "canonical")
-    assert transport.provider_params("openrouter", env_prefix="") == {"api_key": "canonical"}
-
-
-# ---------------------------------------------------------------------------
-# acompletion / completion
-# ---------------------------------------------------------------------------
-
-
-async def test_acompletion_litellm_passthrough():
-    resp = _completion_response("hello")
-    with patch("hull_core.llm.transport.litellm.acompletion", new=AsyncMock(return_value=resp)) as m:
-        out = await transport.acompletion(
-            model="vertex_ai/gemini-3.1-pro-preview",
+def test_zdr_fail_closed_when_unavailable():
+    with pytest.raises(ZDRUnavailableError):
+        completion(
+            model="z-ai/glm-5",
             messages=[{"role": "user", "content": "hi"}],
-            temperature=0.3,
+            api_key="sk-test",
+            zdr=True,
+            zdr_available=False,
         )
-    assert out is resp
-    assert m.call_args.kwargs["model"] == "vertex_ai/gemini-3.1-pro-preview"
-    assert m.call_args.kwargs["temperature"] == 0.3
 
 
-async def test_acompletion_injects_env_provider_params(monkeypatch):
-    monkeypatch.setenv("KLPRISM_OPENROUTER_API_KEY", "or-key")
-    resp = _completion_response("x")
-    with patch("hull_core.llm.transport.litellm.acompletion", new=AsyncMock(return_value=resp)) as m:
-        await transport.acompletion(model="openrouter/z-ai/glm", messages=[], env_prefix="KLPRISM_")
-    assert m.call_args.kwargs["api_key"] == "or-key"
+def test_completion_sends_zdr_cf_headers_and_preserves_cache_control():
+    seen: list[httpx.Request] = []
 
-
-async def test_acompletion_explicit_key_wins_over_env(monkeypatch):
-    monkeypatch.setenv("HULL_OPENROUTER_API_KEY", "env-key")
-    resp = _completion_response("x")
-    with patch("hull_core.llm.transport.litellm.acompletion", new=AsyncMock(return_value=resp)) as m:
-        await transport.acompletion(model="openrouter/m", messages=[], api_key="explicit")
-    assert m.call_args.kwargs["api_key"] == "explicit"
-
-
-def test_completion_sync_litellm():
-    resp = _completion_response("ok")
-    with patch("hull_core.llm.transport.litellm.completion", return_value=resp) as m:
-        out = transport.completion(model="openai/gpt", messages=[], temperature=0.1)
-    assert out is resp
-    assert m.call_args.kwargs["temperature"] == 0.1
-
-
-def test_completion_vertex_express_prefix_no_special_dispatch():
-    """The former vertex_express prefix is now a plain litellm id."""
-    resp = _completion_response("ok")
-    with patch("hull_core.llm.transport.litellm.completion", return_value=resp) as m:
-        out = transport.completion(model="vertex_express/m", messages=[{"role": "user", "content": "hi"}])
-    assert out is resp
-    assert m.call_args.kwargs["model"] == "vertex_express/m"
-
-
-# ---------------------------------------------------------------------------
-# *_text helpers
-# ---------------------------------------------------------------------------
-
-
-def _model_response(content: str | None) -> litellm.ModelResponse:
-    """Build a real litellm ``ModelResponse`` (the *_text helpers type-check it)."""
-    return litellm.ModelResponse(choices=[litellm.Choices(message=litellm.Message(content=content))])
-
-
-async def test_acompletion_text_returns_content():
-    resp = _model_response("the answer")
-    with patch("hull_core.llm.transport.litellm.acompletion", new=AsyncMock(return_value=resp)):
-        out = await transport.acompletion_text(model="openai/gpt", messages=[])
-    assert out == "the answer"
-
-
-async def test_acompletion_text_none_content_empty():
-    resp = _model_response(None)
-    with patch("hull_core.llm.transport.litellm.acompletion", new=AsyncMock(return_value=resp)):
-        out = await transport.acompletion_text(model="openai/gpt", messages=[])
-    assert out == ""
-
-
-def test_completion_text_returns_content():
-    resp = _model_response("done")
-    with patch("hull_core.llm.transport.litellm.completion", return_value=resp):
-        assert transport.completion_text(model="openai/gpt", messages=[]) == "done"
-
-
-def test_completion_text_none_content_empty():
-    resp = _model_response(None)
-    with patch("hull_core.llm.transport.litellm.completion", return_value=resp):
-        assert transport.completion_text(model="openai/gpt", messages=[]) == ""
-
-
-async def test_acompletion_text_rejects_stream_before_request():
-    """stream=True would return a stream wrapper; reject it before any paid request."""
-    with patch("hull_core.llm.transport.litellm.acompletion", new=AsyncMock()) as m:
-        with pytest.raises(ValueError, match=r"call acompletion\("):
-            await transport.acompletion_text(model="openai/gpt", messages=[], stream=True)
-    m.assert_not_called()
-
-
-def test_completion_text_rejects_stream_before_request():
-    with patch("hull_core.llm.transport.litellm.completion") as m:
-        with pytest.raises(ValueError, match=r"call completion\("):
-            transport.completion_text(model="openai/gpt", messages=[], stream=True)
-    m.assert_not_called()
-
-
-async def test_acompletion_text_stream_false_allowed():
-    resp = _model_response("ok")
-    with patch("hull_core.llm.transport.litellm.acompletion", new=AsyncMock(return_value=resp)) as m:
-        out = await transport.acompletion_text(model="openai/gpt", messages=[], stream=False)
-    assert out == "ok"
-    assert m.call_args.kwargs["stream"] is False
-
-
-async def test_acompletion_text_non_model_response_raises_type_error():
-    """A non-ModelResponse (e.g. a stream wrapper) fails loudly, naming the type."""
-    with patch("hull_core.llm.transport.litellm.acompletion", new=AsyncMock(return_value=object())):
-        with pytest.raises(TypeError, match="object"):
-            await transport.acompletion_text(model="openai/gpt", messages=[])
-
-
-def test_completion_text_non_model_response_raises_type_error():
-    with patch("hull_core.llm.transport.litellm.completion", return_value=_completion_response("x")):
-        with pytest.raises(TypeError, match="MagicMock"):
-            transport.completion_text(model="openai/gpt", messages=[])
-
-
-# ---------------------------------------------------------------------------
-# api_base vetting (SSRF)
-# ---------------------------------------------------------------------------
-
-
-async def test_acompletion_vets_custom_api_base():
-    resp = _completion_response("ok")
-    with (
-        patch("hull_core.llm.transport.litellm.acompletion", new=AsyncMock(return_value=resp)),
-        patch("hull_core.llm.transport.vet_api_base", side_effect=ValueError("blocked")) as vet,
-    ):
-        with pytest.raises(ValueError, match="blocked"):
-            await transport.acompletion(model="openai/gpt", messages=[], api_base="http://10.0.0.1:11434/v1")
-    vet.assert_called_once_with("http://10.0.0.1:11434/v1")
-
-
-async def test_acompletion_skips_vet_without_api_base():
-    resp = _completion_response("ok")
-    with (
-        patch("hull_core.llm.transport.litellm.acompletion", new=AsyncMock(return_value=resp)),
-        patch("hull_core.llm.transport.vet_api_base") as vet,
-    ):
-        await transport.acompletion(model="openai/gpt", messages=[])
-    vet.assert_not_called()
-
-
-async def test_acompletion_vets_env_derived_api_base(monkeypatch):
-    """An api_base from env provider_params is vetted the same as an explicit one."""
-    monkeypatch.setenv("HULL_OPENROUTER_API_KEY", "k")
-    monkeypatch.setenv("HULL_LLM_API_BASE_OPENROUTER", "https://gw.example/or")
-    resp = _completion_response("ok")
-    with (
-        patch("hull_core.llm.transport.litellm.acompletion", new=AsyncMock(return_value=resp)) as m,
-        patch("hull_core.llm.transport.vet_api_base", side_effect=lambda u: u) as vet,
-    ):
-        await transport.acompletion(model="openrouter/m", messages=[])
-    vet.assert_called_once_with("https://gw.example/or")
-    assert m.call_args.kwargs["api_base"] == "https://gw.example/or"
-
-
-# ---------------------------------------------------------------------------
-# aembedding
-# ---------------------------------------------------------------------------
-
-
-async def test_aembedding_forwards():
-    resp = MagicMock()
-    with patch("hull_core.llm.transport.litellm.aembedding", new=AsyncMock(return_value=resp)) as m:
-        out = await transport.aembedding(model="cohere/embed-v4.0", input=["a", "b"], dimensions=1024)
-    assert out is resp
-    kw = m.call_args.kwargs
-    assert kw["model"] == "cohere/embed-v4.0"
-    assert kw["input"] == ["a", "b"]
-    assert kw["dimensions"] == 1024
-
-
-# ---------------------------------------------------------------------------
-# arerank
-# ---------------------------------------------------------------------------
-
-
-def _rerank_response(pairs: list[tuple[int, float]]) -> MagicMock:
-    resp = MagicMock()
-    resp.results = [{"index": i, "relevance_score": s} for i, s in pairs]
-    return resp
-
-
-async def test_arerank_normalizes_and_sorts():
-    resp = _rerank_response([(0, 0.1), (1, 0.9), (2, 0.5)])
-    with patch("hull_core.llm.transport.litellm.arerank", new=AsyncMock(return_value=resp)) as m:
-        out = await transport.arerank(
-            model="cohere/rerank-v3.5",
-            query="q",
-            documents=["a", "b", "c"],
-            top_n=3,
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return _json_response(
+            {
+                "id": "gen-1",
+                "model": "anthropic/claude-sonnet-4",
+                "choices": [{"message": {"role": "assistant", "content": "ok"}}],
+                "usage": {
+                    "prompt_tokens": 100,
+                    "completion_tokens": 20,
+                    "total_tokens": 120,
+                    "cost": 0.0015,
+                    "prompt_tokens_details": {"cached_tokens": 80},
+                },
+            }
         )
-    assert out == [(1, 0.9), (2, 0.5), (0, 0.1)]
-    assert m.call_args.kwargs["model"] == "cohere/rerank-v3.5"
-    assert m.call_args.kwargs["top_n"] == 3
+
+    transport = httpx.MockTransport(handler)
+    cache_ctrl = {"type": "ephemeral", "ttl": "1h"}
+    messages = [
+        {
+            "role": "system",
+            "content": [{"type": "text", "text": "System prompt", "cache_control": cache_ctrl}],
+        },
+        {"role": "user", "content": "Hello"},
+    ]
+    gateway_url = "https://gateway.ai.cloudflare.com/v1/acc/gw/openrouter"
+    resp = completion(
+        model="openrouter/anthropic/claude-sonnet-4",
+        messages=messages,
+        api_key="sk-test",
+        api_base=gateway_url,
+        transport=transport,
+    )
+    assert isinstance(resp, CompletionResponse)
+    assert resp.choices[0].message.content == "ok"
+    assert isinstance(resp.usage_metrics, UsageMetrics)
+    assert resp.usage_metrics.usd_cost == pytest.approx(0.0015)
+    assert resp.usage_metrics.cached_tokens == 80
+    assert resp.usage_metrics.zdr_enforced is True
+
+    req = seen[0]
+    assert str(req.url) == f"{gateway_url}/chat/completions"
+    assert req.headers["cf-aig-collect-log"] == "false"
+    assert req.headers["cf-aig-skip-cache"] == "true"
+    body = json.loads(req.content)
+    assert body["model"] == "anthropic/claude-sonnet-4"
+    assert body["provider"] == {"data_collection": "deny"}
+    assert body["messages"][0]["content"][0]["cache_control"] == cache_ctrl
 
 
-async def test_arerank_empty_documents_short_circuits():
-    with patch("hull_core.llm.transport.litellm.arerank", new=AsyncMock()) as m:
-        out = await transport.arerank(model="cohere/rerank-v3.5", query="q", documents=[])
-    assert out == []
-    m.assert_not_called()
+@pytest.mark.asyncio
+async def test_acompletion_streaming_emits_deltas_and_real_usd_usage():
+    events = [
+        {"choices": [{"delta": {"content": "Hello "}}]},
+        {
+            "choices": [{"delta": {"content": "world"}}],
+            "usage": {
+                "prompt_tokens": 10,
+                "completion_tokens": 2,
+                "total_tokens": 12,
+                "cost": 0.00042,
+                "prompt_tokens_details": {"cached_tokens": 6},
+            },
+        },
+    ]
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return _sse_response(events)
+
+    stream = await acompletion(
+        model="z-ai/glm-5",
+        messages=[{"role": "user", "content": "hi"}],
+        api_key="sk-test",
+        stream=True,
+        transport=httpx.MockTransport(handler),
+    )
+    assert isinstance(stream, AsyncCompletionStream)
+    chunks = [chunk["choices"][0]["delta"]["content"] async for chunk in stream]
+    assert "".join(chunks) == "Hello world"
+    assert stream.collected_text == "Hello world"
+    assert stream.usage_metrics.usd_cost == pytest.approx(0.00042)
+    assert stream.usage_metrics.cached_tokens == 6
+    assert stream.usage_metrics.zdr_enforced is True
 
 
-async def test_arerank_attr_shaped_results():
-    """litellm may return objects rather than dicts on .results."""
-    resp = MagicMock()
-    r0 = MagicMock()
-    r0.index = 2
-    r0.relevance_score = 0.7
-    resp.results = [r0]
-    with patch("hull_core.llm.transport.litellm.arerank", new=AsyncMock(return_value=resp)):
-        out = await transport.arerank(model="jina_ai/m0", query="q", documents=["a"])
-    assert out == [(2, 0.7)]
+@pytest.mark.asyncio
+async def test_gateway_circuit_breaker_falls_back_direct_to_openrouter():
+    reset_gateway_circuit_breaker()
+    breaker = GatewayCircuitBreaker(failure_threshold=2, recovery_timeout=60.0)
+    urls: list[str] = []
 
-
-async def test_arerank_explicit_key_and_base_forwarded():
-    resp = _rerank_response([(0, 1.0)])
-    with (
-        patch("hull_core.llm.transport.litellm.arerank", new=AsyncMock(return_value=resp)) as m,
-        patch("hull_core.llm.transport.vet_api_base", side_effect=lambda u: u),
-    ):
-        await transport.arerank(
-            model="cohere/rerank-v3.5",
-            query="q",
-            documents=["a"],
-            api_key="k",
-            api_base="https://gw.example/cohere/v1/rerank",
-            headers={"cf-aig-authorization": "Bearer t"},
+    def handler(request: httpx.Request) -> httpx.Response:
+        urls.append(str(request.url))
+        if request.url.host == "gateway.ai.cloudflare.com":
+            return httpx.Response(502, json={"error": "bad gateway"})
+        return _json_response(
+            {
+                "id": "gen-direct",
+                "model": "z-ai/glm-5",
+                "choices": [{"message": {"role": "assistant", "content": "direct-ok"}}],
+                "usage": {"prompt_tokens": 5, "completion_tokens": 2, "cost": 0.0001},
+            }
         )
-    kw = m.call_args.kwargs
-    assert kw["api_key"] == "k"
-    assert kw["api_base"] == "https://gw.example/cohere/v1/rerank"
-    assert kw["headers"] == {"cf-aig-authorization": "Bearer t"}
+
+    transport = httpx.MockTransport(handler)
+    gateway_url = "https://gateway.ai.cloudflare.com/v1/acc/gw/openrouter"
+    r1 = await acompletion(
+        model="z-ai/glm-5",
+        messages=[{"role": "user", "content": "1"}],
+        api_key="sk-test",
+        api_base=gateway_url,
+        circuit_breaker=breaker,
+        transport=transport,
+    )
+    r2 = await acompletion(
+        model="z-ai/glm-5",
+        messages=[{"role": "user", "content": "2"}],
+        api_key="sk-test",
+        api_base=gateway_url,
+        circuit_breaker=breaker,
+        transport=transport,
+    )
+    # 3rd call skips gateway completely because breaker is now OPEN.
+    r3 = await acompletion(
+        model="z-ai/glm-5",
+        messages=[{"role": "user", "content": "3"}],
+        api_key="sk-test",
+        api_base=gateway_url,
+        circuit_breaker=breaker,
+        transport=transport,
+    )
+    assert isinstance(r1, CompletionResponse)
+    assert isinstance(r2, CompletionResponse)
+    assert isinstance(r3, CompletionResponse)
+    assert [
+        r1.choices[0].message.content,
+        r2.choices[0].message.content,
+        r3.choices[0].message.content,
+    ] == ["direct-ok", "direct-ok", "direct-ok"]
+    assert urls == [
+        f"{gateway_url}/chat/completions",
+        f"{OPENROUTER_API_BASE}/chat/completions",
+        f"{gateway_url}/chat/completions",
+        f"{OPENROUTER_API_BASE}/chat/completions",
+        f"{OPENROUTER_API_BASE}/chat/completions",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_aembedding_arerank_and_systemone_endpoints():
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path.endswith("/embeddings"):
+            return _json_response(
+                {
+                    "model": "qwen/qwen3-embedding-8b",
+                    "data": [{"embedding": [0.1, 0.2], "index": 0}],
+                    "usage": {"prompt_tokens": 4, "total_tokens": 4, "cost": 0.00001},
+                }
+            )
+        if path.endswith("/rerank"):
+            return _json_response(
+                {
+                    "model": "cohere/rerank-4-pro",
+                    "results": [{"index": 1, "relevance_score": 0.92}],
+                    "usage": {"prompt_tokens": 12, "total_tokens": 12, "cost": 0.0002},
+                }
+            )
+        if path.endswith("/v1/systemone"):
+            body = json.loads(request.content)
+            assert body["provider"] == {"data_collection": "deny"}
+            return _json_response(
+                {
+                    "model": "typesafe/jev-1.13",
+                    "answers": {"q1": {"answer": "yes", "probability": 0.91}},
+                    "usage": {"prompt_tokens": 30, "completion_tokens": 1, "cost": 0.0003},
+                }
+            )
+        raise AssertionError(f"unexpected path: {path}")
+
+    transport = httpx.MockTransport(handler)
+    emb = await aembedding(
+        model="qwen/qwen3-embedding-8b",
+        input=["hello"],
+        api_key="sk-test",
+        transport=transport,
+    )
+    assert isinstance(emb, EmbeddingResponse)
+    assert [item.embedding for item in emb.data] == [[0.1, 0.2]]
+    assert emb.usage_metrics.zdr_enforced is True
+
+    rerank = await arerank(
+        model="cohere/rerank-4-pro",
+        query="q",
+        documents=["d0", "d1"],
+        api_key="sk-test",
+        transport=transport,
+    )
+    assert rerank == [(1, pytest.approx(0.92))]
+
+    s1 = await asystemone(
+        model="typesafe/jev-1.13",
+        state="patient has fever",
+        questions=[{"id": "q1", "text": "urgent?", "type": "yes_no"}],
+        api_key="sk-test",
+        transport=transport,
+    )
+    assert isinstance(s1, SystemOneResponse)
+    assert s1.answers["q1"]["answer"] == "yes"
+    assert s1.usage_metrics.usd_cost == pytest.approx(0.0003)
+
+    s1_sync = systemone(
+        model="typesafe/jev-1.13",
+        state="patient has fever",
+        questions=[{"id": "q1", "text": "urgent?", "type": "yes_no"}],
+        api_key="sk-test",
+        transport=transport,
+    )
+    assert s1_sync.answers["q1"]["probability"] == pytest.approx(0.91)
+
+
+def test_ssrf_blocks_private_api_base_and_http_errors_surface():
+    with pytest.raises(SSRFBlockedError):
+        completion(
+            model="z-ai/glm-5",
+            messages=[{"role": "user", "content": "hi"}],
+            api_key="sk-test",
+            api_base="http://169.254.169.254/latest",
+        )
+
+    transport = httpx.MockTransport(lambda _r: httpx.Response(400, text="bad model"))
+    with pytest.raises(TransportHTTPError, match="returned 400"):
+        completion_text(
+            model="z-ai/glm-5",
+            messages=[{"role": "user", "content": "hi"}],
+            api_key="sk-test",
+            transport=transport,
+        )
+
+
+@pytest.mark.asyncio
+async def test_acompletion_text_and_usage_extraction():
+    transport = httpx.MockTransport(
+        lambda _r: _json_response(
+            {
+                "choices": [{"message": {"content": "hello"}}],
+                "usage": {
+                    "prompt_tokens": 10,
+                    "completion_tokens": 5,
+                    "total_tokens": 15,
+                    "cost": 0.002,
+                    "cache_read_input_tokens": 4,
+                },
+            }
+        )
+    )
+    text = await acompletion_text(
+        model="z-ai/glm-5",
+        messages=[{"role": "user", "content": "say hi"}],
+        api_key="sk-test",
+        transport=transport,
+    )
+    assert text == "hello"
+    metrics = extract_usage_metrics(
+        {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15, "cost": 0.002},
+        zdr_enforced=False,
+    )
+    assert metrics.usd_cost == pytest.approx(0.002)
+    assert metrics.zdr_enforced is False
+
+    # Also verify non-gateway SSRF-safe path respects custom public api_base without tripping breaker.
+    with patch("hull_core.llm.transport.vet_api_base", return_value="https://api.example.com/v1"):
+        res = await acompletion(
+            model="z-ai/glm-5",
+            messages=[{"role": "user", "content": "ok"}],
+            api_key="sk-test",
+            api_base="https://api.example.com/v1",
+            transport=transport,
+        )
+        assert isinstance(res, CompletionResponse)
+        assert res.choices[0].message.content == "hello"

@@ -25,6 +25,7 @@ WEB_EXTRA_MODULES: tuple[str, ...] = (
     "capsolver",
     "pydantic",
     "PIL",
+    "tiktoken",
 )
 
 INSTALL_HINT = 'pip install "n24q02m-hull[web]"'

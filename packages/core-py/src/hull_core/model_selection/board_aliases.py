@@ -25,13 +25,11 @@ as before.
 
 from __future__ import annotations
 
-BOARD_ALIASES_VERSION = "2026-10-09"
+BOARD_ALIASES_VERSION = "2026-11-26"
 
 BOARD_ALIASES: dict[str, dict[str, str]] = {
     # AgentSet embeddings leaderboard (Elo, 18 models; results/benchmarks.json).
-    # Mapped: 7 of 18 rows are OR-servable today. Unmapped (not on OR):
-    # zembed-1, Jina V5 Small / V3, Voyage 3 Large / 3.5 / 3.5 Lite,
-    # Cohere Embed V3 / Multilingual V3, Kanon 2, Qwen3 0.6B, Gemini 004.
+    # Mapped: 7 of 18 rows are OR-servable today.
     "agentset_elo": {
         "gemini-embedding-2": "google/gemini-embedding-2",
         "voyage-4": "voyageai/voyage-4",
@@ -43,7 +41,7 @@ BOARD_ALIASES: dict[str, dict[str, str]] = {
     },
     # AgentSet rerankers board (static HTML, 10 rows). Mapped: 6 of 10.
     # Unmapped (not on OR): zerank-2, zerank-1, zerank-1-small,
-    # contextual-ai-rerank-v2-instruct.
+    # contextual-ai-rerank-v2-instruct. Requires internal golden-set confirmation.
     "agentset_rerank": {
         "cohere-rerank-4-pro": "cohere/rerank-4-pro",
         "cohere-rerank-4-fast": "cohere/rerank-4-fast",
@@ -52,13 +50,23 @@ BOARD_ALIASES: dict[str, dict[str, str]] = {
         "voyage-ai-rerank-2-5-lite": "voyageai/rerank-2.5-lite",
         "qwen3-reranker-8b": "qwen/qwen3-reranker-8b",
     },
-    # "hindsight_reranker" / "hindsight_embeddings" were removed 2026-11-20:
-    # vectorize-io/hindsight-benchmarks@523bd283f (2026-11-03) deleted every
-    # per-model file under results/leaderboard/, and the Hindsight 1.2.0
-    # boards rank LLMs only with the embedding model and reranker held fixed.
-    # Both sources are now UnimplementedSource, so no row reaches the join and
-    # the mapped evidence (cohere rerank-4-pro/-fast, openai
-    # text-embedding-3-small, baai bge-base/-large-en-v1.5) is gone, not moved.
+    # 11/2026 boards: join via uniqueness-gated ladder (explicit overrides
+    # added here whenever display names cannot disambiguate).
+    "aa_decision_index_v2_1": {},
+    "s1mb": {},
+    "system_one_bench": {},
+    "rteb_holdout": {},
+    "mteb_v2": {},
+    "vidore_v3": {},
+    "mteb_v2_crossencoder": {},
+    "air_bench": {},
+    "epoch_eci": {},
+    "livebench_v2": {},
+    "scale_seal": {},
+    "vectara_hhem": {},
+    "openvlm": {},
+    "livebench_v2_agentic": {},
+    "scale_agentic": {},
     # WMT25 General MT preliminary ranking (arXiv 2508.14909v2, mean AutoRank
     # across 31 language pairs). Only systems verifiably present on today's OR
     # text catalog are mapped; anonymous baselines (ONLINE-*), team systems

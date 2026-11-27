@@ -138,6 +138,7 @@ def _record_status(
     fetched_at: str | None = None,
     board_updated_at: str | None = None,
     attribution: str | None = None,
+    requires_golden_set_confirmation: bool = False,
 ) -> None:
     if status_out is not None:
         status_out[name] = SourceStatus(
@@ -147,6 +148,7 @@ def _record_status(
             reason=reason,
             board_updated_at=board_updated_at,
             attribution=attribution,
+            requires_golden_set_confirmation=requires_golden_set_confirmation,
         ).to_dict()
 
 
@@ -161,6 +163,7 @@ def _fetch_source(
     When ``status_out`` is given, records per-source health (ok / stale /
     missing / unimplemented_access) under the source's name.
     """
+    golden_gate = bool(getattr(source, "requires_golden_set_confirmation", False))
     if isinstance(source, UnimplementedSource):
         _record_status(status_out, source.name, "unimplemented_access", reason=source.reason)
         return {}
@@ -180,6 +183,7 @@ def _fetch_source(
                 fetched_at=_fetched_iso(cache.fetched_at(source.name)),
                 board_updated_at=getattr(source, "board_updated_at", None),
                 attribution=getattr(source, "attribution", None),
+                requires_golden_set_confirmation=golden_gate,
             )
             return {k: SourceRecord.from_dict(v) for k, v in cached.items()}
     try:
@@ -205,6 +209,7 @@ def _fetch_source(
             fetched_at=_now_iso(),
             board_updated_at=getattr(source, "board_updated_at", None),
             attribution=getattr(source, "attribution", None),
+            requires_golden_set_confirmation=golden_gate,
         )
         return records
     reason = getattr(source, "missing_reason", None) or "empty_fetch"
@@ -333,6 +338,10 @@ def candidates(
     if unpriced_zero:
         logger.info("model_selection: %d $0-catalog rows treated as unpriced", unpriced_zero)
     cands = [c for c in cands if c not in free]
+    if profile.constraints.require_zdr and sources is None:
+        need_zdr = [c for c in cands if c.zdr_available is None]
+        if need_zdr:
+            enrich_uptime(need_zdr, limit=20)
     cands = [c for c in cands if passes_constraints(c, profile.constraints)]
 
     # OR usage -> or_task_spend_share (boards-v2 2026-10-09): share of this

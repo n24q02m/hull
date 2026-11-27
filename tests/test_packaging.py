@@ -35,6 +35,7 @@ WEB_DEPS = {
     "capsolver",
     "pydantic",
     "pillow",
+    "tiktoken",
 }
 WEB_ONLY = WEB_DEPS - BASE_DEPS
 

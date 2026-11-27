@@ -118,20 +118,23 @@ class ModelRegistry:
     ) -> dict[str, Any]:
         """Promote an OR-listed challenger to runtime primary.
 
-        Challenger -> active, chain_position 0, on ``tiers``. Other actives
-        demote to position 1, except ``nsfw_capable`` entries which keep the
-        fallback lead at position 2 (ported from KP apply_promotion). New
-        entries are created nsfw_capable=False — auto-promote can never mint
-        an NSFW-capable model.
+        Uses ``openrouter_slug`` as primary key (no longer generates ``litellm_id``
+        for new entries; legacy entries matched by ``openrouter_slug`` or
+        ``incumbent_or_slug(litellm_id)``).
         """
-        litellm_id = f"openrouter/{or_slug}"
-        entry = next((m for m in self.models if m.get("litellm_id") == litellm_id), None)
+        entry = next(
+            (
+                m
+                for m in self.models
+                if m.get("openrouter_slug") == or_slug or incumbent_or_slug(str(m.get("litellm_id") or "")) == or_slug
+            ),
+            None,
+        )
         if entry is None:
             entry = {
-                "litellm_id": litellm_id,
+                "openrouter_slug": or_slug,
                 "display_name": (candidate.name if candidate and candidate.name else or_slug.split("/", 1)[-1]),
                 "provider": "openrouter",
-                "openrouter_slug": or_slug,
                 "input_modalities": list(candidate.modalities) if candidate and candidate.modalities else ["text"],
                 "supports_structured_output": (
                     "structured_outputs" in candidate.supported_parameters if candidate else True
@@ -141,6 +144,9 @@ class ModelRegistry:
                 "ugi": None,
             }
             self.models.append(entry)
+        else:
+            entry["openrouter_slug"] = or_slug
+            entry.setdefault("provider", "openrouter")
         if candidate is not None:
             raw_pricing: Any = candidate.raw.get("pricing")
             pricing: dict[str, Any] = raw_pricing if isinstance(raw_pricing, dict) else {}
@@ -192,6 +198,13 @@ def registry_entry_cost_1m(entry: dict[str, Any]) -> float | None:
 # --- Scan -> challengers --------------------------------------------------------
 
 
+def _entry_or_slug(entry: dict[str, Any]) -> str | None:
+    slug = entry.get("openrouter_slug")
+    if isinstance(slug, str) and slug:
+        return slug
+    return incumbent_or_slug(str(entry.get("litellm_id") or ""))
+
+
 def challengers(
     registry: ModelRegistry,
     cands: list[ModelCandidate],
@@ -207,7 +220,7 @@ def challengers(
     "win" on quality).
     """
     inc = registry.incumbent()
-    inc_or = incumbent_or_slug(inc.get("litellm_id", ""))
+    inc_or = _entry_or_slug(inc)
     inc_cand = next((c for c in cands if c.or_slug == inc_or), None)
     inc_cost = inc_cand.cost_1m_blended if inc_cand is not None else registry_entry_cost_1m(inc)
     inc_quality = inc_cand.quality if inc_cand is not None else None
@@ -322,11 +335,15 @@ def decide_promotion(
     than ``grid`` marks the tail ``eval_incomplete``.
     """
     decision = PromotionDecision(gate="no_dominance")
-    rows = {r.get("litellm_id"): r for r in eval_rows}
+    rows: dict[str, EvalRow] = {}
+    for r in eval_rows:
+        key = r.get("openrouter_slug") or r.get("litellm_id")
+        if isinstance(key, str) and key:
+            rows[key] = r
     best: tuple[float, ModelCandidate] | None = None
     incompletes = 0
     for cand in grid[:max_challengers] if max_challengers else grid:
-        row = rows.get(f"openrouter/{cand.or_slug}") or rows.get(cand.or_slug)
+        row = rows.get(cand.or_slug) or rows.get(f"openrouter/{cand.or_slug}")
         if row is None:
             decision.per_challenger.append(f"{cand.or_slug}: no eval row")
             incompletes += 1
@@ -430,15 +447,16 @@ def refresh(
         return report
 
     inc = registry.incumbent()
-    grid_ids = [f"openrouter/{c.or_slug}" for c in grid]
-    rows = eval_fn([inc["litellm_id"], *grid_ids])
+    inc_id = inc.get("openrouter_slug") or inc.get("litellm_id", "")
+    grid_ids = [c.or_slug for c in grid]
+    rows = eval_fn([inc_id, *grid_ids])
     report.evaluated = [c.or_slug for c in grid]
     for c in grid:
         evaluated[c.or_slug] = {"quality": c.quality, "cost_1m": c.cost_1m_blended}
     save_eval_state(state_path, evaluated)
 
     inc_row = rows[0] if rows else {}
-    inc_cand = next((c for c in cands if c.or_slug == incumbent_or_slug(inc.get("litellm_id", ""))), None)
+    inc_cand = next((c for c in cands if c.or_slug == _entry_or_slug(inc)), None)
     inc_cost = inc_cand.cost_1m_blended if inc_cand is not None else registry_entry_cost_1m(inc)
 
     decision = decide_promotion(grid, rows[1:], incumbent_row=inc_row, incumbent_cost_1m=inc_cost)
@@ -449,6 +467,6 @@ def refresh(
     if decision.promote and decision.winner is not None and winner_slug:
         entry = registry.promote(winner_slug, candidate=decision.winner)
         registry.save()
-        report.promoted = entry["litellm_id"]
+        report.promoted = entry.get("openrouter_slug") or entry.get("litellm_id")
         logger.info("model_selection promoted %s -> runtime primary (task=%s)", report.promoted, task)
     return report

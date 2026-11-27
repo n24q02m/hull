@@ -1,28 +1,66 @@
-"""hull_core.llm: unified LLM transport (chat / embed / rerank / DSPy).
+"""Unified OpenRouter-first LLM transport (no litellm in default path).
 
-Ships in the ``n24q02m-hull`` dist; needs the ``[llm]`` extra
-(``pip install "n24q02m-hull[llm]"``); ``dspy_lm`` additionally needs ``[dspy]``.
+Default calls route directly over ``httpx`` + :mod:`hull_core.http.ssrf` with
+strict ZDR, CF AI Gateway ``cf-aig-*`` safety headers, ``cache_control``
+pass-through, circuit breaker fallback, and ``/v1/systemone`` support.
 """
 
-# Must stay the first import: raises ImportError with the install hint when the
-# [llm] extra is missing.
-import hull_core.llm._extra  # noqa: F401
+from __future__ import annotations
+
 from hull_core.llm.transport import (
+    OPENROUTER_API_BASE,
+    SYSTEMONE_PATH,
+    AsyncCompletionStream,
+    Choice,
+    CompletionResponse,
+    EmbeddingData,
+    EmbeddingResponse,
+    GatewayCircuitBreaker,
+    Message,
+    SyncCompletionStream,
+    SystemOneResponse,
+    TransportHTTPError,
+    UsageMetrics,
+    ZDRUnavailableError,
     acompletion,
     acompletion_text,
     aembedding,
     arerank,
+    asystemone,
+    cf_aig_headers,
     completion,
     completion_text,
+    extract_usage_metrics,
     provider_params,
+    reset_gateway_circuit_breaker,
+    systemone,
 )
 
 __all__ = [
+    "OPENROUTER_API_BASE",
+    "SYSTEMONE_PATH",
+    "AsyncCompletionStream",
+    "Choice",
+    "CompletionResponse",
+    "EmbeddingData",
+    "EmbeddingResponse",
+    "GatewayCircuitBreaker",
+    "Message",
+    "SyncCompletionStream",
+    "SystemOneResponse",
+    "TransportHTTPError",
+    "UsageMetrics",
+    "ZDRUnavailableError",
     "acompletion",
     "acompletion_text",
     "aembedding",
     "arerank",
+    "asystemone",
+    "cf_aig_headers",
     "completion",
     "completion_text",
+    "extract_usage_metrics",
     "provider_params",
+    "reset_gateway_circuit_breaker",
+    "systemone",
 ]

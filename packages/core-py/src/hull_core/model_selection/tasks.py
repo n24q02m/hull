@@ -1,24 +1,28 @@
 """TaskProfile registry: map an application's task -> preferred sources + constraints.
 
-Source order (per the 22/09 directive): specialized per-task boards FIRST,
-aggregate boards SECOND, OpenRouter as the constraint/tiebreak layer. Every
-source name declared here resolves in ``SOURCE_REGISTRY`` — live fetchers,
-InHouseAnchorSource sets, or an UnimplementedSource recording a probed gap
-(medarena, the retired hindsight boards). Consumers may still override
-individual sources via ``candidates(..., sources={...})`` plugin maps.
+Source order: specialized per-task boards FIRST, ``LM_GENERAL_SOURCES``
+SECOND (for ``lm`` profiles), OpenRouter as the catalog + price + ZDR layer.
+Every source name declared here resolves in ``SOURCE_REGISTRY``.
 
-Ported from web_core.model_selection.tasks v2.10.6. The ``embedding`` and
-``rerank`` profiles intentionally have empty ``aggregate_sources``: the
-specialized boards (MTEB + boards-v2 closed-inclusive AgentSet) are
-the quality axis, while the OpenRouter backbone (now including its
-embeddings/rerank catalog segments) is the candidate + price axis — embed/
-rerank picks must be OR-servable (2026-10-08 directive). OR usage
-(``usage_sources``) is a quadrant tie-break only, never a quality axis.
+``embedding``, ``rerank``, and ``decision`` intentionally have empty
+``aggregate_sources``: they lock directly to their specialized 11/2026 boards
+with OpenRouter catalog + ``require_zdr`` filtering. ``or_usage`` is disabled
+from all default ``TASKS`` (never used for quality or tie-breaking).
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+
+# 11/2026 general LLM leaderboard tier (Tier 2 fallback ONLY for lm profiles).
+LM_GENERAL_SOURCES: tuple[str, ...] = (
+    "artificial_analysis",
+    "epoch_eci",
+    "arena",
+    "livebench_v2",
+    "scale_seal",
+    "benchlm",
+)
 
 
 @dataclass(frozen=True)
@@ -39,18 +43,14 @@ class TaskProfile:
     """A task's profile: preferred sources + constraints + measured token mix."""
 
     name: str
-    specialized_sources: tuple[str, ...] = ()  # tried first, higher weight
-    aggregate_sources: tuple[str, ...] = ()  # merge/fallback layer
-    # OR real-world usage feeds (boards-v2 2026-10-09): folded into
-    # ``ModelCandidate.or_task_spend_share`` — quadrant tie-break ONLY, never
-    # a board/quality axis; absence neutral. Defaults to ``or_usage`` for
-    # every profile (chat, embed and rerank alike).
-    usage_sources: tuple[str, ...] = ("or_usage",)
+    specialized_sources: tuple[str, ...] = ()  # Tier 1: tried first
+    aggregate_sources: tuple[str, ...] = ()  # Tier 2 fallback ONLY (lm_general for lm profiles)
+    usage_sources: tuple[str, ...] = ()  # Disabled by default; optional legacy tie-break override only
     constraints: Constraints = field(default_factory=Constraints)
-    quality_weight: float = 0.7  # w_spec when specialized covers >=80% of candidates; else 0.5
-    # Token mix (input, output, cache_read) measured on the app — do NOT hardcode
-    # a generic one: KP ingestion is input-heavy, Aiora chat is ~ AA 7:2:1
-    # (cache:input:output).
+    quality_weight: float = 0.7  # blend weight when two_tier=False and specialized covers >= threshold
+    specialized_coverage_threshold: float = 0.8  # minimum specialized coverage fraction for Tier 1
+    two_tier: bool = False  # True: Tier 1 specialized when coverage >= threshold -> Tier 2 aggregate_sources
+    # Token mix (input, output, cache_read) measured on the app.
     token_mix: tuple[float, float, float] = (0.2, 0.1, 0.7)
     expected_prompt_tokens: int = 0  # to apply OR pricing.overrides by min_prompt_tokens
 
@@ -60,177 +60,100 @@ class TaskProfile:
 TASKS: dict[str, TaskProfile] = {
     "translation": TaskProfile(
         name="translation",
-        # boards-v2 (2026-10-09): wmt24pp stays but is labeled self-reported
-        # (llm-stats mirror, 0/24 verified); wmt25_gmtr is the annual
-        # closed-inclusive anchor. flores_speakleash removed (stale 9 months).
-        specialized_sources=("wmt24pp", "wmt25_gmtr"),
-        aggregate_sources=("benchlm", "arena", "artificial_analysis", "vals_index"),
+        specialized_sources=("wmt25_gmtr", "wmt24pp"),
+        aggregate_sources=LM_GENERAL_SOURCES,
+        two_tier=True,
         constraints=Constraints(min_context=8_192),
-        token_mix=(0.7, 0.3, 0.0),  # ingestion input-heavy
+        token_mix=(0.7, 0.3, 0.0),
     ),
     "story-gen": TaskProfile(
         name="story-gen",
         specialized_sources=("eqbench_creative_v3", "eqbench_longform", "eqbench4"),
-        aggregate_sources=("benchlm", "arena", "artificial_analysis", "vals_index"),
+        aggregate_sources=LM_GENERAL_SOURCES,
+        two_tier=True,
         constraints=Constraints(min_context=32_768),
         token_mix=(0.4, 0.6, 0.0),
     ),
     "embedding": TaskProfile(
         name="embedding",
-        # boards-v2 (2026-10-09): the MTEB boards (open-biased) are paired
-        # with AgentSet Elo (closed-inclusive, stale ~2026-03) so a pick needs
-        # >=2 independent boards. Embedding picks MUST be OpenRouter-servable
-        # (2026-10-08 directive): OR's embeddings segment lists + prices, the
-        # boards qualify.
-        specialized_sources=(
-            "mteb_classification",
-            "mteb_retrieval",
-            "mteb_sts",
-            "agentset_elo",
-            "hindsight_embeddings",  # UnimplementedSource — upstream retired the per-model board (2026-11-03)
-        ),
+        specialized_sources=("rteb_holdout", "mteb_v2", "vidore_v3"),
         aggregate_sources=(),
-        constraints=Constraints(),
+        constraints=Constraints(require_zdr=True),
         token_mix=(1.0, 0.0, 0.0),
     ),
     "rerank": TaskProfile(
         name="rerank",
-        # boards-v2 (2026-10-09): AgentSet rerankers (closed-inclusive, stale
-        # ~2026-02) join MTEB reranking. Since upstream retired the hindsight
-        # per-model reranker board (2026-11-03), a strong rerank pick needs a
-        # model measured by both MTEB reranking and AgentSet; models measured
-        # by a single board trail as weak_evidence.
-        # Same 2026-10-08 directive: rerank picks must be OR-servable. OR
-        # lists a rerank segment but its catalog pricing fields are $0
-        # placeholders (OR bills per request, not per token) — those rows
-        # count as unpriced, never as free.
-        specialized_sources=(
-            "mteb_reranking",
-            "agentset_rerank",
-            "hindsight_reranker",  # UnimplementedSource — upstream retired the per-model board (2026-11-03)
-        ),
+        specialized_sources=("mteb_v2_crossencoder", "air_bench", "agentset_rerank"),
         aggregate_sources=(),
-        constraints=Constraints(),
+        constraints=Constraints(require_zdr=True),
         token_mix=(1.0, 0.0, 0.0),
     ),
     "manga-text": TaskProfile(
         name="manga-text",
-        specialized_sources=("manga109_v2026", "mangavqa"),
-        aggregate_sources=("benchlm", "arena", "ocrbench"),
+        specialized_sources=("openvlm", "ocrbench", "manga109_v2026", "mangavqa"),
+        aggregate_sources=LM_GENERAL_SOURCES,
+        two_tier=True,
         constraints=Constraints(min_context=16_384, required_input_modality="image"),
         token_mix=(0.6, 0.4, 0.0),
     ),
     "healthcare-advice": TaskProfile(
         name="healthcare-advice",
-        specialized_sources=("aa_healthcare_index", "healthbench"),
-        aggregate_sources=(
-            "benchlm",
-            "artificial_analysis",
-            "medhelm",
-            "medarena",  # UnimplementedSource — recorded unimplemented_access in snapshots
-            "vals_medscribe",
-            "open_medical_llm",  # UnimplementedSource — no row servable on OpenRouter
-            "bridge",
-        ),
-        constraints=Constraints(min_context=32_768, min_uptime_1d=99.0),
-        token_mix=(0.2, 0.1, 0.7),  # chat ~ AA 7:2:1 cache:input:output
+        specialized_sources=("aa_healthcare_index", "healthbench", "vals_medscribe", "vectara_hhem"),
+        aggregate_sources=LM_GENERAL_SOURCES,
+        two_tier=True,
+        constraints=Constraints(min_context=32_768, min_uptime_1d=99.0, require_zdr=True),
+        token_mix=(0.2, 0.1, 0.7),
     ),
     "aqi-advice": TaskProfile(
         name="aqi-advice",
-        # GAP: no dedicated AQI board -> proxied by healthcare; backlog =
-        # in-house eval on synthetic AQI readings.
-        specialized_sources=("aa_healthcare_index", "healthbench"),
-        aggregate_sources=("benchlm", "arena", "artificial_analysis", "vals_index"),
-        constraints=Constraints(min_context=16_384),
+        specialized_sources=("aa_healthcare_index", "healthbench", "vals_medscribe", "vectara_hhem"),
+        aggregate_sources=LM_GENERAL_SOURCES,
+        two_tier=True,
+        constraints=Constraints(min_context=16_384, require_zdr=True),
+        token_mix=(0.2, 0.1, 0.7),
     ),
     "classification": TaskProfile(
         name="classification",
-        # boards-v2 (2026-10-09): mteb_classification removed — it only joins
-        # embedding models (8 rows, 0 chat candidates) and classification has
-        # no living specialized board; vals_legal_bench is an explicitly-
-        # labeled PROXY. aiora_triage_eval remains the in-house anchor until
-        # its owner (mnemo) publishes it.
         specialized_sources=("aiora_triage_eval", "vals_legal_bench"),
-        aggregate_sources=("benchlm", "artificial_analysis", "arena", "vals_index"),
-        constraints=Constraints(require_structured_outputs=True),
+        aggregate_sources=LM_GENERAL_SOURCES,
+        two_tier=True,
+        constraints=Constraints(require_structured_outputs=True, require_zdr=True),
         token_mix=(0.8, 0.2, 0.0),
     ),
     "agentic": TaskProfile(
         name="agentic",
-        # boards-v2 (2026-10-09): arena_agent joins the specialized tier —
-        # LMArena's agent arena (published 2026-10-02, weekly, closed-
-        # inclusive) is the strongest fresh agentic evidence after tau2.
-        specialized_sources=("tau2_bench_or", "bfcl", "vals_cua_bench", "arena_agent"),
-        aggregate_sources=("benchlm", "artificial_analysis", "gaia", "vals_index"),
+        specialized_sources=("arena_agent", "livebench_v2_agentic", "scale_agentic"),
+        aggregate_sources=LM_GENERAL_SOURCES,
+        two_tier=True,
         constraints=Constraints(min_context=32_768, require_tools=True, min_uptime_1d=99.0),
         token_mix=(0.5, 0.4, 0.1),
     ),
     "vision": TaskProfile(
         name="vision",
-        specialized_sources=("ocrbench",),
-        aggregate_sources=("benchlm", "arena", "artificial_analysis"),
+        specialized_sources=("openvlm", "ocrbench", "manga109_v2026", "mangavqa"),
+        aggregate_sources=LM_GENERAL_SOURCES,
+        two_tier=True,
         constraints=Constraints(required_input_modality="image"),
     ),
-    # Spec 2026-09-28 (D-KP6, phase H): permissive/NSFW selection rides the UGI
-    # leaderboard as its specialized board. The aggregate proxy
-    # ``aa_agentic_index`` is an UnimplementedSource since Artificial Analysis
-    # stopped publishing the Agentic Index; snapshots record the gap, so UGI is
-    # the only live board here. Refusal chains and the rating->permissive
-    # downgrade are consumer policy (KlPrism), not this module's concern.
     "permissive": TaskProfile(
         name="permissive",
         specialized_sources=("ugi",),
-        aggregate_sources=("aa_agentic_index",),
+        aggregate_sources=LM_GENERAL_SOURCES,
+        two_tier=True,
         constraints=Constraints(min_context=16_384),
-        quality_weight=0.8,  # UGI is the signal that matters for this profile
-        token_mix=(0.5, 0.5, 0.0),  # generation-shaped, like story-gen
+        quality_weight=0.8,
+        token_mix=(0.5, 0.5, 0.0),
     ),
     "decision": TaskProfile(
         name="decision",
-        # Profile `decision` (2026-10-09, board set re-chosen 2026-10-11 by
-        # the A-W3.2a rule): cheap gate/judge ("System One") models that
-        # return a typed choice/score/yes-no. Pool = (a) OR's
-        # structured-decisions catalog segment (gated to this profile in
-        # candidates()) union (b) OR-servable models measured by a board
-        # below — evidence-driven, never hand-picked.
-        #
-        # Specialized (decision/judging boards, each with a declared license
-        # and an independent methodology):
-        #   - ``jevals`` (CC-BY-4.0) and ``jevbench``: native-decision boards.
-        #   - ``judgemark_v4``: creative-writing JUDGING domain proxy. It only
-        #     CORROBORATES a model also measured elsewhere; the
-        #     >=2-independent-boards strong rule keeps a judgemark-only model
-        #     weak_evidence, unable to take rank 0 on its own.
-        # Aggregate (agentic-capability PROXIES, not decision boards — they
-        # exist so that a model measured by a single decision board can still
-        # reach strong evidence through an independent second signal):
-        #   - ``tau2_bench_or`` (tool-use), ``bfcl`` (function calling),
-        #     ``arena_agent`` (human-preference agent arena).
-        #
-        # Deliberately NOT in the profile (fetchers stay registered):
-        #   - ``jev_decision_index``: no license declared on the board, so
-        #     its rows cannot be redistributed in data/model-candidates.json.
-        #   - ``aa_agentic_index``: Artificial Analysis no longer publishes it
-        #     (UnimplementedSource); while it was published it was not provably
-        #     independent from ``tau2_bench_or`` (AA's agent index composition
-        #     was not publicly documented), so counting both would have faked a
-        #     second board.
-        #
-        # Honest state: models measured by NO board stay weak_evidence until
-        # measured (watchlist: JudgeArena, CodeJudgeBench). Weight law
-        # unchanged: specialized quality_weight 0.7 (falls back to 0.5 when
-        # specialized coverage < 80%); OR usage stays a tie-break only.
-        specialized_sources=("jevals", "jevbench", "judgemark_v4"),
-        aggregate_sources=("tau2_bench_or", "bfcl", "arena_agent"),
-        usage_sources=("or_usage",),
-        constraints=Constraints(),
-        token_mix=(0.9, 0.1, 0.0),  # short prompt, tiny typed output
+        specialized_sources=("aa_decision_index_v2_1", "jev_decision_index", "s1mb", "system_one_bench"),
+        aggregate_sources=(),
+        constraints=Constraints(require_zdr=True),
+        token_mix=(0.9, 0.1, 0.0),
     ),
 }
 
 
-# ``get_task`` also resolves hull's shorter task names (``embed`` ->
-# ``embedding``); ported profile names stay canonical.
 TASK_ALIASES: dict[str, str] = {"embed": "embedding"}
 
 

@@ -31,7 +31,6 @@ def _registry(tmp_path: Path, models: list[dict] | None = None) -> ModelRegistry
         "models": models
         or [
             {
-                "litellm_id": "openrouter/m-incumbent",
                 "display_name": "Incumbent",
                 "provider": "openrouter",
                 "openrouter_slug": "m-incumbent",
@@ -43,7 +42,6 @@ def _registry(tmp_path: Path, models: list[dict] | None = None) -> ModelRegistry
                 "active": True,
             },
             {
-                "litellm_id": "openrouter/m-nsfw",
                 "provider": "openrouter",
                 "openrouter_slug": "m-nsfw",
                 "nsfw_capable": True,
@@ -70,10 +68,10 @@ def test_decide_promotion_strict_dominance_promotes():
     """Full score + secondary >= incumbent + cheaper -> promote, pick best score."""
     grid = [_cand("m/worse", 90, 0.5), _cand("m/better", 95, 0.5)]
     rows = [
-        {"litellm_id": "openrouter/m/worse", "score": 80.0, "secondary": 90.0, "n_scored": 5, "n_items": 5},
-        {"litellm_id": "openrouter/m/better", "score": 85.0, "secondary": 91.0, "n_scored": 5, "n_items": 5},
+        {"openrouter_slug": "m/worse", "score": 80.0, "secondary": 90.0, "n_scored": 5, "n_items": 5},
+        {"openrouter_slug": "m/better", "score": 85.0, "secondary": 91.0, "n_scored": 5, "n_items": 5},
     ]
-    inc = {"litellm_id": "openrouter/m-incumbent", "score": 82.0, "secondary": 90.0, "n_scored": 5, "n_items": 5}
+    inc = {"openrouter_slug": "m-incumbent", "score": 82.0, "secondary": 90.0, "n_scored": 5, "n_items": 5}
     d = decide_promotion(grid, rows, incumbent_row=inc, incumbent_cost_1m=1.0)
     assert d.promote and d.winner_slug == "m/better"
 
@@ -81,8 +79,8 @@ def test_decide_promotion_strict_dominance_promotes():
 def test_decide_promotion_pricier_challenger_blocked():
     """Challenger eval-better but costlier -> no promote (price is part of dominance)."""
     grid = [_cand("m/pricy", 95, 5.0)]
-    rows = [{"litellm_id": "openrouter/m/pricy", "score": 99.0, "n_scored": 5, "n_items": 5}]
-    inc = {"litellm_id": "x", "score": 80.0, "secondary": None, "n_scored": 5, "n_items": 5}
+    rows = [{"openrouter_slug": "m/pricy", "score": 99.0, "n_scored": 5, "n_items": 5}]
+    inc = {"openrouter_slug": "x", "score": 80.0, "secondary": None, "n_scored": 5, "n_items": 5}
     d = decide_promotion(grid, rows, incumbent_row=inc, incumbent_cost_1m=1.0)
     assert not d.promote and d.gate == "no_dominance"
 
@@ -90,16 +88,16 @@ def test_decide_promotion_pricier_challenger_blocked():
 def test_decide_promotion_incomplete_eval_blocks():
     """An eval row with unscored items can never promote (fail-closed)."""
     grid = [_cand("m/half", 95, 0.5)]
-    rows = [{"litellm_id": "openrouter/m/half", "score": 99.0, "n_scored": 2, "n_items": 5}]
-    inc = {"litellm_id": "x", "score": 80.0, "secondary": None, "n_scored": 5, "n_items": 5}
+    rows = [{"openrouter_slug": "m/half", "score": 99.0, "n_scored": 2, "n_items": 5}]
+    inc = {"openrouter_slug": "x", "score": 80.0, "secondary": None, "n_scored": 5, "n_items": 5}
     d = decide_promotion(grid, rows, incumbent_row=inc, incumbent_cost_1m=1.0)
     assert d.gate == "eval_incomplete" and not d.promote
 
 
 def test_decide_promotion_lower_score_never_promotes_even_cheaper():
     grid = [_cand("m/cheap-bad", 40, 0.1)]
-    rows = [{"litellm_id": "openrouter/m/cheap-bad", "score": 50.0, "n_scored": 5, "n_items": 5}]
-    inc = {"litellm_id": "x", "score": 80.0, "secondary": None, "n_scored": 5, "n_items": 5}
+    rows = [{"openrouter_slug": "m/cheap-bad", "score": 50.0, "n_scored": 5, "n_items": 5}]
+    inc = {"openrouter_slug": "x", "score": 80.0, "secondary": None, "n_scored": 5, "n_items": 5}
     d = decide_promotion(grid, rows, incumbent_row=inc, incumbent_cost_1m=1.0)
     assert not d.promote
 
@@ -114,21 +112,22 @@ def test_promote_reorders_chain_and_keeps_nsfw_lead(tmp_path):
     entry = reg.promote("m/challenger", candidate=cand, tiers=["echo", "aura"])
     reg.save()
 
-    assert entry["litellm_id"] == "openrouter/m/challenger"
+    assert entry["openrouter_slug"] == "m/challenger"
+    assert "litellm_id" not in entry
     assert entry["chain_position"] == 0 and entry["nsfw_capable"] is False
-    by_id = {m["litellm_id"]: m for m in reg.models}
-    assert by_id["openrouter/m-incumbent"]["chain_position"] == 1
-    assert by_id["openrouter/m-nsfw"]["chain_position"] == 2  # NSFW lead protected
+    by_id = {m["openrouter_slug"]: m for m in reg.models}
+    assert by_id["m-incumbent"]["chain_position"] == 1
+    assert by_id["m-nsfw"]["chain_position"] == 2  # NSFW lead protected
     # persisted
     reloaded = ModelRegistry.load(reg.path)
-    assert reloaded.incumbent()["litellm_id"] == "openrouter/m/challenger"
+    assert reloaded.incumbent()["openrouter_slug"] == "m/challenger"
 
 
 def test_promote_existing_entry_and_incumbent(tmp_path):
     reg = _registry(tmp_path)
-    assert reg.incumbent()["litellm_id"] == "openrouter/m-incumbent"
+    assert reg.incumbent()["openrouter_slug"] == "m-incumbent"
     entry = reg.promote("m-incumbent")  # self-promotion = re-pin, entry exists
-    assert entry["litellm_id"] == "openrouter/m-incumbent"
+    assert entry["openrouter_slug"] == "m-incumbent"
 
 
 def test_incumbent_or_slug_mapping():
@@ -183,7 +182,7 @@ def test_refresh_dry_run_never_evals_or_promotes(tmp_path):
     calls: list[list[str]] = []
     report = refresh("translation", reg, cands, eval_fn=lambda ids: calls.append(ids) or [], dry_run=True)
     assert report.gate == "dry_run" and calls == []
-    assert ModelRegistry.load(reg.path).incumbent()["litellm_id"] == "openrouter/m-incumbent"
+    assert ModelRegistry.load(reg.path).incumbent()["openrouter_slug"] == "m-incumbent"
 
 
 def test_refresh_eval_on_change_skips_seen_challengers(tmp_path):
@@ -193,12 +192,12 @@ def test_refresh_eval_on_change_skips_seen_challengers(tmp_path):
 
     def eval_fn(ids):
         return [
-            {"litellm_id": ids[0], "score": 80.0, "n_scored": 5, "n_items": 5},
-            *[{"litellm_id": i, "score": 85.0, "n_scored": 5, "n_items": 5} for i in ids[1:]],
+            {"openrouter_slug": ids[0], "score": 80.0, "n_scored": 5, "n_items": 5},
+            *[{"openrouter_slug": i, "score": 85.0, "n_scored": 5, "n_items": 5} for i in ids[1:]],
         ]
 
     r1 = refresh("translation", reg, cands, eval_fn=eval_fn)
-    assert r1.gate == "promote" and r1.promoted == "openrouter/m/challenger"
+    assert r1.gate == "promote" and r1.promoted == "m/challenger"
     # Challenger is now the incumbent — second run sees no challengers
     r2 = refresh("translation", reg, cands, eval_fn=eval_fn)
     assert r2.gate == "no_challengers"
@@ -213,13 +212,13 @@ def test_refresh_promotes_and_writes_state(tmp_path):
     def eval_fn(ids):
         seen_ids.extend(ids)
         return [
-            {"litellm_id": ids[0], "score": 70.0, "n_scored": 5, "n_items": 5},
-            {"litellm_id": ids[1], "score": 90.0, "n_scored": 5, "n_items": 5},
+            {"openrouter_slug": ids[0], "score": 70.0, "n_scored": 5, "n_items": 5},
+            {"openrouter_slug": ids[1], "score": 90.0, "n_scored": 5, "n_items": 5},
         ]
 
     report = refresh("translation", reg, [cand], eval_fn=eval_fn)
-    assert report.promoted == "openrouter/m/challenger"
-    assert seen_ids == ["openrouter/m-incumbent", "openrouter/m/challenger"]
+    assert report.promoted == "m/challenger"
+    assert seen_ids == ["m-incumbent", "m/challenger"]
     state = json.loads((tmp_path / "model_rankings.refresh-state.json").read_text(encoding="utf-8"))
     assert "m/challenger" in state["evaluated"]
 
@@ -249,9 +248,9 @@ def test_decide_promotion_missing_row_and_secondary_fail():
     """A challenger with no eval row can't promote; secondary regression blocks."""
     grid = [_cand("m/no-row", 90, 0.5), _cand("m/sec-fail", 95, 0.5)]
     rows = [
-        {"litellm_id": "openrouter/m/sec-fail", "score": 99.0, "secondary": 40.0, "n_scored": 5, "n_items": 5},
+        {"openrouter_slug": "m/sec-fail", "score": 99.0, "secondary": 40.0, "n_scored": 5, "n_items": 5},
     ]
-    inc = {"litellm_id": "x", "score": 80.0, "secondary": 90.0, "n_scored": 5, "n_items": 5}
+    inc = {"openrouter_slug": "x", "score": 80.0, "secondary": 90.0, "n_scored": 5, "n_items": 5}
     d = decide_promotion(grid, rows, incumbent_row=inc, incumbent_cost_1m=1.0)
     assert d.gate == "eval_incomplete" and not d.promote
     assert any("no eval row" in n for n in d.per_challenger)
@@ -261,10 +260,10 @@ def test_decide_promotion_missing_row_and_secondary_fail():
 def test_decide_promotion_two_dominant_picks_higher_score():
     grid = [_cand("m/dom1", 90, 0.5), _cand("m/dom2", 95, 0.5)]
     rows = [
-        {"litellm_id": "openrouter/m/dom1", "score": 85.0, "n_scored": 5, "n_items": 5},
-        {"litellm_id": "openrouter/m/dom2", "score": 90.0, "n_scored": 5, "n_items": 5},
+        {"openrouter_slug": "m/dom1", "score": 85.0, "n_scored": 5, "n_items": 5},
+        {"openrouter_slug": "m/dom2", "score": 90.0, "n_scored": 5, "n_items": 5},
     ]
-    inc = {"litellm_id": "x", "score": 80.0, "secondary": None, "n_scored": 5, "n_items": 5}
+    inc = {"openrouter_slug": "x", "score": 80.0, "secondary": None, "n_scored": 5, "n_items": 5}
     d = decide_promotion(grid, rows, incumbent_row=inc, incumbent_cost_1m=1.0)
     assert d.promote and d.winner_slug == "m/dom2"
 
@@ -293,7 +292,6 @@ def test_refresh_promotes_existing_registry_entry(tmp_path):
         tmp_path,
         models=[
             {
-                "litellm_id": "openrouter/m-incumbent",
                 "provider": "openrouter",
                 "openrouter_slug": "m-incumbent",
                 "prompt_usd_per_1m": 1.0,
@@ -302,7 +300,6 @@ def test_refresh_promotes_existing_registry_entry(tmp_path):
                 "active": True,
             },
             {
-                "litellm_id": "openrouter/m/challenger",
                 "provider": "openrouter",
                 "openrouter_slug": "m/challenger",
                 "active": False,
@@ -313,13 +310,13 @@ def test_refresh_promotes_existing_registry_entry(tmp_path):
 
     def eval_fn(ids):
         return [
-            {"litellm_id": ids[0], "score": 70.0, "n_scored": 5, "n_items": 5},
-            {"litellm_id": ids[1], "score": 90.0, "n_scored": 5, "n_items": 5},
+            {"openrouter_slug": ids[0], "score": 70.0, "n_scored": 5, "n_items": 5},
+            {"openrouter_slug": ids[1], "score": 90.0, "n_scored": 5, "n_items": 5},
         ]
 
     report = refresh("translation", reg, [cand], eval_fn=eval_fn)
-    assert report.promoted == "openrouter/m/challenger"
-    entry = next(m for m in reg.models if m["litellm_id"] == "openrouter/m/challenger")
+    assert report.promoted == "m/challenger"
+    entry = next(m for m in reg.models if m["openrouter_slug"] == "m/challenger")
     assert entry["active"] is True and entry["chain_position"] == 0
     # pricing fields filled from the candidate's OR row
     assert entry["prompt_usd_per_1m"] == pytest.approx(0.4)
@@ -329,7 +326,7 @@ def test_refresh_no_eval_fn_is_dry_run(tmp_path):
     reg = _registry(tmp_path)
     report = refresh("translation", reg, [_cand("m/c", 95, 0.4, rank=0)])
     assert report.gate == "dry_run"
-    assert ModelRegistry.load(reg.path).incumbent()["litellm_id"] == "openrouter/m-incumbent"
+    assert ModelRegistry.load(reg.path).incumbent()["openrouter_slug"] == "m-incumbent"
 
 
 def test_refresh_non_dominant_eval_does_not_promote(tmp_path):
@@ -338,13 +335,30 @@ def test_refresh_non_dominant_eval_does_not_promote(tmp_path):
 
     def eval_fn(ids):
         return [
-            {"litellm_id": ids[0], "score": 95.0, "n_scored": 5, "n_items": 5},
-            {"litellm_id": ids[1], "score": 60.0, "n_scored": 5, "n_items": 5},  # worse than incumbent
+            {"openrouter_slug": ids[0], "score": 95.0, "n_scored": 5, "n_items": 5},
+            {"openrouter_slug": ids[1], "score": 60.0, "n_scored": 5, "n_items": 5},  # worse than incumbent
         ]
 
     report = refresh("translation", reg, [cand], eval_fn=eval_fn)
     assert report.gate == "no_dominance" and report.promoted is None
-    assert ModelRegistry.load(reg.path).incumbent()["litellm_id"] == "openrouter/m-incumbent"
+    assert ModelRegistry.load(reg.path).incumbent()["openrouter_slug"] == "m-incumbent"
+
+
+def test_registry_legacy_litellm_id_still_supported(tmp_path):
+    """Legacy registries keyed only by litellm_id still work during transition."""
+    reg = _registry(
+        tmp_path,
+        models=[
+            {
+                "litellm_id": "openrouter/m-legacy",
+                "prompt_usd_per_1m": 1.0,
+                "completion_usd_per_1m": 2.0,
+                "chain_position": 0,
+                "active": True,
+            }
+        ],
+    )
+    assert challengers(reg, [_cand("m/new", 95, 0.5, rank=0)])[0].or_slug == "m/new"
 
 
 def test_registry_rejects_empty(tmp_path):

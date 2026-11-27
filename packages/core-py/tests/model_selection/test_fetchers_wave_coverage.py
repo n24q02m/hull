@@ -31,16 +31,13 @@ from hull_core.model_selection.sources import (
     EqBenchCsvSource,
     GaiaSource,
     InHouseAnchorSource,
-    MedhelmSource,
     _BaseSource,
     _parse_benchlm_md,
     _parse_bfcl_csv,
     _parse_bridge_blob,
     _parse_llmstats_table,
-    _parse_medhelm_group,
     _parse_or_bench_table,
     _parse_vals_table,
-    _latest_medhelm_release,
     _read_parquet_rows,
     _table_rows,
 )
@@ -188,71 +185,6 @@ def test_parse_llmstats_table_skips_rows_without_score():
     recs = _parse_llmstats_table(html)
     assert set(recs) == {"good-m"}
     assert recs["good-m"].score == pytest.approx(0.82)
-
-
-# --- MedHELM --------------------------------------------------------------------
-
-
-def test_medhelm_release_listing_ignores_non_release_prefixes():
-    listing = {"prefixes": ["store/2026/", "releases/v1.10.0/", "releases/v1.2.3/"]}
-    with patch("hull_core.model_selection.sources._get_json", return_value=listing):
-        assert _latest_medhelm_release() == "v1.10.0"
-
-
-def test_medhelm_fetch_stamps_board_version():
-    listing = {"prefixes": ["releases/v0.4.2/"]}
-    blob = (FIXTURES / "medhelm_groups.json").read_bytes()
-    with (
-        patch("hull_core.model_selection.sources._get_json", return_value=listing),
-        patch("hull_core.model_selection.sources._get_bytes", return_value=blob),
-    ):
-        recs = MedhelmSource().fetch()
-    assert recs
-    assert all(r.board_version == "v0.4.2" for r in recs.values())
-
-
-def test_medhelm_group_rejects_non_list_blob():
-    assert _parse_medhelm_group(b'{"not": "a list"}') == {}
-
-
-def test_medhelm_group_without_usable_table_is_empty():
-    assert _parse_medhelm_group(b'[{"neither": "header nor rows"}]') == {}
-
-
-def test_medhelm_group_skips_unusable_rows():
-    blob = json.dumps(
-        [
-            {
-                "header": [{"value": "Model"}, {"value": "accuracy"}],
-                "rows": [
-                    "not-a-list",  # non-list row -> skip
-                    [],  # empty row -> skip
-                    [{"value": ""}],  # empty name -> skip
-                    [{"value": "M1"}],  # task cells missing -> skip
-                ],
-            }
-        ]
-    ).encode()
-    assert _parse_medhelm_group(blob) == {}
-
-
-def test_medhelm_group_mixed_scale_column_never_scored():
-    """A column mixing 0-1 accuracies with 1-5 jury scores is excluded; a model
-    holding ONLY excluded-column values gets no composite score."""
-    blob = json.dumps(
-        [
-            {
-                "header": [{"value": "Model"}, {"value": "accuracy"}, {"value": "jury_score"}],
-                "rows": [
-                    [{"value": "Model One"}, {"value": 0.8}, {"value": 4.5}],
-                    [{"value": "Model Two"}, "n/a", {"value": 4.0}],
-                ],
-            }
-        ]
-    ).encode()
-    recs = _parse_medhelm_group(blob)
-    assert set(recs) == {"model-one"}
-    assert recs["model-one"].score == pytest.approx(0.8)
 
 
 # --- BFCL -----------------------------------------------------------------------
@@ -462,7 +394,6 @@ def _registry(tmp_path: Path) -> ModelRegistry:
         "snapshot_meta": {"generated_at": "test"},
         "models": [
             {
-                "litellm_id": "openrouter/m-incumbent",
                 "display_name": "Incumbent",
                 "provider": "openrouter",
                 "openrouter_slug": "m-incumbent",
@@ -504,10 +435,10 @@ def test_promote_unparsable_pricing_leaves_fields_unset(tmp_path):
 def test_decide_promotion_second_dominant_challenger_is_not_best():
     grid = [_cand("m/first", 90, 0.5), _cand("m/second", 90, 0.5)]
     rows = [
-        {"litellm_id": "openrouter/m/first", "score": 85.0, "n_scored": 5, "n_items": 5},
-        {"litellm_id": "openrouter/m/second", "score": 85.0, "n_scored": 5, "n_items": 5},
+        {"openrouter_slug": "m/first", "score": 85.0, "n_scored": 5, "n_items": 5},
+        {"openrouter_slug": "m/second", "score": 85.0, "n_scored": 5, "n_items": 5},
     ]
-    inc = {"litellm_id": "openrouter/m-incumbent", "score": 80.0, "secondary": None, "n_scored": 5, "n_items": 5}
+    inc = {"openrouter_slug": "m-incumbent", "score": 80.0, "secondary": None, "n_scored": 5, "n_items": 5}
     d = decide_promotion(grid, rows, incumbent_row=inc, incumbent_cost_1m=1.0)
     assert d.promote and d.winner_slug == "m/first"
     assert "m/second: dominant but not best" in d.per_challenger
@@ -522,8 +453,8 @@ def test_refresh_skips_eval_when_no_new_challengers(tmp_path):
     def eval_fn(ids: list[str]) -> list[dict]:
         calls.append(ids)
         return [
-            {"litellm_id": ids[0], "score": 90.0, "n_scored": 5, "n_items": 5},
-            {"litellm_id": ids[1], "score": 50.0, "n_scored": 5, "n_items": 5},
+            {"openrouter_slug": ids[0], "score": 90.0, "n_scored": 5, "n_items": 5},
+            {"openrouter_slug": ids[1], "score": 50.0, "n_scored": 5, "n_items": 5},
         ]
 
     r1 = refresh("translation", reg, cands, eval_fn=eval_fn)

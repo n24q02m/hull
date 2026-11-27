@@ -56,6 +56,11 @@ class ModelCandidate:
     weak_evidence: bool = False  # fewer than two contributing boards (honest label)
     raw: dict[str, Any] = field(default_factory=dict)
 
+    @property
+    def openrouter_slug(self) -> str:
+        """Primary routing key on OpenRouter."""
+        return self.or_slug
+
 
 def _alias_index(or_records: dict[str, SourceRecord]) -> dict[str, str]:
     """Alias -> or_slug index: id, canonical_slug, hugging_face_id, slug(name)."""
@@ -333,15 +338,19 @@ def join_sources(
         row = rec.raw
         modality = str(row.get("architecture", {}).get("modality") or "")
         inputs = tuple(m.strip() for m in modality.split("->")[0].split("+") if m.strip())
+        zdr_flag = (
+            row.get("_or_zdr_available") if isinstance(row.get("_or_zdr_available"), bool) else row.get("zdr_available")
+        )
         candidates[slug] = ModelCandidate(
             or_slug=slug,
             name=rec.name,
             hf_id=row.get("hugging_face_id"),
-            litellm_id=f"openrouter/{slug}",
+            litellm_id=None,
             canonical_slug=row.get("canonical_slug"),
             context=int(row.get("context_length") or 0),
             modalities=inputs,
             supported_parameters=tuple(row.get("supported_parameters") or ()),
+            zdr_available=zdr_flag if isinstance(zdr_flag, bool) else None,
             raw=row,
         )
 
@@ -442,26 +451,46 @@ def minmax_normalize(candidates: list[ModelCandidate]) -> None:
 
 
 def blend_quality(candidates: list[ModelCandidate], task: TaskProfile) -> None:
-    """q = w_spec * q_specialized + (1 - w_spec) * q_aggregate.
+    """Compute candidate quality from specialized and/or general boards.
 
-    w_spec = task.quality_weight when specialized covers >=80% of scored
-    candidates, else 0.5. A model with only one layer of scores uses that
-    layer (not a 0).
+    When ``task.two_tier`` is True and ``aggregate_sources`` is non-empty (``lm``
+    profiles): Tier 1 uses ``specialized_sources`` whenever specialized coverage
+    reaches ``task.specialized_coverage_threshold`` (falling back to
+    ``aggregate_sources`` only for models lacking specialized scores); when
+    coverage is below threshold, Tier 2 falls back cleanly to
+    ``aggregate_sources`` (``lm_general``) and NEVER uses ``or_usage``.
 
-    Evidence semantics (honest labels): fewer than TWO contributing boards is
-    weak evidence — a single-board candidate can be a stale or idiosyncratic
-    ranking. Consumers gate strong selection on ``weak_evidence == False``
-    AND ``pareto_rank == 0``.
+    Otherwise (single-layer specialized tasks or explicit weighted profiles):
+    ``w_spec = task.quality_weight`` when specialized covers >= threshold, else
+    ``min(task.quality_weight, 0.5)``.
+
+    Evidence semantics: fewer than TWO contributing boards is weak evidence.
     """
     spec = set(task.specialized_sources)
     agg = set(task.aggregate_sources)
     scored = [c for c in candidates if c.scores]
     covered = sum(1 for c in scored if spec & set(c.scores))
-    w_spec = task.quality_weight if scored and covered / len(scored) >= 0.8 else min(task.quality_weight, 0.5)
+    coverage = (covered / len(scored)) if scored else 0.0
+    threshold = task.specialized_coverage_threshold
+    spec_passes = bool(spec) and bool(scored) and coverage >= threshold
+    w_spec = task.quality_weight if spec_passes else min(task.quality_weight, 0.5)
     for cand in candidates:
         spec_vals = [v for s, v in cand.scores.items() if s in spec]
         agg_vals = [v for s, v in cand.scores.items() if s in agg]
-        if spec_vals and agg_vals:
+        if task.two_tier and agg:
+            if spec_passes:
+                if spec_vals:
+                    cand.quality = sum(spec_vals) / len(spec_vals)
+                elif agg_vals:
+                    cand.quality = sum(agg_vals) / len(agg_vals)
+                else:
+                    cand.quality = 0.0
+            else:
+                if agg_vals:
+                    cand.quality = sum(agg_vals) / len(agg_vals)
+                else:
+                    cand.quality = 0.0
+        elif spec_vals and agg_vals:
             cand.quality = w_spec * (sum(spec_vals) / len(spec_vals)) + (1 - w_spec) * (sum(agg_vals) / len(agg_vals))
         elif spec_vals:
             cand.quality = sum(spec_vals) / len(spec_vals)

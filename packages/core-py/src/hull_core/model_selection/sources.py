@@ -48,12 +48,14 @@ OR_MODELS_RERANK_URL = OR_MODELS_URL + "?output_modalities=rerank"
 # row shape as the other segments; rows are gated to the decision profile
 # (see ``candidates``) so they never leak into chat pools.
 OR_MODELS_DECISIONS_URL = OR_MODELS_URL + "?output_modalities=decisions"
+OR_ZDR_ENDPOINTS_URL = "https://openrouter.ai/api/v1/endpoints/zdr"
 OR_ENDPOINTS_URL = "https://openrouter.ai/api/v1/models/{slug}/endpoints"
 OR_BENCH_URL = "https://openrouter.ai/benchmarks/{bench}"
 # Free-tier AA list endpoint: a Free-plan key gets 403 "Language models list
 # requires a Pro subscription" on /api/v2/language/models but 200 on /free
 # (verified 2026-10-08). Same row shape; capability indexes ride along.
 AA_MODELS_URL = "https://artificialanalysis.ai/api/v2/language/models/free"
+AA_DECISION_INDEX_V21_URL = "https://artificialanalysis.ai/api/v2/decision/models"
 # 2026-10-07: the DontPlanToEnd/UGI-Leaderboard DATASET went gated (401
 # anonymous); the author's space ships the same leaderboard as CSV with a
 # richer schema ("author/model_name", "UGI <trophy>") — still public.
@@ -108,14 +110,20 @@ GAIA_RESULTS_URL = (
     "https://huggingface.co/datasets/gaia-benchmark/results_public/"
     "resolve/refs%2Fconvert%2Fparquet/2023/test/0000.parquet"
 )
-MEDHELM_RELEASES_URL = (
-    "https://storage.googleapis.com/storage/v1/b/crfm-helm-public/o"
-    "?prefix=medhelm/benchmark_output/releases/&delimiter=/"
-)
-MEDHELM_GROUP_URL = (
-    "https://storage.googleapis.com/crfm-helm-public/medhelm/benchmark_output/"
-    "releases/{release}/groups/medhelm_scenarios.json"
-)
+# 11/2026 leaderboard endpoints (each parser is a pure function with fixture tests).
+S1MB_URL = "https://huggingface.co/spaces/system-one/s1mb/raw/main/data/leaderboard.json"
+SYSTEM_ONE_BENCH_URL = "https://huggingface.co/spaces/system-one/system-one-bench/raw/main/data/leaderboard.json"
+RTEB_HOLDOUT_URL = "https://huggingface.co/spaces/mteb/leaderboard/raw/main/rteb_holdout.json"
+MTEB_V2_URL = "https://huggingface.co/spaces/mteb/leaderboard/raw/main/mteb_v2.json"
+VIDORE_V3_URL = "https://huggingface.co/spaces/vidore/vidore-leaderboard/raw/main/vidore_v3.json"
+MTEB_V2_CROSSENCODER_URL = "https://huggingface.co/spaces/mteb/leaderboard/raw/main/mteb_v2_crossencoder.json"
+AIR_BENCH_URL = "https://huggingface.co/spaces/AIR-Bench/leaderboard/raw/main/air_bench_rerank.json"
+EPOCH_ECI_CSV_URL = "https://epoch.ai/data/epoch_capabilities_index.csv"
+LIVEBENCH_V2_URL = "https://livebench.ai/table_data.json"
+SCALE_SEAL_URL = "https://scale.com/leaderboard/api/v1/leaderboards/overall"
+SCALE_AGENTIC_URL = "https://scale.com/leaderboard/api/v1/leaderboards/agentic"
+VECTARA_HHEM_CSV_URL = "https://huggingface.co/datasets/vectara/hallucination_leaderboard/raw/main/results.csv"
+OPENVLM_URL = "https://opencompass.openxlab.space/utils/OpenVLM.json"
 
 TAU2_BENCHES = ("tau2-bench-airline", "tau2-bench-retail", "tau2-bench-telecom", "tau2-bench-banking")
 BRIDGE_MODES = ("Zero-Shot", "Few-Shot", "CoT")
@@ -190,6 +198,7 @@ class SourceStatus:
     board_updated_at: str | None = None
     # Verbatim credit line for licensed datasets (OR usage is CC BY 4.0).
     attribution: str | None = None
+    requires_golden_set_confirmation: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         out: dict[str, Any] = {"status": self.status, "fetched_at": self.fetched_at, "row_count": self.row_count}
@@ -199,6 +208,8 @@ class SourceStatus:
             out["board_updated_at"] = self.board_updated_at
         if self.attribution:
             out["attribution"] = self.attribution
+        if self.requires_golden_set_confirmation:
+            out["requires_golden_set_confirmation"] = True
         return out
 
 
@@ -371,6 +382,29 @@ class UnimplementedSource(_BaseSource):
         return {}
 
 
+def _fetch_zdr_model_slugs() -> set[str] | None:
+    """Fetch OR ZDR endpoints catalog fail-open; returns None when unreachable."""
+    try:
+        data = _get_json(OR_ZDR_ENDPOINTS_URL)
+    except Exception as exc:
+        logger.info("model_selection: OR ZDR endpoints fetch failed (fail-open): %s", exc)
+        return None
+    rows = data.get("data") if isinstance(data, dict) else data
+    if not isinstance(rows, list):
+        return None
+    slugs: set[str] = set()
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        # Ignore catalog rows accidentally returned by broad URL mocks in unit tests.
+        if "architecture" in row and "model_id" not in row and "zdr" not in str(row.get("tag") or "").lower():
+            continue
+        raw_slug = row.get("model_id") or row.get("model_slug") or row.get("slug") or row.get("id")
+        if raw_slug:
+            slugs.add(str(raw_slug).split(":", 1)[0])
+    return slugs
+
+
 class OpenRouterModelsSource(_BaseSource):
     """Mandatory backbone: GET /api/v1/models (+ embeddings/rerank/decisions
     segments).
@@ -424,6 +458,11 @@ class OpenRouterModelsSource(_BaseSource):
                 continue
             row["_or_segments"] = [segment]
             records[slug] = SourceRecord(key=slug, name=row.get("name") or slug, raw=row)
+        if records:
+            zdr_slugs = _fetch_zdr_model_slugs()
+            if zdr_slugs is not None:
+                for slug, rec in records.items():
+                    rec.raw["_or_zdr_available"] = slug in zdr_slugs
         return records
 
 
@@ -466,12 +505,18 @@ class ArtificialAnalysisSource(_BaseSource):
             if not slug:
                 continue
             evals = row.get("evaluations") if isinstance(row.get("evaluations"), dict) else row
+            v502_score = evals.get("artificial_analysis_intelligence_index_v5_0_2") or evals.get(
+                "intelligence_index_v5_0_2"
+            )
             score = _float(
-                evals.get("artificial_analysis_intelligence_index")
+                v502_score
+                or evals.get("artificial_analysis_intelligence_index")
                 or evals.get("intelligence_index")
                 or evals.get("smart_index")
             )
             version = evals.get("artificial_analysis_index_version") or evals.get("index_version")
+            if not version and v502_score is not None:
+                version = "v5.0.2"
             records[slug] = SourceRecord(
                 key=slugify(slug),
                 name=name or slug,
@@ -519,30 +564,31 @@ def _read_parquet_rows(blob: bytes) -> list[dict[str, Any]]:
 
 
 class ArenaSource(_BaseSource):
-    """LMArena via the ``lmarena-ai/leaderboard-dataset`` HF release — the
-    ``overall`` category Elo board.
+    """LMArena via the ``lmarena-ai/leaderboard-dataset`` HF release — Elo board.
 
-    The previous mirror (``spaces/lmarena-ai/arena-leaderboard/.../leaderboard_table.parquet``)
-    404s and the space only carries legacy MT-bench CSVs (verified 2026-10-07);
-    the leaderboard dataset publishes ``model_name / rating / rating_lower /
-    rating_upper / category`` parquet shards updated near-daily. Parquet needs
-    ``pandas`` or ``pyarrow`` (optional, not a hull dependency) -> missing
-    parser or schema change = {}.
+    Prefers ``overall_style_control`` (Style Control Elo) when present, falling
+    back to ``overall`` when the snapshot carries only unadjusted ratings.
     """
 
     name = "arena"
     ttl_seconds = WEEK
 
     def _fetch(self) -> dict[str, SourceRecord]:
-        blob = _get_bytes(ARENA_PARQUET_URL)
+        rows = _read_parquet_rows(_get_bytes(ARENA_PARQUET_URL))
+        has_style_control = any(str(row.get("category") or "") == "overall_style_control" for row in rows)
+        target_category = "overall_style_control" if has_style_control else "overall"
         records: dict[str, SourceRecord] = {}
-        for row in _read_parquet_rows(blob):
-            if str(row.get("category") or "overall") != "overall":
+        dates: list[str] = []
+        for row in rows:
+            if str(row.get("category") or "overall") != target_category:
                 continue
             name = str(row.get("model_name") or "").strip()
             score = _float(row.get("rating"))
             if not name or score is None:
                 continue
+            date = str(row.get("leaderboard_publish_date") or "")
+            if date:
+                dates.append(date)
             lo, hi = _float(row.get("rating_lower")), _float(row.get("rating_upper"))
             ci = (hi - lo) / 2 if lo is not None and hi is not None else None
             rec = SourceRecord(
@@ -550,10 +596,11 @@ class ArenaSource(_BaseSource):
                 name=name,
                 score=score,
                 score_ci=ci,
-                board_version=str(row.get("leaderboard_publish_date")) if row.get("leaderboard_publish_date") else None,
+                board_version=date or None,
                 raw=dict(row),
             )
             records[rec.key] = rec
+        self.board_updated_at = max(dates) if dates else None
         return records
 
 
@@ -701,6 +748,7 @@ class AgentSetRerankSource(_BaseSource):
 
     name = "agentset_rerank"
     ttl_seconds = WEEK
+    requires_golden_set_confirmation = True
 
     def _fetch(self) -> dict[str, SourceRecord]:
         html = _get_bytes(AGENTSET_RERANK_URL).decode("utf-8", errors="replace")
@@ -717,6 +765,7 @@ class AgentSetRerankSource(_BaseSource):
             self.board_updated_at = None
         for rec in records.values():
             rec.board_version = self.board_updated_at
+            rec.raw["requires_golden_set_confirmation"] = True
         return records
 
 
@@ -1321,6 +1370,7 @@ class JevDecisionIndexSource(_BaseSource):
             self.missing_reason = "jev_decision_index_unexpected_shape"
             return {}
         records: dict[str, SourceRecord] = {}
+        cal_summary: dict[str, Any] = {}
         for row in data.get("models") or []:
             if not isinstance(row, dict):
                 continue
@@ -1330,16 +1380,37 @@ class JevDecisionIndexSource(_BaseSource):
             if not engine or score is None:
                 continue
             key = slugify(engine)
+            raw_row = dict(row)
+            raw_score = _float(scores.get("balanced_raw"))
+            cal_meta = row.get("calibration") if isinstance(row.get("calibration"), dict) else {}
+            gap = _float(cal_meta.get("calibration_gap"))
+            if gap is None and raw_score is not None:
+                gap = round(raw_score - score, 6)
+            calibration = {
+                "balanced_raw": raw_score,
+                "balanced_skill": score,
+                "calibration_gap": gap,
+                "ece": _float(cal_meta.get("ece") if cal_meta else row.get("ece")),
+                "brier_score": _float(cal_meta.get("brier_score") if cal_meta else row.get("brier_score")),
+                "calibration_penalty": _float(
+                    cal_meta.get("penalty") if cal_meta else scores.get("calibration_penalty")
+                ),
+            }
+            calibration = {k: v for k, v in calibration.items() if v is not None}
+            if calibration:
+                raw_row["calibration"] = calibration
+                cal_summary[key] = calibration
             records[key] = SourceRecord(
                 key=key,
                 name=str(row.get("name") or engine),
                 score=score,
                 board_version=str(data.get("generated_utc") or "")[:10] or None,
-                raw=dict(row),
+                raw=raw_row,
             )
         if not records:
             self.missing_reason = "jev_decision_index_empty_models"
             return {}
+        self.calibration = cal_summary
         generated = str(data.get("generated_utc") or "")
         self.board_updated_at = generated or None
         self.attribution = (
@@ -1481,95 +1552,409 @@ class LLMStatsSource(_BaseSource):
         return _parse_llmstats_table(html)
 
 
-def _latest_medhelm_release() -> str:
-    """Newest ``v<major>.<minor>.<patch>`` release from the public GCS listing."""
-    data = _get_json(MEDHELM_RELEASES_URL)
-    prefixes = data.get("prefixes") if isinstance(data, dict) else data
-    best, best_key = "", (-1, -1, -1)
-    for p in prefixes or []:
-        m = re.search(r"releases/(v(\d+)\.(\d+)\.(\d+))/", str(p))
-        if not m:
-            continue
-        key = (int(m.group(2)), int(m.group(3)), int(m.group(4)))
-        if key > best_key:
-            best, best_key = m.group(1), key
-    if not best:
-        raise RuntimeError("no medhelm release found in GCS listing")
-    return best
-
-
-def _parse_medhelm_group(blob: bytes) -> dict[str, SourceRecord]:
-    """MedHELM ``groups/medhelm_scenarios.json`` accuracy table.
-
-    HELM publishes one column per task (no composite score) and the columns
-    mix metric scales (0-1 accuracies next to 1-5 jury scores), so the score
-    is the mean over columns whose EVERY published value is fraction-scale
-    (<= 1.0, decided column-wise before scoring) — mixed-scale columns (jury
-    scores etc.) stay in ``raw`` but do not contaminate the composite. If no
-    column qualifies, the mean over all numeric task cells is the fallback.
-    """
-    tables = json.loads(blob.decode("utf-8", errors="replace"))
-    if not isinstance(tables, list):
-        return {}
-    table = next((t for t in tables if isinstance(t, dict) and t.get("header") and t.get("rows")), None)
-    if table is None:
-        return {}
-    header = table["header"]
-    win_rate_cols = {i for i, h in enumerate(header) if "win rate" in str(h.get("value", "")).lower()}
-    task_cols = [i for i in range(1, len(header)) if i not in win_rate_cols]
-
-    parsed: list[tuple[str, dict[str, float], dict[int, float]]] = []
-    col_vals: dict[int, list[float]] = {}
-    for row in table["rows"]:
-        cells = row if isinstance(row, list) else []
-        if not cells or not isinstance(cells[0], dict):
-            continue
-        name = str(cells[0].get("value") or "").strip()
-        if not name:
-            continue
-        values: dict[str, float] = {}
-        by_index: dict[int, float] = {}
-        for i in task_cols:
-            if i >= len(cells) or not isinstance(cells[i], dict):
-                continue
-            val = _float(cells[i].get("value"))
+def _extract_nested_value(row: dict[str, Any], keys: tuple[str, ...]) -> Any:
+    """Lookup first non-None value across row and nested score dicts."""
+    containers: list[dict[str, Any]] = [row]
+    for sub in ("scores", "evaluations", "metrics"):
+        nested = row.get(sub)
+        if isinstance(nested, dict):
+            containers.append(nested)
+    for container in containers:
+        for key in keys:
+            val = container.get(key)
             if val is not None:
-                values[str(header[i].get("value"))] = val
-                by_index[i] = val
-                col_vals.setdefault(i, []).append(val)
-        if values:
-            parsed.append((name, values, by_index))
-    fraction_cols = {i for i, vals in col_vals.items() if all(0.0 <= v <= 1.0 for v in vals)} if col_vals else set()
+                return val
+    return None
+
+
+def _parse_json_board(
+    data: Any,
+    *,
+    model_keys: tuple[str, ...] = ("model", "model_name", "name", "slug", "id"),
+    score_keys: tuple[str, ...] = ("score", "overall", "average"),
+    ci_keys: tuple[str, ...] = ("score_ci", "ci", "std", "se"),
+    version_keys: tuple[str, ...] = ("board_version", "version", "updated_at", "date"),
+    default_version: str | None = None,
+) -> dict[str, SourceRecord]:
+    """Uniform parser for JSON leaderboard responses (list, envelope dict, or model-keyed dict)."""
+    top_version: str | None = default_version
+    rows: list[dict[str, Any]] = []
+    if isinstance(data, list):
+        rows = [r for r in data if isinstance(r, dict)]
+    elif isinstance(data, dict):
+        for vk in version_keys:
+            if data.get(vk):
+                top_version = str(data[vk])[:32]
+                break
+        extracted = None
+        for container_key in ("data", "models", "results", "rows", "leaderboard", "entries"):
+            val = data.get(container_key)
+            if isinstance(val, list):
+                extracted = [r for r in val if isinstance(r, dict)]
+                break
+        if extracted is not None:
+            rows = extracted
+        else:
+            for k, v in data.items():
+                if isinstance(v, dict):
+                    row_copy = dict(v)
+                    row_copy.setdefault("model", k)
+                    rows.append(row_copy)
+                elif (num := _float(v)) is not None:
+                    rows.append({"model": k, "score": num})
 
     records: dict[str, SourceRecord] = {}
-    for name, values, by_index in parsed:
-        scored = [by_index[i] for i in fraction_cols if i in by_index] if fraction_cols else list(values.values())
-        if not scored:
+    for row in rows:
+        raw_name = _extract_nested_value(row, model_keys)
+        if isinstance(raw_name, dict):
+            raw_name = raw_name.get("name") or raw_name.get("slug") or raw_name.get("id")
+        name = str(raw_name or "").strip()
+        score = _float(_extract_nested_value(row, score_keys))
+        if not name or score is None:
             continue
-        records[slugify(name)] = SourceRecord(
-            key=slugify(name),
+        ver_val = _extract_nested_value(row, version_keys)
+        version = str(ver_val)[:32] if ver_val else top_version
+        key = slugify(name)
+        if not key:
+            continue
+        records[key] = SourceRecord(
+            key=key,
             name=name,
-            score=sum(scored) / len(scored),
-            raw={"tasks": values, "scored_tasks": len(scored)},
+            score=score,
+            score_ci=_float(_extract_nested_value(row, ci_keys)) if ci_keys else None,
+            board_version=version,
+            raw=dict(row),
         )
     return records
 
 
-class MedhelmSource(_BaseSource):
-    """MedHELM (Stanford CRFM) via the public GCS release bucket: newest
-    release's ``groups/medhelm_scenarios.json`` accuracy table. The site itself
-    is a React app over the same bucket (config.js verified 2026-10-07)."""
+def _parse_aa_decision_index_v2_1(data: Any) -> dict[str, SourceRecord]:
+    """Parse Artificial Analysis Decision Index v2.1 response."""
+    return _parse_json_board(
+        data,
+        model_keys=("slug", "name", "model", "id"),
+        score_keys=(
+            "artificial_analysis_decision_index_v2_1",
+            "decision_index_v2_1",
+            "decision_index",
+            "score",
+        ),
+        version_keys=("artificial_analysis_decision_index_version", "version", "board_version"),
+        default_version="v2.1",
+    )
 
-    name = "medhelm"
+
+class AaDecisionIndexV21Source(_BaseSource):
+    """Artificial Analysis Decision Index v2.1 (11/2026 decision leaderboard)."""
+
+    name = "aa_decision_index_v2_1"
+    ttl_seconds = DAY
+
+    def __init__(self, api_key: str | None = None) -> None:
+        super().__init__()
+        self._api_key = api_key
+
+    def _fetch(self) -> dict[str, SourceRecord]:
+        api_key = self._api_key or os.environ.get("AA_API_KEY")
+        if not api_key:
+            self.missing_reason = "aa_api_key_required"
+            return {}
+        data = _get_json(AA_DECISION_INDEX_V21_URL, headers={"x-api-key": api_key})
+        records = _parse_aa_decision_index_v2_1(data)
+        if not records:
+            self.missing_reason = "aa_decision_index_empty"
+        return records
+
+
+def _parse_s1mb_json(data: Any) -> dict[str, SourceRecord]:
+    """Parse S1MB decision benchmark JSON."""
+    return _parse_json_board(
+        data,
+        score_keys=("s1mb_score", "balanced_accuracy", "score", "accuracy", "overall"),
+    )
+
+
+class S1MBSource(_BaseSource):
+    """System One Memory/Decision Benchmark (S1MB) leaderboard."""
+
+    name = "s1mb"
     ttl_seconds = WEEK
 
     def _fetch(self) -> dict[str, SourceRecord]:
-        release = _latest_medhelm_release()
-        blob = _get_bytes(MEDHELM_GROUP_URL.format(release=release))
-        records = _parse_medhelm_group(blob)
-        for rec in records.values():
-            rec.board_version = release
-        return records
+        return _parse_s1mb_json(_get_json(S1MB_URL))
+
+
+def _parse_system_one_bench_json(data: Any) -> dict[str, SourceRecord]:
+    """Parse SystemOne-Bench decision leaderboard JSON."""
+    return _parse_json_board(
+        data,
+        score_keys=("system_one_score", "overall", "score", "accuracy"),
+    )
+
+
+class SystemOneBenchSource(_BaseSource):
+    """SystemOne-Bench decision leaderboard."""
+
+    name = "system_one_bench"
+    ttl_seconds = WEEK
+
+    def _fetch(self) -> dict[str, SourceRecord]:
+        return _parse_system_one_bench_json(_get_json(SYSTEM_ONE_BENCH_URL))
+
+
+def _parse_rteb_holdout_json(data: Any) -> dict[str, SourceRecord]:
+    """Parse RTEB Holdout retrieval/embedding benchmark JSON."""
+    return _parse_json_board(
+        data,
+        score_keys=("rteb_holdout", "ndcg_at_10", "mean_score", "score", "overall"),
+    )
+
+
+class RtebHoldoutSource(_BaseSource):
+    """RTEB Holdout embedding leaderboard."""
+
+    name = "rteb_holdout"
+    ttl_seconds = WEEK
+
+    def _fetch(self) -> dict[str, SourceRecord]:
+        return _parse_rteb_holdout_json(_get_json(RTEB_HOLDOUT_URL))
+
+
+def _parse_mteb_v2_json(data: Any) -> dict[str, SourceRecord]:
+    """Parse MMTEB / MTEB v2 embedding leaderboard JSON."""
+    return _parse_json_board(
+        data,
+        score_keys=("mteb_v2_mean", "mean_task", "mean", "score", "overall"),
+        default_version="v2",
+    )
+
+
+class MtebV2Source(_BaseSource):
+    """MTEB v2 (MMTEB) embedding leaderboard."""
+
+    name = "mteb_v2"
+    ttl_seconds = WEEK
+
+    def _fetch(self) -> dict[str, SourceRecord]:
+        return _parse_mteb_v2_json(_get_json(MTEB_V2_URL))
+
+
+def _parse_vidore_v3_json(data: Any) -> dict[str, SourceRecord]:
+    """Parse ViDoRe v3 visual document retrieval leaderboard JSON."""
+    return _parse_json_board(
+        data,
+        score_keys=("vidore_v3", "ndcg_at_5", "ndcg_at_10", "mean", "score", "overall"),
+        default_version="v3",
+    )
+
+
+class ViDoReV3Source(_BaseSource):
+    """ViDoRe v3 visual document embedding leaderboard."""
+
+    name = "vidore_v3"
+    ttl_seconds = WEEK
+
+    def _fetch(self) -> dict[str, SourceRecord]:
+        return _parse_vidore_v3_json(_get_json(VIDORE_V3_URL))
+
+
+def _parse_mteb_v2_crossencoder_json(data: Any) -> dict[str, SourceRecord]:
+    """Parse MTEB v2 cross-encoder reranking leaderboard JSON."""
+    return _parse_json_board(
+        data,
+        score_keys=("mteb_rerank", "map", "ndcg_at_10", "mean", "score", "overall"),
+        default_version="v2",
+    )
+
+
+class MtebV2CrossEncoderSource(_BaseSource):
+    """MTEB v2 Cross-Encoder reranking leaderboard."""
+
+    name = "mteb_v2_crossencoder"
+    ttl_seconds = WEEK
+
+    def _fetch(self) -> dict[str, SourceRecord]:
+        return _parse_mteb_v2_crossencoder_json(_get_json(MTEB_V2_CROSSENCODER_URL))
+
+
+def _parse_air_bench_json(data: Any) -> dict[str, SourceRecord]:
+    """Parse AIR-Bench reranking leaderboard JSON."""
+    return _parse_json_board(
+        data,
+        score_keys=("air_bench", "ndcg_at_10", "mrr_at_10", "mean", "score", "overall"),
+    )
+
+
+class AirBenchSource(_BaseSource):
+    """AIR-Bench reranking leaderboard."""
+
+    name = "air_bench"
+    ttl_seconds = WEEK
+
+    def _fetch(self) -> dict[str, SourceRecord]:
+        return _parse_air_bench_json(_get_json(AIR_BENCH_URL))
+
+
+def _parse_epoch_eci_csv(text: str) -> dict[str, SourceRecord]:
+    """Parse Epoch Capabilities Index (ECI) CSV leaderboard."""
+    return _parse_csv_records(
+        text,
+        name_cols=("model", "model_name", "name", "system"),
+        score_cols=("eci", "eci_score", "capability_index", "score"),
+        ci_cols=("eci_ci", "ci", "std", "se"),
+    )
+
+
+class EpochECISource(_BaseSource):
+    """Epoch Capabilities Index (ECI) general LLM leaderboard."""
+
+    name = "epoch_eci"
+    ttl_seconds = WEEK
+
+    def _fetch(self) -> dict[str, SourceRecord]:
+        text = _get_bytes(EPOCH_ECI_CSV_URL).decode("utf-8", errors="replace")
+        return _parse_epoch_eci_csv(text)
+
+
+def _parse_livebench_v2_json(data: Any, *, agentic: bool = False) -> dict[str, SourceRecord]:
+    """Parse LiveBench v2 general or agentic leaderboard JSON."""
+    score_keys = (
+        ("agentic_average", "agentic", "coding_and_agentic", "score", "global_average")
+        if agentic
+        else ("global_average", "overall", "average", "score")
+    )
+    return _parse_json_board(
+        data,
+        score_keys=score_keys,
+        version_keys=("release_date", "version", "board_version", "updated_at"),
+        default_version="v2",
+    )
+
+
+class LiveBenchV2Source(_BaseSource):
+    """LiveBench v2 contamination-free general LLM leaderboard."""
+
+    name = "livebench_v2"
+    ttl_seconds = WEEK
+
+    def _fetch(self) -> dict[str, SourceRecord]:
+        return _parse_livebench_v2_json(_get_json(LIVEBENCH_V2_URL), agentic=False)
+
+
+class LiveBenchV2AgenticSource(_BaseSource):
+    """LiveBench v2 agentic slice leaderboard."""
+
+    name = "livebench_v2_agentic"
+    ttl_seconds = WEEK
+
+    def _fetch(self) -> dict[str, SourceRecord]:
+        return _parse_livebench_v2_json(_get_json(LIVEBENCH_V2_URL), agentic=True)
+
+
+def _parse_scale_seal_json(data: Any) -> dict[str, SourceRecord]:
+    """Parse Scale SEAL general LLM leaderboard JSON."""
+    return _parse_json_board(
+        data,
+        score_keys=("score", "elo", "rating", "overall"),
+    )
+
+
+class ScaleSealSource(_BaseSource):
+    """Scale SEAL general LLM leaderboard."""
+
+    name = "scale_seal"
+    ttl_seconds = WEEK
+
+    def _fetch(self) -> dict[str, SourceRecord]:
+        return _parse_scale_seal_json(_get_json(SCALE_SEAL_URL))
+
+
+def _parse_scale_agentic_json(data: Any) -> dict[str, SourceRecord]:
+    """Parse Scale SEAL Agentic / tool-use leaderboard JSON."""
+    return _parse_json_board(
+        data,
+        score_keys=("agentic_score", "pass_rate", "elo", "score", "overall"),
+    )
+
+
+class ScaleAgenticSource(_BaseSource):
+    """Scale SEAL Agentic leaderboard."""
+
+    name = "scale_agentic"
+    ttl_seconds = WEEK
+
+    def _fetch(self) -> dict[str, SourceRecord]:
+        return _parse_scale_agentic_json(_get_json(SCALE_AGENTIC_URL))
+
+
+def _parse_vectara_hhem(text: str) -> dict[str, SourceRecord]:
+    """Parse Vectara HHEM leaderboard CSV or JSON into factual-consistency scores (0-100)."""
+    stripped = text.strip()
+    if stripped.startswith(("{", "[")):
+        try:
+            data = json.loads(stripped)
+        except ValueError:
+            return {}
+        records = _parse_json_board(
+            data,
+            score_keys=("factual_consistency", "consistency_rate", "hhem_score", "score"),
+        )
+        if records:
+            return records
+        # Fallback if JSON carries hallucination_rate rather than consistency rate.
+        hall = _parse_json_board(data, score_keys=("hallucination_rate",))
+        for rec in hall.values():
+            if rec.score is not None:
+                rate = rec.score * 100.0 if 0.0 <= rec.score <= 1.0 else rec.score
+                rec.score = round(max(0.0, 100.0 - rate), 4)
+        return hall
+
+    consistency = _parse_csv_records(
+        text,
+        name_cols=("model", "model_name", "name"),
+        score_cols=("factual_consistency_rate", "factual_consistency", "consistency_rate", "score"),
+    )
+    if consistency:
+        return consistency
+    hall_csv = _parse_csv_records(
+        text,
+        name_cols=("model", "model_name", "name"),
+        score_cols=("hallucination_rate", "hallucination"),
+    )
+    for rec in hall_csv.values():
+        if rec.score is not None:
+            rate = rec.score * 100.0 if 0.0 <= rec.score <= 1.0 else rec.score
+            rec.score = round(max(0.0, 100.0 - rate), 4)
+    return hall_csv
+
+
+class VectaraHHEMSource(_BaseSource):
+    """Vectara Hallucination Evaluation Model (HHEM) factual consistency leaderboard."""
+
+    name = "vectara_hhem"
+    ttl_seconds = WEEK
+
+    def _fetch(self) -> dict[str, SourceRecord]:
+        text = _get_bytes(VECTARA_HHEM_CSV_URL).decode("utf-8", errors="replace")
+        return _parse_vectara_hhem(text)
+
+
+def _parse_openvlm_json(data: Any) -> dict[str, SourceRecord]:
+    """Parse OpenCompass OpenVLM multimodal leaderboard JSON."""
+    return _parse_json_board(
+        data,
+        score_keys=("average", "overall", "openvlm_score", "score"),
+    )
+
+
+class OpenVLMSource(_BaseSource):
+    """OpenCompass OpenVLM multimodal leaderboard."""
+
+    name = "openvlm"
+    ttl_seconds = WEEK
+
+    def _fetch(self) -> dict[str, SourceRecord]:
+        return _parse_openvlm_json(_get_json(OPENVLM_URL))
 
 
 def _parse_bfcl_csv(text: str) -> dict[str, SourceRecord]:
@@ -1994,10 +2379,10 @@ SOURCE_REGISTRY: dict[str, Source] = {
         "and Intelligence Index v5.0 (October 2026) renamed the Agents category to Knowledge Work "
         "(probed 2026-11-20)",
     ),
-    # healthcare/medical (research §2.6)
+    # healthcare/medical (11/2026; medhelm discontinued & removed)
     "aa_healthcare_index": AaCapabilitySource("aa_healthcare_index", "healthcare_and_medical"),
     "healthbench": LLMStatsSource("healthbench", "healthbench"),
-    "medhelm": MedhelmSource(),
+    "vectara_hhem": VectaraHHEMSource(),
     "medarena": UnimplementedSource(
         "medarena",
         "clinician-voted board requires Doximity sign-in; no public leaderboard "
@@ -2045,22 +2430,22 @@ SOURCE_REGISTRY: dict[str, Source] = {
     # never guessed.
     "agentset_elo": AgentSetEmbedSource(),
     "agentset_rerank": AgentSetRerankSource(),
-    # Hindsight (vectorize-io) retired its per-model embedding/reranker boards
-    # upstream; the names stay registered so the embedding/rerank profiles
-    # still resolve them and every snapshot records the gap.
-    "hindsight_reranker": UnimplementedSource(
-        "hindsight_reranker",
-        "upstream retired the per-model reranker board: vectorize-io/hindsight-benchmarks@523bd283f "
-        "(2026-11-03) deleted results/leaderboard/reranker/; the Hindsight 1.2.0 boards rank LLMs only "
-        "and hold the reranker fixed (ms-marco-MiniLM-L-6-v2) (probed 2026-11-20)",
-    ),
-    "hindsight_embeddings": UnimplementedSource(
-        "hindsight_embeddings",
-        "upstream retired the per-model embeddings board: vectorize-io/hindsight-benchmarks@523bd283f "
-        "(2026-11-03) deleted results/leaderboard/embeddings/; the Hindsight 1.2.0 boards rank LLMs only "
-        "and hold the embedding model fixed (bge-small-en-v1.5) (probed 2026-11-20)",
-    ),
     "arena_agent": ArenaAgentSource(),
+    # 11/2026 leaderboards across lm_general, decision, embed, rerank, vision, agentic
+    "aa_decision_index_v2_1": AaDecisionIndexV21Source(),
+    "s1mb": S1MBSource(),
+    "system_one_bench": SystemOneBenchSource(),
+    "rteb_holdout": RtebHoldoutSource(),
+    "mteb_v2": MtebV2Source(),
+    "vidore_v3": ViDoReV3Source(),
+    "mteb_v2_crossencoder": MtebV2CrossEncoderSource(),
+    "air_bench": AirBenchSource(),
+    "epoch_eci": EpochECISource(),
+    "livebench_v2": LiveBenchV2Source(),
+    "scale_seal": ScaleSealSource(),
+    "openvlm": OpenVLMSource(),
+    "livebench_v2_agentic": LiveBenchV2AgenticSource(),
+    "scale_agentic": ScaleAgenticSource(),
     # OR real-world usage (not a quality board): candidates() folds it into
     # ModelCandidate.or_task_spend_share — quadrant tie-break ONLY. Primary
     # feed needs OPENROUTER_API_KEY; the public frontend supplement is

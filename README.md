@@ -76,9 +76,9 @@ npm install @n24q02m/hull
 
 | Source dir | Import package | Extra | Purpose |
 |---|---|---|---|
-| `packages/core-py` | `hull_core` | (base; MTEB boards need `[mteb]`) | Auth (3 modes), per-task model cells, limiter, `~/.hull/` SQLite WAL storage, `server start` + `/mcp` endpoint, CLI, SSRF-safe HTTP, lifecycle lock, `model_selection` leaderboard picker + runtime registry (refresh → eval-on-change → promote) |
+| `packages/core-py` | `hull_core` | (base; MTEB boards need `[mteb]`) | Auth (3 modes), per-task model cells, limiter, `~/.hull/` SQLite WAL storage, `server start` + `/mcp` endpoint, CLI, SSRF-safe HTTP, lifecycle lock, skills directory mount with a SHA-256 digest guard (`skills.digest.json`), `model_selection` leaderboard picker + runtime registry (refresh → eval-on-change → promote) |
 | `packages/web` | `hull_web` | `[web]` | Search (SearXNG), scraping strategies, stealth browsers, fingerprinting, HTTP/SSRF security |
-| `packages/core-ts` | `@n24q02m/hull` (npm) | n/a | TypeScript core: MCP Streamable HTTP transport, token-table auth (`token`, `multi`), `buildCli` console builder, encrypted credential storage, lockfiles and cache |
+| `packages/core-ts` | `@n24q02m/hull` (npm) | n/a | TypeScript core: MCP Streamable HTTP transport, token-table auth (`token`, `multi`), `buildCli` console builder, encrypted credential storage, skills catalog with the same digest guard, lockfiles and cache |
 
 ## Runtime model
 
@@ -118,6 +118,8 @@ uv run hull config get server.port        # print one key (secrets are not echoe
 printf '%s' "$TOKEN" | uv run hull token hash  # mint a token_hash for users.toml / config
 uv run hull status                    # auth mode, bind, DB path
 uv run hull doctor                    # python / config / users.toml checks
+uv run hull skills digest ./skills    # pin the SHA-256 of every skill file
+uv run hull skills verify ./skills    # exit 1 on a changed, missing or unlisted file
 uv run hull server start              # serves http://127.0.0.1:8000/mcp
 ```
 
@@ -125,6 +127,13 @@ uv run hull server start              # serves http://127.0.0.1:8000/mcp
 on the command line is refused, because it would land in shell history.
 `hull --version` prints the installed version, and `hull <command> -h` lists
 that command's flags.
+
+`hull skills digest` writes `skills.digest.json` at the root of a skills
+directory. Once it is there, the skills mount in both languages
+(`attach_skills_provider` in Python, `attachSkillsProvider` in TypeScript)
+checks every skill file against it and refuses the whole directory on a
+changed byte, a missing file or a file with no entry. See
+[Skills integrity](packages/core-py/README.md#skills-integrity) for the details.
 
 ## Development
 

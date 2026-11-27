@@ -21,17 +21,29 @@ from hull_core.server.mcp_extensions import (
     elicit_with_fallback,
 )
 from hull_core.server.run import ServerConfigError, run_server
-from hull_core.server.skills import SKILLS_EXTENSION_ID, attach_skills_provider
+from hull_core.server.skills import (
+    SKILLS_DIGEST_FILENAME,
+    SKILLS_DIGEST_VERSION,
+    SKILLS_EXTENSION_ID,
+    SkillIntegrityError,
+    attach_skills_provider,
+    compute_skill_digests,
+    verify_skill_digests,
+    write_skill_digests,
+)
 
 __all__ = [
     "FILES_EXTENSION_ID",
     "MCP_2026_07_28_HEADERS",
     "MCP_CORS_ALLOW_HEADERS",
     "MCP_CORS_EXPOSE_HEADERS",
+    "SKILLS_DIGEST_FILENAME",
+    "SKILLS_DIGEST_VERSION",
     "SKILLS_EXTENSION_ID",
     "TASKS_EXTENSION_ID",
     "ElicitationOutcome",
     "ServerConfigError",
+    "SkillIntegrityError",
     "TaskConfig",
     "TaskMeta",
     "TaskMode",
@@ -42,8 +54,11 @@ __all__ = [
     "build_mcp",
     "build_mcp_cors_middleware",
     "build_task_config",
+    "compute_skill_digests",
     "elicit_with_fallback",
     "load_users_for",
     "run_http_server",
     "run_server",
+    "verify_skill_digests",
+    "write_skill_digests",
 ]

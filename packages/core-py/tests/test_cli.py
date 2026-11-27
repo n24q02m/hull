@@ -12,6 +12,7 @@ from hull_core import __version__
 from hull_core.auth.tokens import hash_token, verify_token
 from hull_core.cli import main
 from hull_core.server.run import ServerConfigError
+from hull_core.server.skills import SKILLS_DIGEST_FILENAME, compute_skill_digests
 
 
 class _Tty(io.StringIO):
@@ -45,6 +46,7 @@ def test_help_lists_subcommands(flag: str, capsys: pytest.CaptureFixture[str]) -
         "token               token utilities (hash)",
         "config              instance config utilities (init, path, show)",
         "db                  storage utilities (path)",
+        "skills              skills digest manifest utilities (digest, verify)",
     ):
         assert line in out
 
@@ -70,11 +72,12 @@ def test_version_prints_the_installed_version(flag: str, capsys: pytest.CaptureF
 @pytest.mark.parametrize(
     ("argv", "choices"),
     [
-        ([], "{server,status,doctor,token,config,db}"),
+        ([], "{server,status,doctor,token,config,db,skills}"),
         (["server"], "{start}"),
         (["token"], "{hash}"),
         (["config"], "{init,path,show,get,set}"),
         (["db"], "{path}"),
+        (["skills"], "{digest,verify}"),
     ],
 )
 def test_missing_subcommand_names_the_choices(
@@ -156,6 +159,91 @@ def test_db_path_prints_location(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     _home(tmp_path, monkeypatch)
     assert main(["db", "path"]) == 0
     assert "hull.db" in capsys.readouterr().out
+
+
+# --- skills digest / verify -------------------------------------------------------------
+
+
+def _skills(root: Path) -> Path:
+    for name in ("alpha", "beta"):
+        skill = root / name
+        skill.mkdir(parents=True)
+        (skill / "SKILL.md").write_bytes(f"---\nname: {name}\ndescription: Test skill {name}\n---\n# {name}\n".encode())
+    return root
+
+
+def test_skills_help_lists_digest_and_verify(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as exc:
+        main(["skills", "--help"])
+    assert exc.value.code == 0
+    out = capsys.readouterr().out
+    assert "write skills.digest.json (SHA-256 of every skill file)" in out
+    assert "check a skills directory against its digest manifest" in out
+
+
+def test_skills_digest_writes_the_manifest(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    root = _skills(tmp_path / "skills")
+    assert main(["skills", "digest", str(root)]) == 0
+    manifest = root.resolve() / SKILLS_DIGEST_FILENAME
+    assert capsys.readouterr().out.strip() == f"wrote {manifest} (2 files)"
+    assert '"alpha/SKILL.md"' in manifest.read_text(encoding="utf-8")
+
+
+def test_skills_digest_honours_a_custom_manifest_path(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    root = _skills(tmp_path / "skills")
+    out = tmp_path / "pinned.json"
+    assert main(["skills", "digest", str(root), "--manifest", str(out)]) == 0
+    assert out.is_file()
+    assert not (root / SKILLS_DIGEST_FILENAME).exists()
+    assert str(out) in capsys.readouterr().out
+
+
+def test_skills_digest_reports_a_missing_directory_as_exit_2(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert main(["skills", "digest", str(tmp_path / "nope")]) == 2
+    assert "error: Skills directory does not exist" in capsys.readouterr().err
+
+
+def test_skills_verify_passes_on_an_untouched_tree(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    root = _skills(tmp_path / "skills")
+    assert main(["skills", "digest", str(root)]) == 0
+    capsys.readouterr()
+    assert main(["skills", "verify", str(root)]) == 0
+    manifest = root.resolve() / SKILLS_DIGEST_FILENAME
+    assert capsys.readouterr().out.strip() == f"ok: 2 files match {manifest}"
+
+
+def test_skills_verify_fails_on_a_tampered_file(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    root = _skills(tmp_path / "skills")
+    assert main(["skills", "digest", str(root)]) == 0
+    (root / "beta" / "SKILL.md").write_bytes(b"---\nname: beta\ndescription: changed\n---\n")
+    capsys.readouterr()
+    assert main(["skills", "verify", str(root)]) == 1
+    err = capsys.readouterr().err
+    assert "error: 1 skill integrity problem(s)" in err
+    assert "- beta/SKILL.md: digest mismatch" in err
+
+
+def test_skills_verify_with_an_external_manifest_and_no_strict(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = _skills(tmp_path / "skills")
+    out = tmp_path / "pinned.json"
+    assert main(["skills", "digest", str(root), "--manifest", str(out)]) == 0
+    (root / "alpha" / "extra.md").write_text("extra\n", encoding="utf-8")
+    capsys.readouterr()
+    assert main(["skills", "verify", str(root), "--manifest", str(out)]) == 1
+    assert "alpha/extra.md: no digest entry" in capsys.readouterr().err
+    assert main(["skills", "verify", str(root), "--manifest", str(out), "--no-strict"]) == 0
+    assert capsys.readouterr().out.strip() == f"ok: 2 files match {out}"
+    assert set(compute_skill_digests(root)) == {"alpha/SKILL.md", "alpha/extra.md", "beta/SKILL.md"}
+
+
+def test_skills_verify_fails_without_a_manifest(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    root = _skills(tmp_path / "skills")
+    assert main(["skills", "verify", str(root)]) == 1
+    assert "Skills digest manifest not found" in capsys.readouterr().err
 
 
 # --- status -----------------------------------------------------------------------------

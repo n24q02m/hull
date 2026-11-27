@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "files": {
+    "hello-skill/.notes": "293c73a3db6887bb7864c6bfca9ffe39c3196aefee06e349d750819b621b281e",
+    "hello-skill/SKILL.md": "5ed1eee1641663d43c3aeb62f999390b1541350665bbf2408d73d065946ef946",
+    "hello-skill/assets/sample.bin": "71a4e83b49f8fcfe83e83f4069443babad6b47f62550fa8e339cc94d3f803265",
+    "hello-skill/references/guide.md": "9759bef069191979db9834423a70aa9236a68141ac8a9e795b44f0ccdef4d131",
+    "ops/deploy/SKILL.md": "57546fb7c521d650020fab7076af8af623ca6358a57be6812ad18dbffe649bba",
+    "ops/deploy/templates/checklist.txt": "9ee17ec332d31ccb244097c4fa8baface118588dfb7e149c610e2a4c62b17737"
+  }
+}

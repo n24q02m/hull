@@ -1,6 +1,6 @@
 {
   "name": "@n24q02m/hull",
-  "version": "0.12.0-beta.1",
+  "version": "0.12.0",
   "description": "hull TypeScript core: MCP 2026-07-28 transport, skills & extensions, token-table HTTP auth, credential storage, CLI builder",
   "keywords": [
     "mcp",
